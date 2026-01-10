@@ -3,77 +3,103 @@ import requests
 import pandas as pd
 import os
 
-# --- 1. DEFINIÇÃO DE USUÁRIOS E SENHAS ---
-# EDITE AQUI: "NOME DO NAVIO": "SENHA"
+# ==========================================
+# BLOCO 1: CONFIGURAÇÕES E BANCO DE DADOS
+# ==========================================
+# Chaves de acesso (Puxando do Streamlit Secrets)
+NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+DATABASE_ID = st.secrets["DATABASE_ID"]
+
+# Lista de Navios e Senhas (Defina aqui o que entregar aos cozinheiros)
 USUARIOS = {
-    "AROEIRA": "ALLAN",
-    "ANGICO": "ELZA",
-    "NAVIO 03": "zion03",
-    "NAVIO 04": "zion04",
-    "NAVIO 05": "zion05",
-    "NAVIO 06": "zion06",
-    "NAVIO 07": "zion07",
-    "NAVIO 08": "zion08",
-    "NAVIO 09": "zion09",
-    "NAVIO 10": "zion10",
-    "NAVIO 11": "zion11",
-    "NAVIO 12": "zion12",
+    "NAVIO 01": "zion01", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
+    "NAVIO 04": "zion04", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
+    "NAVIO 07": "zion07", "NAVIO 08": "zion08", "NAVio 09": "zion09",
+    "NAVIO 10": "zion10", "NAVIO 11": "zion11", "NAVIO 12": "zion12",
     "NAVIO 13": "zion13"
 }
 
-# --- 1. ESTILO VISUAL AJUSTADO ---
+# Configuração da Página
+st.set_page_config(page_title="Zion Rancho", layout="centered")
+
+# Estilo CSS (Fundo Azul, Botões Brancos, Texto Preto nos Botões)
 st.markdown("""
     <style>
     .stApp { background-color: #4169E1; color: white; text-align: center; }
     h1, h2, h3, p, label { color: white !important; }
     
-    /* BOTÕES COM TEXTO PRETO E BEM VISÍVEIS */
+    /* ESTILO DOS BOTÕES: Texto Preto, Fundo Branco */
     .stButton>button { 
         background-color: #FFFFFF !important; 
-        color: #000000 !important; /* Texto Preto conforme solicitado */
+        color: #000000 !important; 
         font-size: 18px !important;
         font-weight: bold !important; 
-        border-radius: 10px; 
-        height: 3em;
+        border-radius: 12px; 
+        height: 3.5em;
         width: 100%;
         border: 2px solid #000000;
-        margin-top: 10px;
+        margin-bottom: 10px;
     }
-
-    /* Ajuste para inputs aparecerem com texto legível */
+    
+    /* Inputs de texto pretos para leitura */
     input { color: black !important; }
+    div[data-baseweb="select"] > div { color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. LÓGICA DE LOGIN E SAUDAÇÃO ---
-if st.session_state.pagina == "login":
+# Controle de Navegação
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "home"
+if 'usuario_ativo' not in st.session_state:
+    st.session_state.usuario_ativo = ""
+
+# ==========================================
+# BLOCO 2: #--- TELA INICIAL ---#
+# ==========================================
+if st.session_state.pagina == "home":
+    st.title("Bem-vindo ao Zion Rancho App!")
+    st.write("Seu controle de estoque inteligente com IA.")
+    
+    # Exibe sua logo se o arquivo existir
+    if os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", width=400)
+    
+    if st.button("INICIAR ACESSO"):
+        st.session_state.pagina = "login"
+        st.rerun()
+
+# ==========================================
+# BLOCO 3: TELA DE LOGIN (ACESSO)
+# ==========================================
+elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
     navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
     senha = st.text_input("Senha de Acesso", type="password")
     
-    # Botão de Entrar com ícone de carrinho 🛒
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     if st.button("🛒 ENTRAR"):
         if navio in USUARIOS and USUARIOS[navio] == senha:
             st.session_state.usuario_ativo = navio
-            st.session_state.logado = True
             st.session_state.pagina = "menu"
-            # Mensagem de sucesso personalizada
-            st.success(f"Seja Bem-vindo, {navio}!") 
             st.rerun()
         else:
             st.error("Navio ou Senha incorretos!")
             
-    # Botão de Voltar
     if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "home"
         st.rerun()
 
-# --- 3. TELA DE MENU (ONDE APARECE A SAUDAÇÃO) ---
+# ==========================================
+# BLOCO 4: #--- SUBSTELA (MENU PRINCIPAL) ---#
+# ==========================================
 elif st.session_state.pagina == "menu":
-    # Saudação personalizada no topo do menu
+    # Saudação Personalizada
     st.markdown(f"## Seja Bem-vindo, {st.session_state.usuario_ativo}!")
-    st.write("Escolha o módulo que deseja acessar:")
+    st.write("Selecione o módulo desejado:")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -87,7 +113,29 @@ elif st.session_state.pagina == "menu":
             st.session_state.pagina = "tripulacao"
             st.rerun()
 
-    if st.button("SAIR"):
-        st.session_state.logado = False
+    st.markdown("---")
+    if st.button("SAIR DO SISTEMA"):
         st.session_state.pagina = "home"
+        st.rerun()
+
+# ==========================================
+# BLOCO 5: ÁREAS DE CONTEÚDO (RANCHO / TRIPULAÇÃO)
+# ==========================================
+elif st.session_state.pagina == "lista_rancho":
+    st.title("🛒 Lista de Rancho")
+    st.info(f"Responsável Logado: {st.session_state.usuario_ativo}")
+    
+    # Aqui chamaremos a função de puxar dados do Notion no próximo passo
+    st.warning("Carregando banco de dados do Notion...")
+    
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
+elif st.session_state.pagina == "tripulacao":
+    st.title("👨‍✈️ Gestão de Tripulação")
+    st.write(f"Módulo acessado por: {st.session_state.usuario_ativo}")
+    
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
         st.rerun()
