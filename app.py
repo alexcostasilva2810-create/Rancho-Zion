@@ -13,7 +13,7 @@ if 'cozinheiro' not in st.session_state:
 USUARIOS = {
     "NAVIO 01": {"nome": "João", "senha": "123"},
     "NAVIO 02": {"nome": "Carlos", "senha": "456"},
-    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "AROEIRA": {"nome": "ALLAN", "senha": "789"},
     "ZION 04": {"nome": "Ricardo", "senha": "101"}
 }
 
