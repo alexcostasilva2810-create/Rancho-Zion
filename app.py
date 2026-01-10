@@ -3,11 +3,9 @@ import requests
 import pandas as pd
 
 # --- CONFIGURAÇÕES ---
-# 1. Cole aqui o seu Token que começa com ntn_
-NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
-
-# 2. O ID que pegamos da sua URL
-DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1"
+# O Streamlit vai ler as chaves que você colocou nos 'Secrets'
+NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+DATABASE_ID = st.secrets["DATABASE_ID"]
 
 headers = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -17,31 +15,52 @@ headers = {
 
 def buscar_dados():
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    response = requests.post(url, headers=headers)
-    if response.status_code == 200:
+    try:
+        response = requests.post(url, headers=headers)
         data = response.json()
+        
         itens = []
-        for row in data["results"]:
+        for row in data.get("results", []):
             p = row["properties"]
-            # Aqui pegamos as colunas exatamente como estão na sua foto
+            
+            # Função auxiliar para ler texto de forma segura
+            def get_text(prop_name):
+                prop = p.get(prop_name, {})
+                # Tenta ler como título ou como texto rico
+                if prop.get("title"):
+                    return prop["title"][0]["text"]["content"]
+                if prop.get("rich_text"):
+                    return prop["rich_text"][0]["text"]["content"]
+                return ""
+
+            # Função auxiliar para ler números
+            def get_num(prop_name):
+                return p.get(prop_name, {}).get("number", 0)
+
             itens.append({
-                "CÓDIGO": p["CÓDIGO"]["title"][0]["text"]["content"] if p["CÓDIGO"]["title"] else "",
-                "PROTEÍNA": p["PROTEÍNA"]["rich_text"][0]["text"]["content"] if p["PROTEÍNA"]["rich_text"] else "",
-                "TIPO": p["TIPO"]["select"]["name"] if p["TIPO"]["select"] else "",
-                "ESTOQUE": p["ESTOQUE"]["number"] if p["ESTOQUE"]["number"] else 0
+                "CÓDIGO": get_text("CÓDIGO"),
+                "PROTEÍNA": get_text("PROTEÍNA"),
+                "UNIDADE": get_text("UNIDADE DE MEDIDA"),
+                "ESTOQUE": get_num("ESTOQUE")
             })
         return pd.DataFrame(itens)
-    return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro técnico: {e}")
+        return pd.DataFrame()
 
+# --- INTERFACE ---
 st.set_page_config(page_title="Zion Rancho", layout="wide")
 st.title("🛒 Estoque Zion Rancho")
 
-df = buscar_dados()
+with st.spinner("Carregando dados do Notion..."):
+    df = buscar_dados()
 
 if not df.empty:
+    # Mostra a tabela organizada
+    st.write("### Itens no Sistema")
     st.dataframe(df, use_container_width=True)
 else:
-    st.error("Erro ao carregar dados. Verifique se o Token está correto e se você 'Conectou' a integração na página do Notion.")
+    st.warning("Nenhum dado encontrado. Verifique se os nomes das colunas no Notion são: CÓDIGO, PROTEÍNA, UNIDADE DE MEDIDA e ESTOQUE.")
 
-if st.button("Atualizar Lista"):
+if st.button("🔄 Atualizar"):
     st.rerun()
