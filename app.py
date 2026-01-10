@@ -4,6 +4,7 @@ import requests
 import os
 from fpdf import FPDF
 import unicodedata
+from datetime import datetime
 
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E ESTADO DA SESSÃO
@@ -51,7 +52,6 @@ def carregar_dados_do_notion():
                     "CONFIRMA": 0
                 })
             df = pd.DataFrame(dados_notion)
-            # Ordenação numérica para garantir sequência 1, 2, 3...
             df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
             return df.sort_values(by='ITEM').reset_index(drop=True)
         return st.session_state.df_lista
@@ -59,13 +59,31 @@ def carregar_dados_do_notion():
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: INTERFACE E PDF PROFISSIONAL
+# BLOCO 3: ESTILO VISUAL
 # =================================================================
-st.markdown("""<style>.stApp { background-color: #4169E1 !important; } h1, h2, h3, p, label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900 !important; border-radius: 10px !important; height: 3.5em; width: 100%; }</style>""", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    .stApp { background-color: #4169E1 !important; }
+    h1, h2, h3, p, label { color: white !important; }
+    div.stButton > button {
+        background-color: #FF8C00 !important;
+        color: black !important;
+        font-weight: 900 !important;
+        border-radius: 10px !important;
+        height: 3.5em;
+        width: 100%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# =================================================================
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO
+# =================================================================
 
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
-    if os.path.exists("APPRANCHO.png"): st.image("APPRANCHO.png", use_container_width=True)
+    if os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", use_container_width=True)
     if st.button("INICIAR ACESSO"):
         st.session_state.pagina = "login"
         st.rerun()
@@ -89,9 +107,6 @@ elif st.session_state.pagina == "menu":
     if st.button("👨‍✈️ TRIPULAÇÃO"):
         st.session_state.pagina = "tripulacao"
         st.rerun()
-    
-    st.markdown("---")
-    # Botão de Sair no Menu Principal
     if st.button("🚪 SAIR DO SISTEMA"):
         st.session_state.pagina = "home"
         st.rerun()
@@ -118,12 +133,13 @@ elif st.session_state.pagina == "lista":
 
     st.markdown("---")
     
-   # GERAÇÃO DO PDF BLINDADA (SEM PÁGINA EM BRANCO)
+    # PDF PROFISSIONAL COM DATA, HORA E LOGO
     if st.button("📄 GERAR PDF"):
         def blindar_texto(texto):
-            # Garante que o texto seja string e limpa caracteres impossíveis
             txt = str(texto) if texto else ""
             return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
+
+        agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
         class PDF(FPDF):
             def header(self):
@@ -131,13 +147,10 @@ elif st.session_state.pagina == "lista":
                     self.image("APPRANCHO.png", 10, 8, 20)
                 self.set_font("Arial", "B", 14)
                 self.set_xy(35, 12)
-                # Título seguro
                 self.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
                 self.ln(10)
-                
-                # Cabeçalho da Tabela
                 self.set_font("Arial", "B", 8)
-                self.set_fill_color(0, 102, 204) # Azul Zion
+                self.set_fill_color(0, 102, 204)
                 self.set_text_color(255, 255, 255)
                 self.cell(12, 10, "ITEM", 1, 0, "C", True)
                 self.cell(70, 10, "DESCRICAO", 1, 0, "C", True)
@@ -146,6 +159,13 @@ elif st.session_state.pagina == "lista":
                 self.cell(18, 10, "ESTOQUE", 1, 0, "C", True)
                 self.cell(30, 10, "CONF.", 1, 1, "C", True)
                 self.set_text_color(0, 0, 0)
+
+            def footer(self):
+                self.set_y(-15)
+                self.set_font("Arial", "I", 7)
+                self.set_text_color(128, 128, 128)
+                texto_rodape = f"Gerado em: {agora} | Zion Rancho App | Pagina {self.page_no()}"
+                self.cell(0, 10, blindar_texto(texto_rodape), 0, 0, "C")
 
         try:
             pdf = PDF(orientation='P', unit='mm', format='A4')
@@ -156,43 +176,42 @@ elif st.session_state.pagina == "lista":
             for _, row in df_editado.iterrows():
                 t_desc = blindar_texto(row["DESCRIÇÃO"])
                 t_tipo = blindar_texto(row["TIPO"])
-                
-                # Cálculo de altura
                 alt_l = 6
-                # Estima linhas (largura total / largura coluna)
                 l_desc = (pdf.get_string_width(t_desc) / 70) + 1
                 l_tipo = (pdf.get_string_width(t_tipo) / 45) + 1
                 h = max(int(l_desc), int(l_tipo)) * alt_l
                 
-                # Se não couber na página, o header() será chamado automaticamente na nova
-                if pdf.get_y() + h > 270:
-                    pdf.add_page()
+                if pdf.get_y() + h > 270: pdf.add_page()
 
                 x, y = pdf.get_x(), pdf.get_y()
                 pdf.cell(12, h, str(int(row["ITEM"])), 1, 0, "C")
-                
-                # Descrição
                 pdf.multi_cell(70, alt_l, t_desc, 1, "L")
-                
-                # Tipo
                 pdf.set_xy(x + 82, y)
                 pdf.multi_cell(45, alt_l, t_tipo, 1, "C")
-                
-                # Colunas Finais
                 pdf.set_xy(x + 127, y)
                 pdf.cell(15, h, blindar_texto(row["UNID MED"]), 1, 0, "C")
                 pdf.cell(18, h, str(row["PREDEFINIDO"]), 1, 0, "C")
                 pdf.cell(30, h, str(row["CONFIRMA"]), 1, 1, "C")
 
-            # MUDANÇA CRUCIAL: Gerar como string de bytes correta para o Streamlit
             pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            st.download_button(
-                label="📥 BAIXAR PDF CORRIGIDO",
-                data=pdf_bytes,
-                file_name=f"Rancho_{st.session_state.navio}.pdf",
-                mime="application/pdf"
-            )
-            st.success("✅ PDF gerado com sucesso! Clique no botão acima para baixar.")
-
+            st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+            st.success("✅ PDF pronto com data e hora!")
         except Exception as e:
-            st.error(f"Erro ao construir o arquivo: {e}")
+            st.error(f"Erro ao gerar PDF: {e}")
+
+    # --- BOTÕES DE NAVEGAÇÃO ---
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅️ VOLTAR AO MENU"):
+            st.session_state.pagina = "menu"
+            st.rerun()
+    with col2:
+        if st.button("🚪 SAIR DO SISTEMA"):
+            st.session_state.pagina = "home"
+            st.rerun()
+
+elif st.session_state.pagina == "tripulacao":
+    st.title("👨‍✈️ Tripulação")
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
