@@ -223,24 +223,30 @@ elif st.session_state.pagina == "lista":
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
-    # Garante que o estado do PDF seja limpo ao entrar na página
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
 
+    # 1. ESCOLTA FORA DO FORMULÁRIO (Para a mensagem mudar instantaneamente)
+    st.subheader("Configuração de Escolta")
+    tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
+
+    # Lógica da Advertência que muda na hora
+    if tem_escolta == "Sim":
+        dias_nauticos = 12
+        st.warning("⚠️ Seu rancho tem que durar por 12 dias.")
+    else:
+        dias_nauticos = 15
+        st.info("ℹ️ O rancho tem que durar ate 15 dias.")
+
+    # 2. INÍCIO DO FORMULÁRIO PARA OS DEMAIS DADOS
     with st.form("form_tripulacao", clear_on_submit=False):
-        st.subheader("Dados do Reabastecimento")
-        
         col1, col2 = st.columns(2)
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
             
-            # Campo para informar a data do último rancho (Formato BR)
             data_ult_br = datetime.now().strftime("%d/%m/%Y")
             data_ultimo_rancho = st.text_input("Data do Último Rancho", value=data_ult_br)
-            
-            # Campo de Escolta com lógica de mensagem dinâmica
-            tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
         
         with col2:
             data_hoje_br = datetime.now().strftime("%d/%m/%Y")
@@ -248,25 +254,18 @@ elif st.session_state.pagina == "tripulacao":
             origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
             destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
-        # Mensagem dinâmica baseada na escolha da escolta
-        if tem_escolta == "Sim":
-            dias_nauticos = 12
-            st.warning("⚠️ Seu rancho tem que durar por 12 dias.")
-        else:
-            dias_nauticos = 15
-            st.info("ℹ️ O rancho tem que durar ate 15 dias.")
-
+        st.markdown("---")
         consideracoes = st.text_area("Considerações (Materiais extras, etc):", height=100)
 
         st.subheader("✍️ Assinatura do Cozinheiro")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
-            height=150, drawing_mode="freedraw", key="canvas_trip_v3"
+            height=150, drawing_mode="freedraw", key="canvas_trip_v4"
         )
 
         btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
 
-    # Lógica de processamento
+    # 3. PROCESSAMENTO DO PDF
     if btn_gerar:
         if not origem or not destino:
             st.error("⚠️ Por favor, preencha a Origem e o Destino!")
@@ -285,7 +284,7 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.ln(10)
                 pdf.set_font("Arial", "", 12)
                 
-                # Texto da declaração atualizado
+                # Texto da declaração sem colchetes
                 texto_corpo = (
                     f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                     f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
@@ -304,7 +303,7 @@ elif st.session_state.pagina == "tripulacao":
                     pdf.set_font("Arial", "", 11)
                     pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
 
-                # Processar Assinatura
+                # Inserir Assinatura
                 img_data = canvas_result.image_data.astype('uint8')
                 img_assinatura = Image.fromarray(img_data, 'RGBA')
                 img_assinatura.save("temp_sig.png")
@@ -313,16 +312,14 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.ln(20)
                 pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
 
-                # Armazena o PDF no estado da sessão para download
                 st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-                st.rerun() # Reinicia para mostrar o botão de download fora do form
+                st.success("✅ PDF Gerado com sucesso!")
 
             except Exception as e:
                 st.error(f"Erro ao criar PDF: {e}")
 
-    # EXPORTAÇÃO: O botão de download aparece aqui se o PDF foi gerado
+    # BOTÃO DE DOWNLOAD (Sempre visível após gerar)
     if st.session_state.pdf_disponivel:
-        st.success("✅ PDF Gerado com sucesso!")
         st.download_button(
             label="📥 BAIXAR DECLARAÇÃO PDF",
             data=st.session_state.pdf_disponivel,
