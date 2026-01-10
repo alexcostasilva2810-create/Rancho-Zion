@@ -223,14 +223,23 @@ elif st.session_state.pagina == "lista":
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
+    # Garante que o estado do PDF seja limpo ao entrar na página
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
 
     with st.form("form_tripulacao", clear_on_submit=False):
+        st.subheader("Dados do Reabastecimento")
+        
         col1, col2 = st.columns(2)
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
+            
+            # Campo para informar a data do último rancho (Formato BR)
+            data_ult_br = datetime.now().strftime("%d/%m/%Y")
+            data_ultimo_rancho = st.text_input("Data do Último Rancho", value=data_ult_br)
+            
+            # Campo de Escolta com lógica de mensagem dinâmica
             tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
         
         with col2:
@@ -239,21 +248,90 @@ elif st.session_state.pagina == "tripulacao":
             origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
             destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
-        dias_nauticos = 12 if tem_escolta == "Sim" else st.number_input("Dias Náuticos", min_value=1, value=15)
-        
+        # Mensagem dinâmica baseada na escolha da escolta
+        if tem_escolta == "Sim":
+            dias_nauticos = 12
+            st.warning("⚠️ Seu rancho tem que durar por 12 dias.")
+        else:
+            dias_nauticos = 15
+            st.info("ℹ️ O rancho tem que durar ate 15 dias.")
+
         consideracoes = st.text_area("Considerações (Materiais extras, etc):", height=100)
 
         st.subheader("✍️ Assinatura do Cozinheiro")
-        # O quadro de assinatura agora está protegido dentro do form
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
-            height=150, drawing_mode="freedraw", key="canvas_trip"
+            height=150, drawing_mode="freedraw", key="canvas_trip_v3"
         )
 
-        # O BOTÃO DEVE FICAR AQUI, DENTRO DO FORMULÁRIO
         btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
 
-    # Lógica de processamento (fora do form)
+    # Lógica de processamento
     if btn_gerar:
-        # ... (restante do código de geração do PDF que já tínhamos)
-        st.success("PDF Gerado!")
+        if not origem or not destino:
+            st.error("⚠️ Por favor, preencha a Origem e o Destino!")
+        elif canvas_result.image_data is None:
+            st.error("⚠️ Por favor, assine o documento antes de gerar!")
+        else:
+            def blindar(t):
+                return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
+
+            try:
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
+                
+                pdf.ln(10)
+                pdf.set_font("Arial", "", 12)
+                
+                # Texto da declaração atualizado
+                texto_corpo = (
+                    f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                    f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
+                    f"a partir de {data_input_br}. O ultimo rancho foi recebido em {data_ultimo_rancho}."
+                )
+                pdf.multi_cell(0, 8, blindar(texto_corpo))
+                
+                pdf.ln(5)
+                pdf.cell(0, 10, blindar(f"Origem: {origem}"), 0, 1)
+                pdf.cell(0, 10, blindar(f"Destino: {destino}"), 0, 1)
+                
+                if consideracoes:
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
+                    pdf.set_font("Arial", "", 11)
+                    pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
+
+                # Processar Assinatura
+                img_data = canvas_result.image_data.astype('uint8')
+                img_assinatura = Image.fromarray(img_data, 'RGBA')
+                img_assinatura.save("temp_sig.png")
+                pdf.image("temp_sig.png", x=75, y=pdf.get_y()+5, w=60)
+                
+                pdf.ln(20)
+                pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
+
+                # Armazena o PDF no estado da sessão para download
+                st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
+                st.rerun() # Reinicia para mostrar o botão de download fora do form
+
+            except Exception as e:
+                st.error(f"Erro ao criar PDF: {e}")
+
+    # EXPORTAÇÃO: O botão de download aparece aqui se o PDF foi gerado
+    if st.session_state.pdf_disponivel:
+        st.success("✅ PDF Gerado com sucesso!")
+        st.download_button(
+            label="📥 BAIXAR DECLARAÇÃO PDF",
+            data=st.session_state.pdf_disponivel,
+            file_name=f"Declaracao_{st.session_state.navio}.pdf",
+            mime="application/pdf"
+        )
+
+    st.markdown("---")
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pdf_disponivel = None
+        st.session_state.pagina = "menu"
+        st.rerun()
