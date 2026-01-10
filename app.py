@@ -237,13 +237,15 @@ elif st.session_state.pagina == "tripulacao":
                 dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
             
             with col2:
-                # Campo de data ajustado para o padrão brasileiro na exibição
-                data_selecionada = st.date_input("A partir de (Data)", value=datetime.now())
+                # CORREÇÃO DA DATA: Agora exibida como DD/MM/YYYY na tela
+                data_hoje_br = datetime.now().strftime("%d/%m/%Y")
+                data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
                 origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
                 destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
             st.markdown("---")
             st.subheader("📝 Considerações (Itens Extras)")
+            # Campo para o cozinheiro descrever necessidades adicionais
             consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", 
                                         placeholder="Ex: Foi acrescentado 10 água... Por gentileza colocar 06 vassouras...",
                                         height=150)
@@ -258,15 +260,13 @@ elif st.session_state.pagina == "tripulacao":
                     txt = str(t) if t else ""
                     return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
-                # AJUSTE DA DATA: Converte 2026-01-10 para 10/01/2026
-                data_fmt = data_selecionada.strftime("%d/%m/%Y")
                 agora_rodape = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-                # Texto com os campos mesclados (Data agora em DD/MM/YYYY)
+                # TEXTO COM CAMPOS ENTRE COLCHETES PARA O PDF
                 texto_corpo = (
                     f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                     f"nutricionais da tripulacao por um periodo de [ {dias_nauticos} ] dias nauticos "
-                    f"a partir de [ {data_fmt} ]. Este suprimento e planejado para a viagem corrente."
+                    f"a partir de [ {data_input_br} ]. Este suprimento e planejado para a viagem corrente."
                 )
 
                 try:
@@ -282,6 +282,7 @@ elif st.session_state.pagina == "tripulacao":
                     
                     pdf.ln(20)
                     pdf.set_font("Arial", "", 12)
+                    # Texto principal com os dados mesclados
                     pdf.multi_cell(0, 8, blindar(texto_corpo))
                     
                     pdf.ln(5)
@@ -307,11 +308,11 @@ elif st.session_state.pagina == "tripulacao":
 
                     pdf_bytes = pdf.output(dest='S').encode('latin-1')
                     
-                    st.success(f"✅ Documento gerado com a data {data_fmt}!")
+                    st.success(f"✅ Documento gerado com sucesso!")
                     st.download_button(
                         label="📥 BAIXAR DECLARAÇÃO PDF",
                         data=pdf_bytes,
-                        file_name=f"Declaracao_Rancho_{st.session_state.navio}.pdf",
+                        file_name=f"Declaracao_{st.session_state.navio}.pdf",
                         mime="application/pdf"
                     )
                 except Exception as e:
