@@ -1,10 +1,10 @@
 import streamlit as st
-import pandas as pd
-import requests
-import os
-from fpdf import FPDF
-import unicodedata
+from streamlit_drawable_canvas import st_canvas
 from datetime import datetime
+import unicodedata
+from fpdf import FPDF
+from PIL import Image
+import os
 
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E ESTADO DA SESSÃO
