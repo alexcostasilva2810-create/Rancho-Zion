@@ -6,6 +6,7 @@ import unicodedata
 from fpdf import FPDF
 from PIL import Image
 import os
+import requests
 
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E ESTADO DA SESSÃO
@@ -217,27 +218,25 @@ elif st.session_state.pagina == "lista":
             st.rerun()
 
 # =================================================================
-# BLOCO 5: TELA DE TRIPULAÇÃO (OTIMIZADA PARA MOBILE)
+# BLOCO 5: TELA DE TRIPULAÇÃO (MOBILE & TABLET READY)
 # =================================================================
 
 elif st.session_state.pagina == "tripulacao":
-    import requests
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
-    # Função de Geocalização via IP para "pegar a mentira"
+    # Função robusta de localização para celular
     def obter_geolocalizacao():
         try:
-            # Busca localização real baseada na conexão do celular
             response = requests.get('https://ipapi.co/json/', timeout=3)
             dados = response.json()
             return f"{dados.get('city')}/{dados.get('region')} (IP: {dados.get('ip')})"
         except:
-            return "Localizacao GPS via rede indisponivel"
+            return "Localizacao via rede indisponivel"
 
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
 
-    # Escolta Armada - Botões grandes para fácil clique no celular
+    # Escolta Armada - Botões grandes
     st.subheader("Configuração de Escolta")
     tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
 
@@ -248,10 +247,9 @@ elif st.session_state.pagina == "tripulacao":
         dias_nauticos = 15
         st.info("ℹ️ O rancho tem que durar ate 15 dias.")
 
-    # Início do formulário com espaçamento mobile
+    # Formulário otimizado
     with st.form("form_tripulacao", clear_on_submit=False):
-        # No celular, essas colunas ficam uma embaixo da outra automaticamente
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
@@ -267,21 +265,21 @@ elif st.session_state.pagina == "tripulacao":
         st.markdown("---")
         consideracoes = st.text_area("Considerações Extras:", height=80)
 
-        # Assinatura Digital Otimizada para Touch Screen
+        # Assinatura corrigida (sem caracteres especiais no código)
         st.subheader("✍️ Assinatura (Use o dedo)")
         canvas_result = st_canvas(
             stroke_width=3,
             stroke_color="#000000",
             background_color="#eeeeee",
-            height=130, # Altura ideal para assinar com o polegar
+            height=130, 
             drawing_mode="freedraw",
-            key="canvas_mobile",
-            update_穩定=True # Melhora a resposta em tablets
+            key="canvas_mobile_final"
         )
 
-        btn_gerar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+        # Botão que encerra o formulário
+        btn_gerar = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
-    # Geração do PDF com Auditoria de Localização
+    # Processamento após o botão
     if btn_gerar:
         if not origem or not destino:
             st.error("⚠️ Preencha a Origem e o Destino!")
@@ -298,7 +296,7 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.add_page()
                 pdf.set_auto_page_break(auto=True, margin=10)
                 
-                # Cabeçalho compacto para 1 página
+                # Cabeçalho compacto com Logo
                 if os.path.exists("APPRANCHO.png"):
                     pdf.image("APPRANCHO.png", 10, 8, 28) 
                 
@@ -322,37 +320,36 @@ elif st.session_state.pagina == "tripulacao":
                     pdf.set_font("Arial", "", 10)
                     pdf.multi_cell(0, 6, blindar(f"OBS: {consideracoes}"), 1, "L")
 
-                # Inserção da Assinatura Digital
+                # Inserção da Assinatura
                 img_data = canvas_result.image_data.astype('uint8')
                 Image.fromarray(img_data, 'RGBA').save("sig.png")
-                pdf.image("sig.png", x=75, y=pdf.get_y()+5, w=55)
                 
+                # Garante que a assinatura fique na parte inferior mas na mesma página
+                pdf.image("sig.png", x=75, y=pdf.get_y()+5, w=55)
                 pdf.ln(22)
                 pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
 
-                # Rodapé de Auditoria (Pega a mentira da localização)
-                agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                # Rodapé de Auditoria Geográfica
                 pdf.set_y(-22)
                 pdf.set_font("Arial", "I", 7)
                 pdf.set_text_color(120, 120, 120)
-                pdf.multi_cell(0, 4, blindar(f"Autenticado via Zion App em {agora}\n"
-                                             f"Localizacao de Rede detectada: {local_auditoria}"), 0, "C")
+                pdf.multi_cell(0, 4, blindar(f"Autenticado em {datetime.now().strftime('%d/%m/%Y %H:%M')}\n"
+                                             f"Local detectado: {local_auditoria}"), 0, "C")
 
                 st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-                st.rerun()
+                st.success("✅ Documento Pronto!")
 
             except Exception as e:
-                st.error(f"Erro no processamento: {e}")
+                st.error(f"Erro: {e}")
 
-    # Botão de Download Grande (Fácil de clicar no celular)
+    # Botão de download fora do formulário
     if st.session_state.pdf_disponivel:
-        st.success("✅ Documento Pronto!")
         st.download_button(
-            label="📥 CLIQUE PARA BAIXAR O PDF",
+            label="📥 BAIXAR DECLARAÇÃO PDF",
             data=st.session_state.pdf_disponivel,
             file_name=f"Declaracao_{st.session_state.navio}.pdf",
             mime="application/pdf",
-            use_container_width=True # Botão ocupa a largura toda da tela do celular
+            use_container_width=True
         )
 
     st.markdown("---")
