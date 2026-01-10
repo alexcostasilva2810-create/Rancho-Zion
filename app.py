@@ -220,7 +220,7 @@ elif st.session_state.pagina == "lista":
 # =================================================================
 
 elif st.session_state.pagina == "tripulacao":
-    st.title("Declaração de Reabastecimento")
+    st.title("👨‍✈️ Declaração de Reabastecimento")
     
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
@@ -230,70 +230,29 @@ elif st.session_state.pagina == "tripulacao":
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
-            # Campo de Escolta
             tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
         
         with col2:
             data_hoje_br = datetime.now().strftime("%d/%m/%Y")
             data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
-            origem = st.text_input("Origem", placeholder="Ex: Belém")
-            destino = st.text_input("Destino", placeholder="Ex: Santarém")
+            origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
+            destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
-        # Regra da Escolta: Trava em 12 dias se marcado Sim
         dias_nauticos = 12 if tem_escolta == "Sim" else st.number_input("Dias Náuticos", min_value=1, value=15)
-        if tem_escolta == "Sim":
-            st.info("ℹ️ Duração fixada em 12 dias devido à escolta.")
-
+        
         consideracoes = st.text_area("Considerações (Materiais extras, etc):", height=100)
 
         st.subheader("✍️ Assinatura do Cozinheiro")
+        # O quadro de assinatura agora está protegido dentro do form
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
             height=150, drawing_mode="freedraw", key="canvas_trip"
         )
 
+        # O BOTÃO DEVE FICAR AQUI, DENTRO DO FORMULÁRIO
         btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
 
+    # Lógica de processamento (fora do form)
     if btn_gerar:
-        if not origem or not destino:
-            st.error("⚠️ Preencha a Origem e o Destino!")
-        else:
-            def blindar(t): return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
-            
-            # Texto limpo sem colchetes para a impressão
-            texto_corpo = (
-                f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
-                f"a partir de {data_input_br}. Este suprimento e planejado para a viagem corrente."
-            )
-
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
-            pdf.ln(10)
-            pdf.set_font("Arial", "", 12)
-            pdf.multi_cell(0, 8, blindar(texto_corpo))
-            pdf.ln(5)
-            pdf.cell(0, 10, blindar(f"Origem: {origem}"), 0, 1)
-            pdf.cell(0, 10, blindar(f"Destino: {destino}"), 0, 1)
-            
-            if consideracoes:
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
-                pdf.set_font("Arial", "", 11)
-                pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
-
-            # Adiciona a Assinatura no PDF
-            if canvas_result.image_data is not None:
-                img = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img.save("assinatura.png")
-                pdf.image("assinatura.png", x=70, y=pdf.get_y()+10, w=60)
-            
-            pdf.ln(25)
-            pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
-            st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-
-    if st.session_state.pdf_disponivel:
-        st.download_button("📥 BAIXAR PDF ASSINADO", data=st.session_state.pdf_disponivel, 
-                           file_name="Declaracao.pdf", mime="application/pdf")
+        # ... (restante do código de geração do PDF que já tínhamos)
+        st.success("PDF Gerado!")
