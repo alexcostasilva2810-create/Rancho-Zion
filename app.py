@@ -226,7 +226,12 @@ elif st.session_state.pagina == "tripulacao":
 
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
+    # Inicializa variáveis para evitar erro de referência
+    if 'pdf_disponivel' not in st.session_state:
+        st.session_state.pdf_disponivel = None
+
     with st.container():
+        # Formulário para entrada de dados
         with st.form("form_tripulacao", clear_on_submit=True):
             st.subheader("Dados do Reabastecimento")
             
@@ -237,7 +242,7 @@ elif st.session_state.pagina == "tripulacao":
                 dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
             
             with col2:
-                # CORREÇÃO DA DATA: Agora exibida como DD/MM/YYYY na tela
+                # CORREÇÃO DEFINITIVA DA DATA NA TELA
                 data_hoje_br = datetime.now().strftime("%d/%m/%Y")
                 data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
                 origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
@@ -245,13 +250,13 @@ elif st.session_state.pagina == "tripulacao":
 
             st.markdown("---")
             st.subheader("📝 Considerações (Itens Extras)")
-            # Campo para o cozinheiro descrever necessidades adicionais
             consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", 
                                         placeholder="Ex: Foi acrescentado 10 água... Por gentileza colocar 06 vassouras...",
                                         height=150)
 
-            btn_gerar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+            btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
 
+        # Lógica de geração (fora do comando de limpeza automática)
         if btn_gerar:
             if not origem or not destino:
                 st.error("⚠️ Por favor, preencha a Origem e o Destino!")
@@ -282,7 +287,6 @@ elif st.session_state.pagina == "tripulacao":
                     
                     pdf.ln(20)
                     pdf.set_font("Arial", "", 12)
-                    # Texto principal com os dados mesclados
                     pdf.multi_cell(0, 8, blindar(texto_corpo))
                     
                     pdf.ln(5)
@@ -306,19 +310,24 @@ elif st.session_state.pagina == "tripulacao":
                     pdf.set_font("Arial", "I", 7)
                     pdf.cell(0, 10, f"Gerado em: {agora_rodape} | Zion Rancho App", 0, 0, "C")
 
-                    pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                    
-                    st.success(f"✅ Documento gerado com sucesso!")
-                    st.download_button(
-                        label="📥 BAIXAR DECLARAÇÃO PDF",
-                        data=pdf_bytes,
-                        file_name=f"Declaracao_{st.session_state.navio}.pdf",
-                        mime="application/pdf"
-                    )
+                    st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
+                    st.success("✅ PDF gerado com sucesso! Clique no botão abaixo para baixar.")
+
                 except Exception as e:
                     st.error(f"Erro ao processar PDF: {e}")
 
+        # BOTÃO DE DOWNLOAD SEPARADO (Para evitar o erro de arquivo não disponível)
+        if st.session_state.pdf_disponivel:
+            st.download_button(
+                label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
+                data=st.session_state.pdf_disponivel,
+                file_name=f"Declaracao_{st.session_state.navio}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                mime="application/pdf",
+                key="btn_download_final"
+            )
+
     st.markdown("---")
     if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pdf_disponivel = None # Limpa o PDF ao sair
         st.session_state.pagina = "menu"
         st.rerun()
