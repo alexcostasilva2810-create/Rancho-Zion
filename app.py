@@ -168,13 +168,13 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - VERSÃO FINAL REVISADA
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - GERADOR DE PDF VIA TABELA
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.markdown("## 📋 Tabela de Rancho")
     st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
 
-    # 1. GARANTINDO AS 8 COLUNAS NO SISTEMA
+    # 1. DEFINIÇÃO DAS 8 COLUNAS (DADOS)
     if 'df_lista' not in st.session_state:
         st.session_state.df_lista = pd.DataFrame({
             "CÓDIGO": ["PR01", "PR02", "PR03"],
@@ -187,22 +187,22 @@ elif st.session_state.pagina == "lista":
             "CONFIRMA": [0.0, 0.0, 0.0]
         })
 
-    # 2. TABELA COM TODAS AS COLUNAS VISÍVEIS
-    df_final = st.data_editor(
+    # 2. TABELA INTERATIVA (Captura os dados em tempo real)
+    df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
-            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", disabled=True),
-            "PROTEÍNA": st.column_config.TextColumn("PROTEÍNA", disabled=True),
-            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
-            "UNIDADE DE MEDIDA": st.column_config.TextColumn("UNIDADE", disabled=True),
-            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO (Nutri)", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Sua Qtd)", min_value=0.0, format="%.2f"),
+            "CÓDIGO": st.column_config.TextColumn(disabled=True),
+            "PROTEÍNA": st.column_config.TextColumn(disabled=True),
+            "TIPO": st.column_config.TextColumn(disabled=True),
+            "UNIDADE DE MEDIDA": st.column_config.TextColumn(disabled=True),
+            "ESTOQUE": st.column_config.NumberColumn(disabled=True),
+            "DESCRIÇÃO": st.column_config.TextColumn(disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn(disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", min_value=0.0),
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_definitivo"
+        key="editor_v11"
     )
 
     st.markdown("---")
@@ -210,48 +210,57 @@ elif st.session_state.pagina == "lista":
     col_salvar, col_voltar = st.columns(2)
     
     with col_salvar:
-        # 3. GERAÇÃO DO PDF - AGORA LENDO O DF_FINAL DIRETAMENTE
-        if st.button("💾 SALVAR E GERAR PDF", key="btn_final_save"):
-            pdf = FPDF(orientation='L', unit='mm', format='A4')
-            pdf.add_page()
-            
-            # Cabeçalho Zion
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, "ZION RANCHO - RELATORIO DE COMPRAS", ln=True, align="C")
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Responsavel: {st.session_state.cozinheiro}", ln=True, align="C")
-            pdf.ln(5)
+        # MÉTODO DE GERAÇÃO POR BUFFER (Garante que os dados entrem no arquivo)
+        if st.button("💾 SALVAR E GERAR PDF"):
+            try:
+                pdf = FPDF(orientation='L', unit='mm', format='A4')
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "ZION TECNOLOGIA - RELATORIO DE RANCHO", ln=True, align='C')
+                pdf.set_font("Arial", "", 10)
+                pdf.cell(0, 10, f"Cozinheiro: {st.session_state.cozinheiro}", ln=True, align='C')
+                pdf.ln(5)
 
-            # Cabeçalho da Tabela no PDF (8 Colunas)
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_fill_color(255, 140, 0)
-            
-            w = [20, 45, 25, 20, 25, 62, 25, 25] # Larguras ajustadas
-            cols = ["COD", "PROTEINA", "TIPO", "UNID", "ESTOQUE", "DESCRICAO", "PREDEF", "CONF"]
-            
-            for i in range(len(cols)):
-                pdf.cell(w[i], 10, cols[i], 1, 0, "C", True)
-            pdf.ln()
+                # Definindo cabeçalhos e larguras (8 colunas)
+                header = ["COD", "PROTEINA", "TIPO", "UNID", "ESTQ", "DESCRICAO", "PREDEF", "CONF"]
+                w = [15, 45, 25, 15, 15, 80, 25, 25] # Total 245mm (cabe na A4 Paisagem)
 
-            # Preenchimento garantido
-            pdf.set_font("Arial", "", 8)
-            for _, row in df_final.iterrows():
-                pdf.cell(w[0], 8, str(row["CÓDIGO"]), 1, 0, "C")
-                pdf.cell(w[1], 8, str(row["PROTEÍNA"]), 1)
-                pdf.cell(w[2], 8, str(row["TIPO"]), 1, 0, "C")
-                pdf.cell(w[3], 8, str(row["UNIDADE DE MEDIDA"]), 1, 0, "C")
-                pdf.cell(w[4], 8, str(row["ESTOQUE"]), 1, 0, "C")
-                pdf.cell(w[5], 8, str(row["DESCRIÇÃO"]), 1)
-                pdf.cell(w[6], 8, str(row["PREDEFINIDO"]), 1, 0, "C")
+                # Desenha Cabeçalho
                 pdf.set_font("Arial", "B", 8)
-                pdf.cell(w[7], 8, str(row["CONFIRMA"]), 1, 1, "C")
-                pdf.set_font("Arial", "", 8)
+                pdf.set_fill_color(255, 140, 0) # Laranja
+                for i in range(len(header)):
+                    pdf.cell(w[i], 10, header[i], 1, 0, 'C', True)
+                pdf.ln()
 
-            pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            st.success("✅ Salvo com sucesso!")
-            st.download_button("📥 BAIXAR RELATORIO", data=pdf_bytes, file_name="rancho.pdf", mime="application/pdf")
+                # Desenha as Linhas do PDF buscando direto da tabela da tela
+                pdf.set_font("Arial", "", 8)
+                for index, row in df_editado.iterrows():
+                    pdf.cell(w[0], 8, str(row["CÓDIGO"]), 1, 0, 'C')
+                    pdf.cell(w[1], 8, str(row["PROTEÍNA"]), 1)
+                    pdf.cell(w[2], 8, str(row["TIPO"]), 1, 0, 'C')
+                    pdf.cell(w[3], 8, str(row["UNIDADE DE MEDIDA"]), 1, 0, 'C')
+                    pdf.cell(w[4], 8, str(row["ESTOQUE"]), 1, 0, 'C')
+                    pdf.cell(w[5], 8, str(row["DESCRIÇÃO"]), 1)
+                    pdf.cell(w[6], 8, str(row["PREDEFINIDO"]), 1, 0, 'C')
+                    
+                    # Coluna CONFIRMA em negrito para destacar
+                    pdf.set_font("Arial", "B", 8)
+                    pdf.cell(w[7], 8, str(row["CONFIRMA"]), 1, 1, 'C')
+                    pdf.set_font("Arial", "", 8)
+
+                # Saída do arquivo
+                pdf_output = pdf.output(dest='S').encode('latin-1')
+                st.success("✅ PDF pronto para baixar!")
+                st.download_button(
+                    label="📥 BAIXAR AGORA",
+                    data=pdf_output,
+                    file_name=f"Rancho_{st.session_state.cozinheiro}.pdf",
+                    mime="application/pdf"
+                )
+            except Exception as e:
+                st.error(f"Erro ao processar PDF: {e}")
 
     with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU", key="btn_back"):
+        if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"
             st.rerun()
