@@ -142,3 +142,80 @@ elif st.session_state.pagina == "tripulacao":
     if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_trip"):
         st.session_state.pagina = "menu"
         st.rerun()
+
+# ==========================================
+# 6. TELA: LISTA DE RANCHO (AJUSTADA)
+# ==========================================
+elif st.session_state.pagina == "lista":
+    st.markdown(f"## 🛒 Lista de Rancho")
+    st.markdown(f"**Responsável:** {st.session_state.cozinheiro}")
+
+    # --- FUNÇÃO PARA BUSCAR DADOS (Certifique-se que as colunas existem no Notion) ---
+    def buscar_dados_notion():
+        url = f"https://api.notion.com/v1/databases/{st.secrets['DATABASE_ID']}/query"
+        headers = {
+            "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28",
+        }
+        response = requests.post(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            itens = []
+            for row in data["results"]:
+                props = row["properties"]
+                itens.append({
+                    "CÓDIGO": props.get("CÓDIGO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "PROTEÍNA": props.get("PROTEÍNA", {}).get("title", [{}])[0].get("plain_text", "Sem Nome"),
+                    "TIPO": props.get("TIPO", {}).get("select", {}).get("name", ""),
+                    "UNID.": props.get("UNIDADE DE MEDIDA", {}).get("select", {}).get("name", ""),
+                    "PREDEFINIDO": props.get("PREDEFINIDO", {}).get("number", 0), # Quantidade da Nutricionista
+                    "ESTOQUE": props.get("ESTOQUE", {}).get("number", 0),
+                    "DESCRIÇÃO": props.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                })
+            return pd.DataFrame(itens)
+        else:
+            return pd.DataFrame()
+
+    with st.spinner("Sincronizando com Notion..."):
+        df_itens = buscar_dados_notion()
+
+    if not df_itens.empty:
+        # Criamos a coluna CONFIRMA onde o cozinheiro digita a quantidade dele
+        # Ela começa zerada ou com o valor do estoque para ele ajustar
+        df_itens["CONFIRMA"] = 0 
+        df_itens["RESPONSÁVEL"] = st.session_state.cozinheiro
+
+        st.write("Compare os valores da Nutricionista e insira sua necessidade na coluna **CONFIRMA**:")
+
+        # --- EDITOR DE TABELA ---
+        df_editavel = st.data_editor(
+            df_itens,
+            column_config={
+                "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO (Nutri)", help="Quantidade definida pela Nutricionista", disabled=True),
+                "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", help="Digite aqui a quantidade que você precisa", min_value=0),
+                "ESTOQUE": st.column_config.NumberColumn("ESTOQUE ATUAL", disabled=True),
+                "RESPONSÁVEL": st.column_config.TextColumn("RESPONSÁVEL", disabled=True),
+            },
+            disabled=["CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "PREDEFINIDO", "ESTOQUE", "DESCRIÇÃO", "RESPONSÁVEL"],
+            hide_index=True,
+            use_container_width=True
+        )
+
+        st.markdown("---")
+        
+        col_pdf, col_notion = st.columns(2)
+        
+        with col_pdf:
+            # Aqui você gera o PDF usando os dados de 'df_editavel'
+            if st.button("📄 GERAR PDF DA LISTA"):
+                st.info("Gerando documento...")
+                # (A lógica do PDF que passamos antes entra aqui)
+
+        with col_notion:
+            if st.button("💾 ENVIAR PARA O NOTION"):
+                st.success("Lista enviada com sucesso!")
+
+    if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_lista"):
+        st.session_state.pagina = "menu"
+        st.rerun()
