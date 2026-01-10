@@ -215,6 +215,105 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "home"
             st.rerun()
 
+# =================================================================
+# BLOCO 5: TELA DE TRIPULAÇÃO E MANIFESTO DE VIAGEM
+# =================================================================
+
+elif st.session_state.pagina == "tripulacao":
+    from datetime import datetime
+    import unicodedata
+    from fpdf import FPDF
+
+    st.title("👨‍✈️ Controle de Tripulação e Viagem")
+    st.write("Preencha os dados abaixo para gerar o manifesto.")
+
+    # O 'clear_on_submit=True' garante que os campos limpem após clicar no botão
+    with st.form("form_tripulacao", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Responsável fixo pelo login
+            st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
+            empurrador = st.text_input("Empurrador / Embarcação", placeholder="Digite o nome da embarcação")
+            tripulantes = st.number_input("N° de Tripulantes", min_value=1, step=1)
+        
+        with col2:
+            origem = st.text_input("Origem", placeholder="Cidade de saída")
+            destino = st.text_input("Destino", placeholder="Cidade de chegada")
+            data_viagem = st.date_input("Data da Viagem", value=datetime.now())
+
+        # Botão que processa tudo
+        submit = st.form_submit_button("💾 SALVAR E GERAR PDF")
+
+    if submit:
+        if not empurrador or not origem or not destino:
+            st.warning("⚠️ Preencha todos os campos (Empurrador, Origem e Destino) antes de gerar o PDF.")
+        else:
+            def blindar_texto(texto):
+                txt = str(texto) if texto else ""
+                return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
+
+            try:
+                # Criando o PDF do Manifesto
+                pdf = FPDF(orientation='P', unit='mm', format='A4')
+                pdf.add_page()
+                
+                # Cabeçalho com Logo
+                if os.path.exists("APPRANCHO.png"):
+                    pdf.image("APPRANCHO.png", 10, 8, 25)
+                
+                pdf.set_font("Arial", "B", 16)
+                pdf.set_xy(40, 15)
+                pdf.cell(0, 10, "MANIFESTO DE VIAGEM E TRIPULACAO", 0, 1, "C")
+                
+                pdf.ln(20)
+                pdf.set_draw_color(0, 102, 204) # Azul Zion
+                pdf.set_line_width(0.8)
+                pdf.line(10, 35, 200, 35) # Linha divisória
+                
+                # Dados do Manifesto
+                pdf.set_font("Arial", "B", 12)
+                pdf.ln(10)
+                
+                # Linha 1
+                pdf.cell(100, 10, blindar_texto(f"RESPONSAVEL: {st.session_state.cozinheiro}"), 0, 0)
+                pdf.cell(90, 10, blindar_texto(f"DATA: {data_viagem.strftime('%d/%m/%Y')}"), 0, 1)
+                
+                # Linha 2
+                pdf.ln(5)
+                pdf.cell(100, 10, blindar_texto(f"EMPURRADOR: {empurrador}"), 0, 0)
+                pdf.cell(90, 10, blindar_texto(f"N DE TRIPULANTES: {tripulantes}"), 0, 1)
+                
+                # Linha 3 (Origem e Destino)
+                pdf.ln(5)
+                pdf.set_fill_color(240, 240, 240)
+                pdf.cell(190, 12, blindar_texto(f"ROTA: {origem}  >>>  {destino}"), 1, 1, "C", True)
+                
+                # Rodapé com timestamp
+                agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                pdf.set_y(-20)
+                pdf.set_font("Arial", "I", 8)
+                pdf.set_text_color(150, 150, 150)
+                pdf.cell(0, 10, blindar_texto(f"Documento gerado em: {agora} | Zion Rancho App"), 0, 0, "C")
+
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                
+                st.success("✅ Manifesto salvo com sucesso! Clique abaixo para baixar.")
+                st.download_button(
+                    label="📥 BAIXAR MANIFESTO PDF",
+                    data=pdf_bytes,
+                    file_name=f"Manifesto_{empurrador}.pdf",
+                    mime="application/pdf"
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar o PDF do manifesto: {e}")
+
+    # Botão de retorno
+    st.markdown("---")
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Tripulação")
     if st.button("⬅️ VOLTAR AO MENU"):
