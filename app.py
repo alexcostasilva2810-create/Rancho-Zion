@@ -11,18 +11,26 @@ if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
     st.session_state.cozinheiro = ""
+if 'navio' not in st.session_state:
+    st.session_state.navio = ""
 
-# Colunas padrão para garantir que a tabela sempre apareça
+# Colunas padrão do Notion
 COLUNAS_PADRAO = ["CODIGO", "PROTEINA", "TIPO", "UNIDADE DE MEDIDA", "ESTOQUE", "DESCRIÇÃO", "CONFIRMA"]
 
 if 'df_lista' not in st.session_state:
     st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
+# Credenciais de acesso
+USUARIOS = {
+    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
+}
+
 # =================================================================
-# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION (DADOS REAIS)
+# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION
 # =================================================================
 def carregar_dados_do_notion():
-    """Busca os dados reais inseridos no Notion"""
     NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
     DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1"
     
@@ -77,10 +85,9 @@ st.markdown("""
 # BLOCO 4: TELA INICIAL (RESTAURADA ORIGINAL)
 # =================================================================
 if st.session_state.pagina == "home":
-    st.title("Bem-vindo ao Zion Rancho App!")
+    st.title("Zion Rancho App")
     st.write("Seu controle de estoque inteligente com IA.")
     
-    # Exibe a imagem original se ela existir no seu GitHub/Pasta
     if os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", width=400)
     
@@ -89,20 +96,33 @@ if st.session_state.pagina == "home":
         st.rerun()
 
 # =================================================================
-# BLOCO 5: LOGIN E SUBTELA (MENU PRINCIPAL)
+# BLOCO 5: LOGIN COM VALIDAÇÃO E MENSAGENS (RESTAURADO)
 # =================================================================
 elif st.session_state.pagina == "login":
-    st.title("🔐 Acesso do Cozinheiro")
-    navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
-    if st.button("🛒 ENTRAR"):
-        st.session_state.cozinheiro = "Marcos" # Exemplo logado
-        st.session_state.navio = navio
-        st.session_state.pagina = "menu"
-        st.rerun()
+    st.title("🔐 Acesso Restrito")
+    
+    navio_selecionado = st.selectbox("Selecione a Embarcação", [""] + list(USUARIOS.keys()))
+    senha_digitada = st.text_input("Digite a Senha de Acesso", type="password")
+    
+    if st.button("🛒 ENTRAR NO SISTEMA"):
+        if navio_selecionado in USUARIOS:
+            if USUARIOS[navio_selecionado]["senha"] == senha_digitada:
+                st.session_state.cozinheiro = USUARIOS[navio_selecionado]["nome"]
+                st.session_state.navio = navio_selecionado
+                st.success(f"✅ Bem-vindo, {st.session_state.cozinheiro}! Acesso autorizado.")
+                st.session_state.pagina = "menu"
+                st.rerun()
+            else:
+                st.error("❌ Senha incorreta! Tente novamente.")
+        else:
+            st.warning("⚠️ Selecione uma embarcação válida.")
 
+# =================================================================
+# BLOCO 6: SUBTELA (MENU PRINCIPAL)
+# =================================================================
 elif st.session_state.pagina == "menu":
-    st.markdown(f"## Seja Bem-vindo, {st.session_state.cozinheiro}!")
-    st.write(f"Embarcação selecionada: **{st.session_state.navio}**")
+    st.markdown(f"## Olá, {st.session_state.cozinheiro}!")
+    st.write(f"Gestão da Unidade: **{st.session_state.navio}**")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -119,16 +139,17 @@ elif st.session_state.pagina == "menu":
         st.rerun()
 
 # =================================================================
-# BLOCO 6: TELA DE LISTA (TABELA E PDF)
+# BLOCO 7: TELA DE LISTA (TABELA E PDF)
 # =================================================================
 elif st.session_state.pagina == "lista":
-    st.title(f"📋 Tabela de Rancho - {st.session_state.get('navio', '')}")
+    st.title(f"📋 Rancho - {st.session_state.navio}")
 
     if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+        with st.spinner("Sincronizando com a base de dados..."):
+            st.session_state.df_lista = carregar_dados_do_notion()
+            st.rerun()
 
-    # Tabela sempre visível conforme solicitado
+    # Tabela sempre visível
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -149,7 +170,7 @@ elif st.session_state.pagina == "lista":
             pdf.set_font("Arial", "B", 14)
             pdf.cell(0, 10, f"Checklist de Rancho - {st.session_state.cozinheiro}", ln=True, align="C")
             
-            # Cabeçalho do PDF
+            # Cabeçalho
             pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(200, 200, 200)
             larguras = [20, 45, 25, 20, 20, 85, 25]
@@ -157,7 +178,7 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(larguras[i], 10, titulo[:10], 1, 0, "C", True)
             pdf.ln()
 
-            # Dados do PDF
+            # Linhas
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
                 for i, col in enumerate(COLUNAS_PADRAO):
@@ -165,7 +186,7 @@ elif st.session_state.pagina == "lista":
                 pdf.ln()
 
             pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name="Rancho_Zion.pdf")
+            st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf")
 
     with c2:
         if st.button("⬅️ VOLTAR AO MENU"):
@@ -173,11 +194,11 @@ elif st.session_state.pagina == "lista":
             st.rerun()
 
 # =================================================================
-# BLOCO 7: TELA DE TRIPULAÇÃO
+# BLOCO 8: TELA DE TRIPULAÇÃO
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Gestão de Tripulação")
-    st.info("Área destinada ao controle de pessoal.")
+    st.info("Formulário de tripulação em desenvolvimento.")
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
