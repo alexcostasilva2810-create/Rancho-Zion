@@ -168,12 +168,94 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA TRIPULAÇÃO (DESENVOLVIMENTO)
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) + GERADOR DE PDF REAL
 # =================================================================
-elif st.session_state.pagina == "tripulacao":
-    st.title("👨‍✈️ Gestão de Tripulação")
-    st.info("Módulo em fase de alimentação de dados.")
+elif st.session_state.pagina == "lista":
+    st.markdown("## 📋 Tabela de Rancho")
+    st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
+
+    # 1. DADOS (Simulado - Substitua pela busca do Notion se necessário)
+    if 'df_lista' not in st.session_state:
+        dados = {
+            "CÓDIGO": ["PR01", "PR02", "PR03"],
+            "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza"],
+            "TIPO": ["Carne", "Aves", "Peixe"],
+            "UNID. MEDIDA": ["KG", "KG", "KG"],
+            "PREDEFINIDO": [20.0, 35.0, 15.0], 
+            "ESTOQUE": [5.0, 2.0, 10.0],
+            "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado"],
+            "CONFIRMA": [0.0, 0.0, 0.0]
+        }
+        st.session_state.df_lista = pd.DataFrame(dados)
+
+    # 2. TABELA INTERATIVA (Apenas 'CONFIRMA' é editável)
+    df_editado = st.data_editor(
+        st.session_state.df_lista,
+        column_config={
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", min_value=0.0, format="%.2f"),
+            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True),
+        },
+        disabled=["CÓDIGO", "PROTEÍNA", "TIPO", "UNID. MEDIDA", "PREDEFINIDO", "ESTOQUE", "DESCRIÇÃO"],
+        hide_index=True,
+        use_container_width=True,
+        key="editor_rancho_final"
+    )
+
+    st.markdown("---")
     
-    if st.button("⬅️ VOLTAR AO MENU", key="btn_v_trip"):
-        st.session_state.pagina = "menu"
-        st.rerun()
+    # 3. BOTÕES DE AÇÃO
+    col_pdf, col_back = st.columns(2)
+    
+    with col_pdf:
+        if st.button("📄 GERAR PDF COMPLETO", key="btn_pdf_lista"):
+            try:
+                pdf = FPDF(orientation='L', unit='mm', format='A4') # 'L' para modo Paisagem (cabe mais colunas)
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 14)
+                
+                # Título
+                pdf.cell(0, 10, f"Zion Tecnologia - Checklist de Rancho", ln=True, align="C")
+                pdf.set_font("Arial", "", 10)
+                pdf.cell(0, 10, f"Responsavel: {st.session_state.cozinheiro}", ln=True, align="C")
+                pdf.ln(5)
+
+                # Cabeçalho da Tabela no PDF
+                pdf.set_font("Arial", "B", 8)
+                pdf.set_fill_color(255, 140, 0) # Laranja Zion
+                pdf.cell(20, 10, "CODIGO", 1, 0, "C", True)
+                pdf.cell(45, 10, "PROTEINA", 1, 0, "C", True)
+                pdf.cell(20, 10, "TIPO", 1, 0, "C", True)
+                pdf.cell(20, 10, "UNID.", 1, 0, "C", True)
+                pdf.cell(25, 10, "PREDEF.", 1, 0, "C", True)
+                pdf.cell(25, 10, "ESTOQUE", 1, 0, "C", True)
+                pdf.cell(40, 10, "DESCRICAO", 1, 0, "C", True)
+                pdf.cell(25, 10, "CONFIRMA", 1, 1, "C", True)
+
+                # Linhas da Tabela (Onde o PDF era preenchido)
+                pdf.set_font("Arial", "", 8)
+                for i in range(len(df_editado)):
+                    pdf.cell(20, 8, str(df_editado.iloc[i]["CÓDIGO"]), 1)
+                    pdf.cell(45, 8, str(df_editado.iloc[i]["PROTEÍNA"]), 1)
+                    pdf.cell(20, 8, str(df_editado.iloc[i]["TIPO"]), 1)
+                    pdf.cell(20, 8, str(df_editado.iloc[i]["UNID. MEDIDA"]), 1, 0, "C")
+                    pdf.cell(25, 8, str(df_editado.iloc[i]["PREDEFINIDO"]), 1, 0, "C")
+                    pdf.cell(25, 8, str(df_editado.iloc[i]["ESTOQUE"]), 1, 0, "C")
+                    pdf.cell(40, 8, str(df_editado.iloc[i]["DESCRIÇÃO"]), 1)
+                    pdf.cell(25, 8, str(df_editado.iloc[i]["CONFIRMA"]), 1, 1, "C")
+
+                # Preparar Download
+                pdf_output = pdf.output(dest='S').encode('latin-1')
+                st.download_button(
+                    label="📥 BAIXAR RELATORIO PDF",
+                    data=pdf_output,
+                    file_name=f"Relatorio_Rancho_{st.session_state.cozinheiro}.pdf",
+                    mime="application/pdf"
+                )
+                st.success("PDF gerado com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
+    with col_back:
+        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_menu_lista"):
+            st.session_state.pagina = "menu"
+            st.rerun()
