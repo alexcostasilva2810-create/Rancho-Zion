@@ -12,8 +12,8 @@ DATABASE_ID = st.secrets["DATABASE_ID"]
 
 # Lista de Navios e Senhas (Defina aqui o que entregar aos cozinheiros)
 USUARIOS = {
-    "NAVIO 01": "zion01", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
-    "NAVIO 04": "zion04", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
+    "AROEIRA": "ALLAN", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
+    "IPE": "ELZA", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
     "NAVIO 07": "zion07", "NAVIO 08": "zion08", "NAVio 09": "zion09",
     "NAVIO 10": "zion10", "NAVIO 11": "zion11", "NAVIO 12": "zion12",
     "NAVIO 13": "zion13"
@@ -69,16 +69,46 @@ if st.session_state.pagina == "home":
         st.rerun()
 
 # ==========================================
-# BLOCO 3: TELA DE LOGIN (ACESSO)
+# BLOCO 3: TELA DE LOGIN (ACESSO) COM FUNDO DE COZINHA
 # ==========================================
-elif st.session_state.pagina == "login":
+
+# Estilo específico para esta tela com imagem de fundo leve
+st.markdown("""
+    <style>
+    /* Imagem de fundo leve (Marca d'água) */
+    .stApp {
+        background: linear-gradient(rgba(65, 105, 225, 0.85), rgba(65, 105, 225, 0.85)), 
+        url("https://images.unsplash.com/photo-1556910103-1c02745aae4d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80");
+        background-size: cover;
+    }
+
+    /* BOTÕES COM LETRAS PRETAS */
+    .stButton>button { 
+        background-color: #FFFFFF !important; 
+        color: #000000 !important; /* Letras Pretas */
+        font-size: 18px !important;
+        font-weight: bold !important; 
+        border-radius: 12px; 
+        height: 3.5em;
+        width: 100%;
+        border: 2px solid #000000;
+    }
+    
+    /* Labels e títulos em branco para contraste com o fundo azul/cozinha */
+    label, h1, h2, p { color: white !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+if st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
+    # Campos de seleção
     navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
     senha = st.text_input("Senha de Acesso", type="password")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Botão ENTRAR
     if st.button("🛒 ENTRAR"):
         if navio in USUARIOS and USUARIOS[navio] == senha:
             st.session_state.usuario_ativo = navio
@@ -87,6 +117,7 @@ elif st.session_state.pagina == "login":
         else:
             st.error("Navio ou Senha incorretos!")
             
+    # Botão VOLTAR
     if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "home"
         st.rerun()
