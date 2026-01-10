@@ -118,22 +118,26 @@ elif st.session_state.pagina == "lista":
 
     st.markdown("---")
     
-    # GERAÇÃO DO PDF PROFISSIONAL COM CORREÇÃO DE ERRO UNICODE
+   # GERAÇÃO DO PDF BLINDADA (SEM PÁGINA EM BRANCO)
     if st.button("📄 GERAR PDF"):
         def blindar_texto(texto):
-            # Remove acentos e caracteres especiais incompatíveis com latin-1
-            return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
+            # Garante que o texto seja string e limpa caracteres impossíveis
+            txt = str(texto) if texto else ""
+            return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
         class PDF(FPDF):
             def header(self):
-                if os.path.exists("APPRANCHO.png"): self.image("APPRANCHO.png", 10, 8, 20)
+                if os.path.exists("APPRANCHO.png"): 
+                    self.image("APPRANCHO.png", 10, 8, 20)
                 self.set_font("Arial", "B", 14)
                 self.set_xy(35, 12)
+                # Título seguro
                 self.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
                 self.ln(10)
-                # Cabeçalho da Tabela (Azul Zion)
+                
+                # Cabeçalho da Tabela
                 self.set_font("Arial", "B", 8)
-                self.set_fill_color(0, 102, 204)
+                self.set_fill_color(0, 102, 204) # Azul Zion
                 self.set_text_color(255, 255, 255)
                 self.cell(12, 10, "ITEM", 1, 0, "C", True)
                 self.cell(70, 10, "DESCRICAO", 1, 0, "C", True)
@@ -144,50 +148,51 @@ elif st.session_state.pagina == "lista":
                 self.set_text_color(0, 0, 0)
 
         try:
-            pdf = PDF()
+            pdf = PDF(orientation='P', unit='mm', format='A4')
             pdf.set_auto_page_break(auto=True, margin=20)
             pdf.add_page()
             pdf.set_font("Arial", "", 8)
 
             for _, row in df_editado.iterrows():
-                texto_desc = blindar_texto(row["DESCRIÇÃO"])
-                texto_tipo = blindar_texto(row["TIPO"])
-                alt_linha = 6
-                # Cálculo para evitar quebra de tabela no meio da linha
-                linhas = max(int(pdf.get_string_width(texto_desc)/70)+1, int(pdf.get_string_width(texto_tipo)/45)+1)
-                h = linhas * alt_linha
+                t_desc = blindar_texto(row["DESCRIÇÃO"])
+                t_tipo = blindar_texto(row["TIPO"])
                 
-                if pdf.get_y() + h > 275: pdf.add_page()
+                # Cálculo de altura
+                alt_l = 6
+                # Estima linhas (largura total / largura coluna)
+                l_desc = (pdf.get_string_width(t_desc) / 70) + 1
+                l_tipo = (pdf.get_string_width(t_tipo) / 45) + 1
+                h = max(int(l_desc), int(l_tipo)) * alt_l
                 
+                # Se não couber na página, o header() será chamado automaticamente na nova
+                if pdf.get_y() + h > 270:
+                    pdf.add_page()
+
                 x, y = pdf.get_x(), pdf.get_y()
                 pdf.cell(12, h, str(int(row["ITEM"])), 1, 0, "C")
-                pdf.multi_cell(70, alt_linha, texto_desc, 1, "L")
+                
+                # Descrição
+                pdf.multi_cell(70, alt_l, t_desc, 1, "L")
+                
+                # Tipo
                 pdf.set_xy(x + 82, y)
-                pdf.multi_cell(45, alt_linha, texto_tipo, 1, "C")
+                pdf.multi_cell(45, alt_l, t_tipo, 1, "C")
+                
+                # Colunas Finais
                 pdf.set_xy(x + 127, y)
                 pdf.cell(15, h, blindar_texto(row["UNID MED"]), 1, 0, "C")
                 pdf.cell(18, h, str(row["PREDEFINIDO"]), 1, 0, "C")
                 pdf.cell(30, h, str(row["CONFIRMA"]), 1, 1, "C")
 
-            # Removido encode('latin-1') direto para evitar o erro da imagem
-            pdf_output = pdf.output(dest='S')
-            st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+            # MUDANÇA CRUCIAL: Gerar como string de bytes correta para o Streamlit
+            pdf_bytes = pdf.output(dest='S').encode('latin-1')
+            st.download_button(
+                label="📥 BAIXAR PDF CORRIGIDO",
+                data=pdf_bytes,
+                file_name=f"Rancho_{st.session_state.navio}.pdf",
+                mime="application/pdf"
+            )
+            st.success("✅ PDF gerado com sucesso! Clique no botão acima para baixar.")
+
         except Exception as e:
-            st.error(f"Erro ao processar PDF: {e}")
-
-    # --- BOTÕES DE NAVEGAÇÃO ---
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
-            st.rerun()
-    with col2:
-        if st.button("🚪 SAIR DO SISTEMA"):
-            st.session_state.pagina = "home"
-            st.rerun()
-
-elif st.session_state.pagina == "tripulacao":
-    st.title("👨‍✈️ Tripulação")
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"
-        st.rerun()
+            st.error(f"Erro ao construir o arquivo: {e}")
