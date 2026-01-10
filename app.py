@@ -21,80 +21,73 @@ USUARIOS = {
     "NAVIO 13": "zion13"
 }
 
-# --- 2. CONFIGURAÇÕES E ESTILO ---
-st.set_page_config(page_title="Zion Rancho", layout="centered")
-
+# --- 1. ESTILO VISUAL AJUSTADO ---
 st.markdown("""
     <style>
     .stApp { background-color: #4169E1; color: white; text-align: center; }
     h1, h2, h3, p, label { color: white !important; }
     
-    /* BOTÕES MAIS VISÍVEIS */
+    /* BOTÕES COM TEXTO PRETO E BEM VISÍVEIS */
     .stButton>button { 
         background-color: #FFFFFF !important; 
-        color: #00008B !important; /* Azul Escuro para leitura fácil */
-        font-size: 20px !important;
+        color: #000000 !important; /* Texto Preto conforme solicitado */
+        font-size: 18px !important;
         font-weight: bold !important; 
         border-radius: 10px; 
         height: 3em;
         width: 100%;
         border: 2px solid #000000;
+        margin-top: 10px;
     }
-    /* Deixar o texto dos campos de entrada visíveis */
-    .stTextInput>div>div>input { color: black !important; }
-    .stSelectbox>div>div>div { color: black !important; }
+
+    /* Ajuste para inputs aparecerem com texto legível */
+    input { color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LÓGICA DE NAVEGAÇÃO ---
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"
-
-# TELA 1: CAPA
-if st.session_state.pagina == "home":
-    st.title("Bem-vindo ao Zion Rancho App!")
-    if os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", width=400)
-    
-    if st.button("INICIAR ACESSO"):
-        st.session_state.pagina = "login"
-        st.rerun()
-
-# TELA 2: LOGIN (ONDE APARECEM ENTRAR E VOLTAR)
-elif st.session_state.pagina == "login":
+# --- 2. LÓGICA DE LOGIN E SAUDAÇÃO ---
+if st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
     navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
-    senha = st.text_input("Digite a Senha", type="password")
+    senha = st.text_input("Senha de Acesso", type="password")
     
-    st.markdown("---")
-    
-    # Botão de Entrar
-    if st.button("ENTRAR AGORA"):
+    # Botão de Entrar com ícone de carrinho 🛒
+    if st.button("🛒 ENTRAR"):
         if navio in USUARIOS and USUARIOS[navio] == senha:
             st.session_state.usuario_ativo = navio
+            st.session_state.logado = True
             st.session_state.pagina = "menu"
+            # Mensagem de sucesso personalizada
+            st.success(f"Seja Bem-vindo, {navio}!") 
             st.rerun()
         else:
-            st.error("Dados incorretos!")
+            st.error("Navio ou Senha incorretos!")
             
     # Botão de Voltar
-    if st.button("VOLTAR PARA O INÍCIO"):
+    if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "home"
         st.rerun()
 
-# TELA 3: MENU COM ÍCONES
+# --- 3. TELA DE MENU (ONDE APARECE A SAUDAÇÃO) ---
 elif st.session_state.pagina == "menu":
-    st.title(f"⚓ Navio: {st.session_state.usuario_ativo}")
+    # Saudação personalizada no topo do menu
+    st.markdown(f"## Seja Bem-vindo, {st.session_state.usuario_ativo}!")
+    st.write("Escolha o módulo que deseja acessar:")
+    
     col1, col2 = st.columns(2)
+    
     with col1:
         if st.button("🛒 LISTA DE RANCHO"):
-            st.session_state.pagina = "lista"
+            st.session_state.pagina = "lista_rancho"
             st.rerun()
+            
     with col2:
         if st.button("👨‍✈️ TRIPULAÇÃO"):
-            st.info("Módulo em breve")
+            st.session_state.pagina = "tripulacao"
+            st.rerun()
 
     if st.button("SAIR"):
+        st.session_state.logado = False
         st.session_state.pagina = "home"
         st.rerun()
