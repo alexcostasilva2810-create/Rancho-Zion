@@ -200,7 +200,7 @@ elif st.session_state.pagina == "lista":
 
             pdf_bytes = pdf.output(dest='S').encode('latin-1')
             st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            st.success("✅ PDF pronto com data e hora!")
+            st.success("✅ Sua demanda esta pronta favor mandar no grupo de WhatsApp de rancho!")
         except Exception as e:
             st.error(f"Erro ao gerar PDF: {e}")
 
