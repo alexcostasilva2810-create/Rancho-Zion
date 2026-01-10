@@ -5,26 +5,24 @@ import os
 from fpdf import FPDF
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, ESTADOS E ESTRUTURA PADRÃO
+# BLOCO 1: CONFIGURAÇÕES DE ESTADO E ESTRUTURA
 # =================================================================
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
     st.session_state.cozinheiro = ""
 
-# Colunas padrão baseadas no seu banco de dados Notion
+# Colunas padrão para garantir que a tabela sempre apareça
 COLUNAS_PADRAO = ["CODIGO", "PROTEINA", "TIPO", "UNIDADE DE MEDIDA", "ESTOQUE", "DESCRIÇÃO", "CONFIRMA"]
 
 if 'df_lista' not in st.session_state:
-    # Garante que a tabela apareça mesmo se o Notion não carregar
     st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
 # =================================================================
-# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION (TOKEN E ID INSERIDOS)
+# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION (DADOS REAIS)
 # =================================================================
 def carregar_dados_do_notion():
     """Busca os dados reais inseridos no Notion"""
-    # Seus códigos de acesso
     NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
     DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1"
     
@@ -42,7 +40,6 @@ def carregar_dados_do_notion():
             dados_notion = []
             for page in results:
                 p = page.get("properties", {})
-                # Mapeamento exato das colunas do seu Notion
                 dados_notion.append({
                     "CODIGO": p.get("CODIGO", {}).get("title", [{}])[0].get("plain_text", ""),
                     "PROTEINA": p.get("PROTEINA", {}).get("rich_text", [{}])[0].get("plain_text", ""),
@@ -53,15 +50,12 @@ def carregar_dados_do_notion():
                     "CONFIRMA": 0.0
                 })
             return pd.DataFrame(dados_notion)
-        else:
-            st.error(f"Erro de conexão: {response.status_code}")
-            return st.session_state.df_lista
-    except Exception as e:
-        st.error(f"Falha ao carregar dados: {e}")
+        return st.session_state.df_lista
+    except:
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: ESTILO VISUAL (CSS)
+# BLOCO 3: ESTILO VISUAL (PADRÃO ZION)
 # =================================================================
 st.markdown("""
     <style>
@@ -80,29 +74,35 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS (HOME E LOGIN)
+# BLOCO 4: TELA INICIAL (RESTAURADA ORIGINAL)
 # =================================================================
 if st.session_state.pagina == "home":
     st.title("Bem-vindo ao Zion Rancho App!")
-    if st.button("INICIAR ACESSO"):
+    st.write("Seu controle de estoque inteligente com IA.")
+    
+    # Exibe a imagem original se ela existir no seu GitHub/Pasta
+    if os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", width=400)
+    
+    if st.button("INICIAR ACESSO", key="btn_home"):
         st.session_state.pagina = "login"
         st.rerun()
 
+# =================================================================
+# BLOCO 5: LOGIN E SUBTELA (MENU PRINCIPAL)
+# =================================================================
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
     if st.button("🛒 ENTRAR"):
-        st.session_state.cozinheiro = "Marcos"
+        st.session_state.cozinheiro = "Marcos" # Exemplo logado
         st.session_state.navio = navio
         st.session_state.pagina = "menu"
         st.rerun()
 
-# =================================================================
-# BLOCO 5: MENU PRINCIPAL (SUBTELA COM TRIPULAÇÃO E RANCHO)
-# =================================================================
 elif st.session_state.pagina == "menu":
     st.markdown(f"## Seja Bem-vindo, {st.session_state.cozinheiro}!")
-    st.write(f"Gestão atual: **{st.session_state.navio}**")
+    st.write(f"Embarcação selecionada: **{st.session_state.navio}**")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -114,35 +114,29 @@ elif st.session_state.pagina == "menu":
             st.session_state.pagina = "tripulacao"
             st.rerun()
     
-    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("SAIR DO SISTEMA"):
         st.session_state.pagina = "home"
         st.rerun()
 
 # =================================================================
-# BLOCO 6: TELA DE LISTA (CORRIGIDA E INTEGRADA)
+# BLOCO 6: TELA DE LISTA (TABELA E PDF)
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.title(f"📋 Tabela de Rancho - {st.session_state.get('navio', '')}")
 
-    # Botão de Sincronização Real
     if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        with st.spinner("Conectando ao Notion..."):
-            st.session_state.df_lista = carregar_dados_do_notion()
-            st.rerun()
+        st.session_state.df_lista = carregar_dados_do_notion()
+        st.rerun()
 
-    # Tabela sempre visível
+    # Tabela sempre visível conforme solicitado
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
-            "CODIGO": st.column_config.TextColumn("CÓD.", disabled=True),
-            "PROTEINA": st.column_config.TextColumn("ITEM", disabled=True),
-            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
+            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
         },
         hide_index=True,
-        use_container_width=True,
-        key="editor_lista_real"
+        use_container_width=True
     )
 
     st.markdown("---")
@@ -153,35 +147,29 @@ elif st.session_state.pagina == "lista":
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, f"Checklist de Rancho - Cozinheiro: {st.session_state.cozinheiro}", ln=True, align="C")
+            pdf.cell(0, 10, f"Checklist de Rancho - {st.session_state.cozinheiro}", ln=True, align="C")
             
-            # Cabeçalho da Tabela no PDF
+            # Cabeçalho do PDF
             pdf.set_font("Arial", "B", 8)
-            pdf.set_fill_color(220, 220, 220)
-            larguras = [20, 50, 25, 20, 20, 85, 25]
-            titulos_pdf = ["COD", "PROTEINA", "TIPO", "UNID", "ESTOQUE", "DESCRICAO", "CONF."]
-            
-            for i, titulo in enumerate(titulos_pdf):
-                pdf.cell(larguras[i], 10, titulo, 1, 0, "C", True)
+            pdf.set_fill_color(200, 200, 200)
+            larguras = [20, 45, 25, 20, 20, 85, 25]
+            for i, titulo in enumerate(COLUNAS_PADRAO):
+                pdf.cell(larguras[i], 10, titulo[:10], 1, 0, "C", True)
             pdf.ln()
 
-            # Preenchimento do PDF
+            # Dados do PDF
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, str(row.get("CODIGO", "")), 1)
-                pdf.cell(larguras[1], 8, str(row.get("PROTEINA", "")), 1)
-                pdf.cell(larguras[2], 8, str(row.get("TIPO", "")), 1)
-                pdf.cell(larguras[3], 8, str(row.get("UNIDADE DE MEDIDA", "")), 1)
-                pdf.cell(larguras[4], 8, str(row.get("ESTOQUE", "0")), 1, 0, "C")
-                pdf.cell(larguras[5], 8, str(row.get("DESCRIÇÃO", "")), 1)
-                pdf.cell(larguras[6], 8, str(row.get("CONFIRMA", "0")), 1, 1, "C")
+                for i, col in enumerate(COLUNAS_PADRAO):
+                    pdf.cell(larguras[i], 8, str(row.get(col, "")), 1)
+                pdf.ln()
 
-            pdf_out = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR PDF COMPLETO", data=pdf_out, file_name="Zion_Rancho.pdf")
+            pdf_bytes = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name="Rancho_Zion.pdf")
 
     with c2:
         if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu" # Volta para o Bloco 5
+            st.session_state.pagina = "menu"
             st.rerun()
 
 # =================================================================
@@ -189,11 +177,7 @@ elif st.session_state.pagina == "lista":
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Gestão de Tripulação")
-    st.write("Insira os dados da tripulação abaixo:")
-    # Espaço para futuros inputs de tripulação
-    st.text_input("Nome do Tripulante")
-    st.selectbox("Função", ["Comandante", "Cozinheiro", "Marinheiro"])
-    
+    st.info("Área destinada ao controle de pessoal.")
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
