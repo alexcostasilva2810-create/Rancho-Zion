@@ -52,6 +52,7 @@ def carregar_dados_do_notion():
                     "CONFIRMA": 0
                 })
             df = pd.DataFrame(dados_notion)
+            # Ordenação numérica para garantir sequência 1, 2, 3...
             df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
             return df.sort_values(by='ITEM').reset_index(drop=True)
         return st.session_state.df_lista
@@ -145,12 +146,14 @@ elif st.session_state.pagina == "lista":
             def header(self):
                 if os.path.exists("APPRANCHO.png"): 
                     self.image("APPRANCHO.png", 10, 8, 20)
-                self.set_font("Arial", "B", 14)
+                self.set_font("Arial", "B", 12)
                 self.set_xy(35, 12)
-                self.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
+                # Cabeçalho atualizado: Navio e Responsável
+                self.cell(0, 10, blindar_texto(f"Checklist de Rancho - {st.session_state.navio} - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
                 self.ln(10)
+                # Cabeçalho da Tabela
                 self.set_font("Arial", "B", 8)
-                self.set_fill_color(0, 102, 204)
+                self.set_fill_color(0, 102, 204) # Azul Zion
                 self.set_text_color(255, 255, 255)
                 self.cell(12, 10, "ITEM", 1, 0, "C", True)
                 self.cell(70, 10, "DESCRICAO", 1, 0, "C", True)
@@ -164,6 +167,7 @@ elif st.session_state.pagina == "lista":
                 self.set_y(-15)
                 self.set_font("Arial", "I", 7)
                 self.set_text_color(128, 128, 128)
+                # Rodapé com Data e Hora
                 texto_rodape = f"Gerado em: {agora} | Zion Rancho App | Pagina {self.page_no()}"
                 self.cell(0, 10, blindar_texto(texto_rodape), 0, 0, "C")
 
@@ -177,6 +181,7 @@ elif st.session_state.pagina == "lista":
                 t_desc = blindar_texto(row["DESCRIÇÃO"])
                 t_tipo = blindar_texto(row["TIPO"])
                 alt_l = 6
+                # Cálculo de altura para evitar quebras de página desalinhadas
                 l_desc = (pdf.get_string_width(t_desc) / 70) + 1
                 l_tipo = (pdf.get_string_width(t_tipo) / 45) + 1
                 h = max(int(l_desc), int(l_tipo)) * alt_l
