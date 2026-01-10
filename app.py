@@ -73,7 +73,7 @@ if st.session_state.pagina == "home":
 # ==========================================
 
 elif st.session_state.pagina == "login":
-    # CSS específico para letras pretas nos botões e fundo de cozinha
+    # CSS Reforçado: Fundo Laranja e Letras Pretas para visibilidade total
     st.markdown("""
         <style>
         /* Fundo com imagem de cozinha e máscara azul */
@@ -83,40 +83,50 @@ elif st.session_state.pagina == "login":
             background-size: cover;
         }
 
-        /* FORÇAR LETRA PRETA NOS BOTÕES */
+        /* BOTÃO LARANJA COM TEXTO PRETO */
         div.stButton > button {
-            background-color: #FFFFFF !important;
-            color: #000000 !important; /* PRETO ABSOLUTO */
+            background-color: #FF8C00 !important; /* Laranja Forte */
+            color: #000000 !important;           /* Texto Preto */
             font-weight: bold !important;
+            font-size: 20px !important;
+            border-radius: 12px !important;
             border: 2px solid #000000 !important;
+            height: 3.5em !important;
+            transition: 0.3s;
         }
 
-        /* Garante que o texto continue preto ao passar o mouse */
+        /* Efeito ao passar o mouse: Laranja mais escuro */
         div.stButton > button:hover {
+            background-color: #FF7F00 !important;
             color: #000000 !important;
             border: 2px solid #000000 !important;
+            transform: scale(1.02);
         }
+
+        /* Cor dos labels dos campos */
+        label { color: white !important; font-size: 18px !important; }
         </style>
         """, unsafe_allow_html=True)
         
     st.title("🔐 Acesso do Cozinheiro")
     
-    # Seleção de Navio e Senha
+    # Formulário de Acesso
     navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
     senha = st.text_input("Senha de Acesso", type="password")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão ENTRAR com ícone
+    # Botão ENTRAR
     if st.button("🛒 ENTRAR"):
         if navio in USUARIOS and USUARIOS[navio] == senha:
             st.session_state.usuario_ativo = navio
             st.session_state.pagina = "menu"
+            st.success(f"Seja Bem-vindo, {navio}!")
             st.rerun()
         else:
             st.error("Navio ou Senha incorretos!")
             
-    # Botão VOLTAR com ícone
+    # Botão VOLTAR
     if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "home"
         st.rerun()
