@@ -168,111 +168,107 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - SALVAR E GERAR PDF
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - VERSÃO DEFINITIVA
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.markdown("## 📋 Tabela de Rancho")
     st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
 
-    # 1. BASE DE DADOS COM TODAS AS COLUNAS (CÓDIGO, PROTEÍNA, TIPO, UNIDADE, ESTOQUE, DESCRIÇÃO, CONFIRMA)
+    # 1. GARANTINDO AS 8 COLUNAS NO OBJETO DE DADOS
     if 'df_lista' not in st.session_state:
-        dados_fixos = {
-            "CÓDIGO": ["PR01", "PR02", "PR03", "PR04"],
-            "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza", "Ovos Brancos"],
-            "TIPO": ["Carne", "Aves", "Peixe", "Perecíveis"],
-            "UNID. MEDIDA": ["KG", "KG", "KG", "DZ"],
-            "PREDEFINIDO": [20.0, 35.0, 15.0, 50.0], 
-            "ESTOQUE": [5.0, 2.0, 10.0, 12.0],
-            "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado", "Cartela c/ 30"],
-            "CONFIRMA": [0.0, 0.0, 0.0, 0.0]
+        dados_completos = {
+            "CÓDIGO": ["PR01", "PR02", "PR03"],
+            "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza"],
+            "TIPO": ["Carne", "Aves", "Peixe"],
+            "UNIDADE DE MEDIDA": ["KG", "KG", "KG"],
+            "ESTOQUE": [5.0, 2.0, 10.0],
+            "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado"],
+            "PREDEFINIDO": [20.0, 35.0, 15.0],
+            "CONFIRMA": [0.0, 0.0, 0.0]
         }
-        st.session_state.df_lista = pd.DataFrame(dados_fixos)
+        st.session_state.df_lista = pd.DataFrame(dados_completos)
 
-    # 2. TABELA INTERATIVA (APENAS 'CONFIRMA' É EDITÁVEL)
+    # 2. RENDERIZAÇÃO DA TABELA COM AS 8 COLUNAS VISÍVEIS
+    # O df_final captura o que o usuário digita na coluna CONFIRMA
     df_final = st.data_editor(
         st.session_state.df_lista,
         column_config={
-            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", disabled=True),
-            "PROTEÍNA": st.column_config.TextColumn("PROTEÍNA", disabled=True),
-            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
-            "UNID. MEDIDA": st.column_config.TextColumn("UNID. MEDIDA", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True),
-            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", min_value=0.0, format="%.2f"),
+            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", width="small", disabled=True),
+            "PROTEÍNA": st.column_config.TextColumn("PROTEÍNA", width="medium", disabled=True),
+            "TIPO": st.column_config.TextColumn("TIPO", width="small", disabled=True),
+            "UNIDADE DE MEDIDA": st.column_config.TextColumn("UNIDADE", width="small", disabled=True),
+            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", width="small", disabled=True),
+            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", width="medium", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", width="small", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", width="medium", min_value=0.0, format="%.2f"),
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_rancho_v5"
+        key="editor_final_v10"
     )
 
     st.markdown("---")
     
-    col_acao, col_voltar = st.columns(2)
+    col_salvar, col_voltar = st.columns(2)
     
-    with col_acao:
-        # BOTÃO ÚNICO: SALVAR E PROCESSAR PDF
-        if st.button("💾 SALVAR E GERAR PDF", key="btn_salvar_pdf"):
+    with col_salvar:
+        # 3. BOTÃO DE SALVAR QUE GERA O PDF COM CONTEÚDO
+        if st.button("💾 SALVAR E GERAR PDF", key="btn_principal_salvar"):
             try:
-                # Criar o PDF em modo PAISAGEM (L) para caber as 8 colunas
+                # Criar PDF em modo PAISAGEM (L) para caber as 8 colunas
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
-                
-                # Título e Informações de Cabeçalho
                 pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "ZION TECNOLOGIA - RELATÓRIO DE RANCHO", ln=True, align="C")
-                pdf.set_font("Arial", "", 11)
-                pdf.cell(0, 8, f"Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
+                
+                # Cabeçalho do PDF
+                pdf.cell(0, 10, "ZION RANCHO - RELATÓRIO DE COMPRAS", ln=True, align="C")
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 10, f"Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
                 pdf.ln(5)
 
-                # CABEÇALHO DA TABELA NO PDF (Cores e Títulos)
+                # Definir larguras das 8 colunas para o PDF (Total 277mm)
+                # COD, PROT, TIPO, UNID, ESTOQ, DESC, PREDEF, CONF
+                w = [20, 45, 25, 25, 25, 60, 27, 30]
+                
+                # Cabeçalho da Tabela no PDF
                 pdf.set_font("Arial", "B", 8)
                 pdf.set_fill_color(255, 140, 0) # Laranja Zion
-                pdf.set_text_color(0, 0, 0)     # Texto Preto
+                titulos = ["CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "ESTOQUE", "DESCRIÇÃO", "PREDEF.", "CONFIRMA"]
                 
-                larguras = [20, 45, 25, 20, 25, 25, 75, 25] # Total 260mm
-                colunas = ["CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "PREDEF.", "ESTOQUE", "DESCRIÇÃO", "CONFIRMA"]
-                
-                for i in range(len(colunas)):
-                    pdf.cell(larguras[i], 10, colunas[i], 1, 0, "C", True)
+                for i in range(len(titulos)):
+                    pdf.cell(w[i], 8, titulos[i], 1, 0, "C", True)
                 pdf.ln()
 
-                # LINHAS DA TABELA (DESENHANDO CADA PRODUTO)
+                # 4. PREENCHENDO O CONTEÚDO (Onde estava saindo em branco)
                 pdf.set_font("Arial", "", 8)
-                pdf.set_text_color(0, 0, 0)
-                
-                for _, row in df_final.iterrows():
-                    pdf.cell(larguras[0], 8, str(row["CÓDIGO"]), 1, 0, "C")
-                    pdf.cell(larguras[1], 8, str(row["PROTEÍNA"]), 1)
-                    pdf.cell(larguras[2], 8, str(row["TIPO"]), 1, 0, "C")
-                    pdf.cell(larguras[3], 8, str(row["UNID. MEDIDA"]), 1, 0, "C")
-                    pdf.cell(larguras[4], 8, str(row["PREDEFINIDO"]), 1, 0, "C")
-                    pdf.cell(larguras[5], 8, str(row["ESTOQUE"]), 1, 0, "C")
-                    pdf.cell(larguras[6], 8, str(row["DESCRIÇÃO"]), 1)
-                    
-                    # Destacar a quantidade confirmada em Negrito
+                for index, row in df_final.iterrows():
+                    pdf.cell(w[0], 7, str(row["CÓDIGO"]), 1, 0, "C")
+                    pdf.cell(w[1], 7, str(row["PROTEÍNA"]), 1)
+                    pdf.cell(w[2], 7, str(row["TIPO"]), 1, 0, "C")
+                    pdf.cell(w[3], 7, str(row["UNIDADE DE MEDIDA"]), 1, 0, "C")
+                    pdf.cell(w[4], 7, str(row["ESTOQUE"]), 1, 0, "C")
+                    pdf.cell(w[5], 7, str(row["DESCRIÇÃO"]), 1)
+                    pdf.cell(w[6], 7, str(row["PREDEFINIDO"]), 1, 0, "C")
+                    # Destaca o valor confirmado
                     pdf.set_font("Arial", "B", 8)
-                    pdf.cell(larguras[7], 8, str(row["CONFIRMA"]), 1, 1, "C")
+                    pdf.cell(w[7], 7, str(row["CONFIRMA"]), 1, 1, "C")
                     pdf.set_font("Arial", "", 8)
 
-                # Transformar em Bytes para Download
-                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                # Gerar o arquivo para o navegador
+                pdf_output = pdf.output(dest='S').encode('latin-1')
                 
-                st.success("✅ Dados salvos e PDF gerado!")
-                
-                # Exibe o botão de download real logo abaixo após o processamento
+                st.success("✅ Tabela salva! O PDF está pronto.")
                 st.download_button(
-                    label="📥 CLIQUE AQUI PARA BAIXAR O ARQUIVO",
-                    data=pdf_bytes,
-                    file_name=f"Relatorio_Rancho_{st.session_state.cozinheiro}.pdf",
+                    label="📥 BAIXAR RELATÓRIO AGORA",
+                    data=pdf_output,
+                    file_name=f"Rancho_{st.session_state.cozinheiro}.pdf",
                     mime="application/pdf",
-                    key="download_final"
+                    key="download_trigger"
                 )
-                
             except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
+                st.error(f"Erro técnico: {e}")
 
     with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar"):
+        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_v10"):
             st.session_state.pagina = "menu"
             st.rerun()
