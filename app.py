@@ -6,7 +6,7 @@ from fpdf import FPDF
 import unicodedata
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E SEGURANÇA (TRAVAS)
+# BLOCO 1: CONFIGURAÇÕES E TRAVAS DE SEGURANÇA
 # =================================================================
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
@@ -15,7 +15,7 @@ if 'cozinheiro' not in st.session_state:
 if 'navio' not in st.session_state:
     st.session_state.navio = ""
 
-# Colunas conforme sua nova base do Notion
+# Colunas baseadas na sua planilha alimentada
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 
 if 'df_lista' not in st.session_state:
@@ -28,7 +28,7 @@ USUARIOS = {
 }
 
 # =================================================================
-# BLOCO 2: CONEXÃO COM NOTION
+# BLOCO 2: CONEXÃO COM NOTION (RESPEITANDO A ORDEM ORIGINAL)
 # =================================================================
 def carregar_dados_do_notion():
     NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
@@ -56,13 +56,14 @@ def carregar_dados_do_notion():
                     "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
                     "CONFIRMA": 0
                 })
+            # Retorna o DataFrame sem ordenar, mantendo a ordem do Notion
             return pd.DataFrame(dados_notion)
         return st.session_state.df_lista
     except:
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: ESTILO VISUAL (AZUL ZION)
+# BLOCO 3: ESTILO VISUAL E TELA DE LISTA
 # =================================================================
 st.markdown("""
     <style>
@@ -79,9 +80,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# =================================================================
-# BLOCO 4: TELA INICIAL
-# =================================================================
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
     if os.path.exists("APPRANCHO.png"):
@@ -90,39 +88,26 @@ if st.session_state.pagina == "home":
         st.session_state.pagina = "login"
         st.rerun()
 
-# =================================================================
-# BLOCO 5: LOGIN E SUBTELA
-# =================================================================
 elif st.session_state.pagina == "login":
-    st.title("🔐 Acesso Restrito")
-    navio_sel = st.selectbox("Selecione a Embarcação", [""] + list(USUARIOS.keys()))
-    senha_digitada = st.text_input("Senha", type="password")
-    
+    st.title("🔐 Acesso")
+    navio_sel = st.selectbox("Embarcação", [""] + list(USUARIOS.keys()))
+    senha = st.text_input("Senha", type="password")
     if st.button("ENTRAR"):
-        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha_digitada:
+        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha:
             st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
             st.session_state.navio = navio_sel
-            st.success(f"✅ Bem-vindo, {st.session_state.cozinheiro}!")
             st.session_state.pagina = "menu"
             st.rerun()
-        else:
-            st.error("❌ Credenciais incorretas.")
 
 elif st.session_state.pagina == "menu":
     st.title(f"Olá, {st.session_state.cozinheiro}!")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🛒 LISTA DE RANCHO"):
-            st.session_state.pagina = "lista"
-            st.rerun()
-    with col2:
-        if st.button("👨‍✈️ TRIPULAÇÃO"):
-            st.session_state.pagina = "tripulacao"
-            st.rerun()
+    if st.button("🛒 LISTA DE RANCHO"):
+        st.session_state.pagina = "lista"
+        st.rerun()
+    if st.button("👨‍✈️ TRIPULAÇÃO"):
+        st.session_state.pagina = "tripulacao"
+        st.rerun()
 
-# =================================================================
-# BLOCO 6: TELA DE LISTA (O FIM DEFINITIVO DO ERRO DO PDF)
-# =================================================================
 elif st.session_state.pagina == "lista":
     st.title(f"📋 Rancho - {st.session_state.navio}")
     st.write(f"**Responsável:** {st.session_state.cozinheiro}")
@@ -140,57 +125,85 @@ elif st.session_state.pagina == "lista":
             "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
             "UNID MED": st.column_config.TextColumn("UNID.", disabled=True),
             "PREDEFINIDO": st.column_config.NumberColumn("PREDEF.", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Sua Qtd)", min_value=0),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0),
         },
         hide_index=True,
         use_container_width=True
     )
 
     st.markdown("---")
+    
+    # GERAÇÃO DO PDF (RETRATO + QUEBRA DE LINHA)
     if st.button("📄 GERAR PDF"):
-        # O PULO DO GATO: Função que força o texto para ASCII, matando símbolos invisíveis
         def blindar_texto(texto):
             return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
 
         try:
-            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            # Orientação 'P' (Portrait) para formato Retrato
+            pdf = FPDF(orientation='P', unit='mm', format='A4')
+            pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
+            
+            # Título conforme exemplo
             pdf.set_font("Arial", "B", 14)
             pdf.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.ln(5)
             
+            # Cabeçalho da Tabela
             pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(200, 200, 200)
-            larguras = [15, 85, 30, 20, 25, 25]
-            titulos = ["ITEM", "DESCRICAO", "TIPO", "UNID", "PREDEF", "CONF"]
+            # Ajuste de larguras para Retrato (Total 190mm)
+            larg_item = 15
+            larg_desc = 75
+            larg_tipo = 40
+            larg_unid = 20
+            larg_pre = 20
+            larg_conf = 20
             
-            for i, t in enumerate(titulos):
-                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
-            pdf.ln()
+            pdf.cell(larg_item, 10, "ITEM", 1, 0, "C", True)
+            pdf.cell(larg_desc, 10, "DESCRICAO", 1, 0, "C", True)
+            pdf.cell(larg_tipo, 10, "TIPO", 1, 0, "C", True)
+            pdf.cell(larg_unid, 10, "UNID", 1, 0, "C", True)
+            pdf.cell(larg_pre, 10, "PREDEF", 1, 0, "C", True)
+            pdf.cell(larg_conf, 10, "CONF", 1, 1, "C", True)
 
             pdf.set_font("Arial", "", 8)
+            
             for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, blindar_texto(row["ITEM"]), 1)
-                pdf.cell(larguras[1], 8, blindar_texto(row["DESCRIÇÃO"]), 1)
-                pdf.cell(larguras[2], 8, blindar_texto(row["TIPO"]), 1)
-                pdf.cell(larguras[3], 8, blindar_texto(row["UNID MED"]), 1)
-                pdf.cell(larguras[4], 8, str(row["PREDEFINIDO"]), 1)
-                pdf.cell(larguras[5], 8, str(row["CONFIRMA"]), 1)
-                pdf.ln()
+                # O segredo da quebra de linha: calcular altura baseada na Descrição
+                texto_desc = blindar_texto(row["DESCRIÇÃO"])
+                altura_celula = 8 # altura padrão
+                
+                # Inicia a linha
+                x_atual = pdf.get_x()
+                y_atual = pdf.get_y()
+                
+                # Células normais (usam cell)
+                pdf.cell(larg_item, altura_celula, blindar_texto(row["ITEM"]), 1, 0, "C")
+                
+                # Célula com quebra automática (usa multi_cell)
+                pdf.multi_cell(larg_desc, altura_celula, texto_desc, 1, "L")
+                
+                # Volta para o lado da multi_cell para completar a linha
+                novo_y = pdf.get_y()
+                pdf.set_xy(x_atual + larg_item + larg_desc, y_atual)
+                
+                pdf.cell(larg_tipo, novo_y - y_atual, blindar_texto(row["TIPO"]), 1, 0, "C")
+                pdf.cell(larg_unid, novo_y - y_atual, blindar_texto(row["UNID MED"]), 1, 0, "C")
+                pdf.cell(larg_pre, novo_y - y_atual, str(row["PREDEFINIDO"]), 1, 0, "C")
+                pdf.cell(larg_conf, novo_y - y_atual, str(row["CONFIRMA"]), 1, 1, "C")
 
             pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
             st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
         except Exception as e:
-            st.error(f"Erro de conversão: {e}")
+            st.error(f"Erro de layout: {e}")
 
-    if st.button("⬅️ VOLTAR AO MENU"):
+    if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "menu"
         st.rerun()
 
-# =================================================================
-# BLOCO 7: TELA DE TRIPULAÇÃO
-# =================================================================
 elif st.session_state.pagina == "tripulacao":
-    st.title("👨‍✈️ Gestão de Tripulação")
-    if st.button("⬅️ VOLTAR AO MENU"):
+    st.title("👨‍✈️ Tripulação")
+    if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "menu"
         st.rerun()
