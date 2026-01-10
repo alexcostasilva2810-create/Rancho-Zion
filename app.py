@@ -2,73 +2,74 @@ import streamlit as st
 import os
 
 # ==========================================
-# BLOCO 1: CONFIGURAÇÕES E USUÁRIOS
+# 1. CONFIGURAÇÕES E BANCO DE DADOS DE USUÁRIOS
 # ==========================================
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
-if 'usuario_ativo' not in st.session_state:
-    st.session_state.usuario_ativo = ""
+if 'cozinheiro' not in st.session_state:
+    st.session_state.cozinheiro = ""
 
+# Dicionário: "LOGIN": {"nome": "NOME DO COZINHEIRO", "senha": "SENHA"}
 USUARIOS = {
-    "AROEIRA": "ALLAN", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
-    "NAVIO 04": "zion04", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
-    "NAVIO 07": "zion07", "NAVIO 08": "zion08", "NAVIO 09": "zion09",
-    "NAVIO 10": "zion10", "NAVIO 11": "zion11", "NAVIO 12": "zion12",
-    "NAVIO 13": "zion13"
+    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "NAVIO 02": {"nome": "Carlos", "senha": "456"},
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "ZION 04": {"nome": "Ricardo", "senha": "101"}
 }
 
 # ==========================================
-# BLOCO 2: ESTILO CSS (BOTÃO LARANJA / TEXTO PRETO)
+# 2. ESTILO CSS (FUNDOS E BOTÕES)
 # ==========================================
 st.markdown("""
     <style>
-    /* 1. Fundo Azul Royal na tela inteira */
-    .stApp { 
-        background-color: #4169E1 !important; 
+    /* Fundo Azul Royal */
+    .stApp { background-color: #4169E1 !important; }
+    
+    /* Textos em Branco */
+    h1, h2, h3, p, label { color: white !important; }
+
+    /* BOTÃO LARANJA COM LETRA PRETA (FORÇADO) */
+    div.stButton > button {
+        background-color: #FF8C00 !important;
+        color: #000000 !important;
+        font-weight: 900 !important;
+        font-size: 18px !important;
+        border-radius: 10px !important;
+        border: 2px solid #000000 !important;
+        width: 100%;
+        height: 3.5em;
     }
     
-    /* 2. Todos os textos em Branco */
-    h1, h2, h3, p, label { 
-        color: #FFFFFF !important; 
+    /* Garante que o texto continue preto ao passar o mouse ou clicar */
+    div.stButton > button:hover, div.stButton > button:active, div.stButton > button:focus {
+        color: #000000 !important;
+        background-color: #FFA500 !important;
     }
 
-    /* 3. BOTÕES LARANJA COM TEXTO PRETO (FORÇADO) */
-    div.stButton > button {
-        background-color: #FF8C00 !important; /* Laranja */
-        color: #000000 !important;           /* Letra Preta */
-        font-weight: 900 !important;         /* Negrito forte */
-        font-size: 20px !important;
-        border-radius: 12px !important;
-        border: 2px solid #000000 !important;
-        width: 100% !important;
-        height: 3.5em !important;
-    }
-
-    /* 4. Inputs com texto legível */
-    input { color: #000000 !important; }
+    /* Estilo para campos de texto e selectbox */
+    input { color: black !important; }
+    div[data-baseweb="select"] > div { color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# BLOCO 3: #--- TELA INICIAL ---#
+# 3. #--- TELA INICIAL ---#
 # ==========================================
 if st.session_state.pagina == "home":
     st.title("Bem-vindo ao Zion Rancho App!")
     st.write("Seu controle de estoque inteligente com IA.")
     
-    # Logo da Zion
     if os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", width=400)
     
-    if st.button("INICIAR ACESSO"):
+    if st.button("INICIAR ACESSO", key="btn_inicio"):
         st.session_state.pagina = "login"
         st.rerun()
 
 # ==========================================
-# BLOCO 4: #--- SUBSTELA (LOGIN) ---#
+# 4. #--- TELA DE LOGIN (SUBSTELA ACESSO) ---#
 # ==========================================
 elif st.session_state.pagina == "login":
-    # Fundo especial para o login (Cozinha leve ao fundo)
     st.markdown("""
         <style>
         .stApp {
@@ -81,70 +82,63 @@ elif st.session_state.pagina == "login":
         
     st.title("🔐 Acesso do Cozinheiro")
     
-    navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
-    senha = st.text_input("Senha de Acesso", type="password")
+    navio_sel = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
+    senha_sel = st.text_input("Senha de Acesso", type="password")
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    if st.button("🛒 ENTRAR"):
-        if navio in USUARIOS and USUARIOS[navio] == senha:
-            st.session_state.usuario_ativo = navio
+    if st.button("🛒 ENTRAR", key="btn_entrar"):
+        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha_sel:
+            # Salva o nome do cozinheiro para a saudação
+            st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
             st.session_state.pagina = "menu"
             st.rerun()
         else:
-            st.error("Navio ou Senha incorretos!")
+            st.error("Dados incorretos!")
             
-    if st.button("⬅️ VOLTAR"):
+    if st.button("⬅️ VOLTAR", key="btn_voltar_login"):
         st.session_state.pagina = "home"
         st.rerun()
 
 # ==========================================
-# BLOCO 5: MENU PRINCIPAL (SAUDAÇÃO AO COZINHEIRO)
+# 5. #--- SUBSTELA (MENU PRINCIPAL) ---#
 # ==========================================
 elif st.session_state.pagina == "menu":
-    # Reforço do CSS para garantir botões Laranja com letras Pretas nesta tela
-    st.markdown("""
-        <style>
-        .stApp { background-color: #4169E1 !important; }
-        
-        /* BOTÃO LARANJA COM TEXTO PRETO */
-        div.stButton > button {
-            background-color: #FF8C00 !important; 
-            color: #000000 !important; 
-            font-weight: 900 !important; 
-            font-size: 18px !important;
-            border-radius: 12px !important;
-            border: 2px solid #000000 !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-    # Exibe o nome do Responsável (Cozinheiro) em vez do nome do Navio
-    # Nota: Certifique-se de que st.session_state.usuario_ativo contenha o nome do cozinheiro
-    st.markdown(f"## Seja Bem-vindo, {st.session_state.usuario_ativo}!")
+    # Saudação com nome do Cozinheiro
+    st.markdown(f"## Seja Bem-vindo, {st.session_state.cozinheiro}!")
     st.write("Escolha o que deseja fazer:")
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Organização dos botões com ícones
     col1, col2 = st.columns(2)
-    
     with col1:
-        if st.button("🛒 LISTA DE RANCHO"):
-            st.session_state.pagina = "lista_rancho"
+        if st.button("🛒 LISTA DE RANCHO", key="btn_rancho"):
+            st.session_state.pagina = "lista"
             st.rerun()
-            
     with col2:
-        if st.button("👨‍✈️ TRIPULAÇÃO"):
+        if st.button("👨‍✈️ TRIPULAÇÃO", key="btn_tripulacao"):
             st.session_state.pagina = "tripulacao"
             st.rerun()
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Botão de Sair menor
-    if st.button("SAIR"):
+    st.markdown("---")
+    if st.button("SAIR DO SISTEMA", key="btn_sair_final"):
         st.session_state.pagina = "home"
         st.rerun()
-    if st.button("SAIR"):
-        st.session_state.pagina = "home"
+
+# ==========================================
+# 6. TELAS DE CONTEÚDO (LISTA E TRIPULAÇÃO)
+# ==========================================
+elif st.session_state.pagina == "lista":
+    st.title("🛒 Lista de Rancho")
+    st.info(f"Cozinheiro Responsável: {st.session_state.cozinheiro}")
+    
+    # Próximo passo: Integração com Notion aqui
+    st.write("Sua lista de compras aparecerá aqui em breve.")
+    
+    if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_lista"):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
+elif st.session_state.pagina == "tripulacao":
+    st.title("👨‍✈️ Tripulação")
+    st.write("Módulo de gestão de tripulantes.")
+    
+    if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_trip"):
+        st.session_state.pagina = "menu"
         st.rerun()
