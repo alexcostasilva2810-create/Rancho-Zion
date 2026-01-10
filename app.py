@@ -1,92 +1,130 @@
 import streamlit as st
+import requests
+import pandas as pd
 import os
 
-# 1. Configuração da Página
-st.set_page_config(page_title="Zion Rancho", layout="centered")
+# --- 1. CONFIGURAÇÕES DE SEGURANÇA E CONEXÃO ---
+# O Streamlit lê as chaves que você salvou em 'Advanced Settings'
+NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+DATABASE_ID = st.secrets["DATABASE_ID"]
 
-# 2. Estilo Azul Royal
+headers = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Content-Type": "application/json",
+    "Notion-Version": "2022-06-28",
+}
+
+# Banco de dados de usuários (Ajuste as senhas como desejar)
+USUARIOS = {
+    "NAVIO 01": "zion01", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
+    "NAVIO 04": "zion04", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
+    "NAVIO 07": "zion07", "NAVIO 08": "zion08", "NAVIO 09": "zion09",
+    "NAVIO 10": "zion10", "NAVIO 11": "zion11", "NAVIO 12": "zion12",
+    "NAVIO 13": "zion13"
+}
+
+# --- 2. ESTILO VISUAL (AZUL ROYAL) ---
+st.set_page_config(page_title="Zion Rancho App", layout="centered")
+
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #4169E1;
-        color: white;
-        text-align: center;
-    }
-    h1, p { color: white !important; }
-    .stButton>button {
-        background-color: white;
-        color: #4169E1;
-        font-weight: bold;
-        border-radius: 10px;
+    .stApp { background-color: #4169E1; color: white; text-align: center; }
+    h1, h2, h3, p { color: white !important; }
+    /* Estilo dos botões brancos com texto azul */
+    .stButton>button { 
+        background-color: #ffffff; 
+        color: #4169E1; 
+        font-weight: bold; 
+        border-radius: 15px; 
         height: 3em;
-        width: 50%;
+        width: 100%;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Conteúdo da Tela Inicial
-st.title("Bem-vindo ao Zion Rancho!")
-st.write("Seu controle de estoque inteligente com IA.")
+# --- 3. CONTROLE DE ESTADO (SESSÃO) ---
+if 'logado' not in st.session_state:
+    st.session_state.logado = False
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "home"
+if 'usuario_ativo' not in st.session_state:
+    st.session_state.usuario_ativo = ""
 
-# Tentativa de carregar a imagem sem quebrar o app
-nome_da_imagem = "APPRANCHO.png"
+# --- 4. LÓGICA DE TELAS ---
 
-if os.path.exists(nome_da_imagem):
-    st.image(nome_da_imagem, width=400)
-else:
-    st.error(f"Arquivo '{nome_da_imagem}' não encontrado no GitHub. Verifique o nome!")
-
-# --- BLOCO DE CONTROLE DE ACESSO (LOGS E USUÁRIOS) ---
-
-# Lista dos 13 Navios (Ajuste os nomes conforme sua frota)
-NAVIO_SENHAS = {
-    "Navio 01": "zion01",
-    "Navio 02": "zion02",
-    "Navio 03": "zion03",
-    "Navio 04": "zion04",
-    "Navio 05": "zion05",
-    "Navio 06": "zion06",
-    "Navio 07": "zion07",
-    "Navio 08": "zion08",
-    "Navio 09": "zion09",
-    "Navio 10": "zion10",
-    "Navio 11": "zion11",
-    "Navio 12": "zion12",
-    "Navio 13": "zion13"
-}
-
-def tela_login():
-    st.markdown("### 🔐 Acesso Restrito aos Cozinheiros")
+# TELA 1: CAPA COM LOGO
+if st.session_state.pagina == "home":
+    st.title("Bem-vindo ao Zion Rancho App!")
+    st.write("Seu controle de estoque inteligente com IA.")
     
-    with st.form("login_form"):
-        navio_selecionado = st.selectbox("Selecione seu Navio", list(NAVIO_SENHAS.keys()))
-        senha = st.text_input("Senha do Navio", type="password")
-        botao_entrar = st.form_submit_button("ENTRAR NO SISTEMA")
-        
-        if botao_entrar:
-            if NAVIO_SENHAS.get(navio_selecionado) == senha:
-                st.session_state.logado = True
-                st.session_state.usuario_atual = navio_selecionado # Guarda quem acessou
-                st.success(f"Bem-vindo, Cozinheiro do {navio_selecionado}!")
-                st.rerun()
-            else:
-                st.error("Senha incorreta. Tente novamente.")
+    if os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", width=400)
+    
+    if st.button("INICIAR ACESSO"):
+        st.session_state.pagina = "login"
+        st.rerun()
 
-# --- INTEGRAÇÃO COM A TABELA (EXEMPLO DE ENVIO) ---
-def atualizar_estoque_notion(item_id, novo_valor):
-    # Esta função enviará o 'usuario_atual' para a coluna 'RESPONSÁVEL' do Notion
-    url = f"https://api.notion.com/v1/pages/{item_id}"
-    dados_atualizados = {
-        "properties": {
-            "ESTOQUE": {"number": novo_valor},
-            "RESPONSÁVEL": {
-                "rich_text": [{"text": {"content": st.session_state.usuario_atual}}]
-            }
-        }
-    }
-    requests.patch(url, headers=headers, json=dados_atualizados)
+# TELA 2: LOGIN POR NAVIO
+elif st.session_state.pagina == "login":
+    st.title("🔐 Acesso do Cozinheiro")
+    
+    navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
+    senha = st.text_input("Senha de Acesso", type="password")
+    
+    if st.button("ENTRAR"):
+        if navio in USUARIOS and USUARIOS[navio] == senha:
+            st.session_state.logado = True
+            st.session_state.usuario_ativo = navio
+            st.session_state.pagina = "menu"
+            st.rerun()
+        else:
+            st.error("Navio ou Senha incorretos!")
+    
+    if st.button("⬅ Voltar"):
+        st.session_state.pagina = "home"
+        st.rerun()
 
-# 4. Botão de entrada
-if st.button("ACESSAR SISTEMA"):
-    st.success("Conectando ao banco de dados...")
-    # Aqui depois colocaremos a troca para a tabela
+# TELA 3: MENU COM ÍCONES (PÓS-LOGIN)
+elif st.session_state.pagina == "menu":
+    st.title(f"⚓ Painel do {st.session_state.usuario_ativo}")
+    st.write("Escolha o módulo que deseja acessar:")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 🛒")
+        if st.button("LISTA DE RANCHO"):
+            st.session_state.pagina = "lista_rancho"
+            st.rerun()
+            
+    with col2:
+        st.markdown("### 👨‍✈️")
+        if st.button("TRIPULAÇÃO"):
+            st.session_state.pagina = "tripulacao"
+            st.rerun()
+    
+    st.markdown("---")
+    if st.button("SAIR / LOGOFF"):
+        st.session_state.logado = False
+        st.session_state.pagina = "home"
+        st.rerun()
+
+# TELA 4: LISTA DE RANCHO (INTEGRADA AO NOTION)
+elif st.session_state.pagina == "lista_rancho":
+    st.title("🛒 Lista de Rancho")
+    st.info(f"Responsável: {st.session_state.usuario_ativo}")
+    
+    st.write("Aqui aparecerá sua tabela do Notion em breve...")
+    
+    if st.button("⬅ Voltar ao Menu"):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
+# TELA 5: TRIPULAÇÃO
+elif st.session_state.pagina == "tripulacao":
+    st.title("👨‍✈️ Gestão de Tripulação")
+    st.write("Módulo de cadastro de tripulantes em desenvolvimento.")
+    
+    if st.button("⬅ Voltar ao Menu"):
+        st.session_state.pagina = "menu"
+        st.rerun()
