@@ -4,103 +4,176 @@ import requests
 import os
 from fpdf import FPDF
 
-# 1. ESTADOS DO APP
+# =================================================================
+# BLOCO 1: CONFIGURAÇÕES, ESTADOS E ESTILO (CSS)
+# =================================================================
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
     st.session_state.cozinheiro = ""
 
-# Simulando banco de dados (Ajuste conforme sua necessidade)
+# Dicionário de acesso
 USUARIOS = {
     "NAVIO 01": {"nome": "João", "senha": "123"},
-    "AROEIRA": {"nome": "Marcos", "senha": "789"}
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
 }
 
-# 2. ESTILO CSS (BOTÃO LARANJA COM TEXTO PRETO)
+# Aplicação de Estilos
 st.markdown("""
     <style>
+    /* Fundo Azul para o App */
     .stApp { background-color: #4169E1 !important; }
     h1, h2, h3, p, label { color: white !important; }
 
-    /* BOTÃO LARANJA COM TEXTO PRETO - FORÇADO */
+    /* BOTÃO LARANJA COM LETRA PRETA (PADRÃO ZION) */
     div.stButton > button {
         background-color: #FF8C00 !important;
         color: #000000 !important;
         font-weight: 900 !important;
+        font-size: 18px !important;
+        border-radius: 10px !important;
         border: 2px solid #000000 !important;
         width: 100%;
         height: 3.5em;
     }
     div.stButton > button:hover { color: #000000 !important; background-color: #FFA500 !important; }
+    
+    /* Ajuste de inputs para texto preto */
+    input { color: black !important; }
+    div[data-baseweb="select"] > div { color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGAÇÃO
+
+# =================================================================
+# BLOCO 2: TELA INICIAL
+# =================================================================
 if st.session_state.pagina == "home":
     st.title("Bem-vindo ao Zion Rancho App!")
+    st.write("Seu controle de estoque inteligente com IA.")
+    
     if os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", width=400)
+    
     if st.button("INICIAR ACESSO", key="btn_home"):
         st.session_state.pagina = "login"
         st.rerun()
 
+
+# =================================================================
+# BLOCO 3: TELA DE LOGIN (ACESSO DO COZINHEIRO)
+# =================================================================
 elif st.session_state.pagina == "login":
+    # Fundo leve de cozinha apenas nesta tela
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(65, 105, 225, 0.8), rgba(65, 105, 225, 0.8)), 
+            url("https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1350&q=80");
+            background-size: cover;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
     st.title("🔐 Acesso do Cozinheiro")
-    navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
-    senha = st.text_input("Senha", type="password")
     
-    if st.button("🛒 ENTRAR", key="btn_login_entrar"):
-        if navio in USUARIOS and USUARIOS[navio]["senha"] == senha:
-            st.session_state.cozinheiro = USUARIOS[navio]["nome"]
+    navio_sel = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()), key="sel_login")
+    senha_sel = st.text_input("Senha de Acesso", type="password", key="pwd_login")
+    
+    if st.button("🛒 ENTRAR", key="btn_entrar"):
+        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha_sel:
+            st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
             st.session_state.pagina = "menu"
             st.rerun()
         else:
-            st.error("Dados incorretos")
-    
-    if st.button("⬅️ VOLTAR", key="btn_login_voltar"):
+            st.error("Credenciais inválidas.")
+
+    if st.button("⬅️ VOLTAR", key="btn_voltar_home"):
         st.session_state.pagina = "home"
         st.rerun()
 
+
+# =================================================================
+# BLOCO 4: SUBSTELA (MENU PRINCIPAL)
+# =================================================================
 elif st.session_state.pagina == "menu":
     st.markdown(f"## Seja Bem-vindo, {st.session_state.cozinheiro}!")
+    st.write("Escolha o que deseja fazer:")
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🛒 LISTA DE RANCHO", key="menu_rancho"):
+        if st.button("🛒 LISTA DE RANCHO", key="btn_menu_rancho"):
             st.session_state.pagina = "lista"
             st.rerun()
     with col2:
-        if st.button("👨‍✈️ TRIPULAÇÃO", key="menu_trip"):
-            st.info("Em breve")
+        if st.button("👨‍✈️ TRIPULAÇÃO", key="btn_menu_trip"):
+            st.session_state.pagina = "tripulacao"
+            st.rerun()
 
-    if st.button("SAIR", key="menu_sair"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("SAIR DO SISTEMA", key="btn_logout"):
         st.session_state.pagina = "home"
         st.rerun()
 
+
+# =================================================================
+# BLOCO 5: TELA DA TABELA (LISTA DE RANCHO) E PDF
+# =================================================================
 elif st.session_state.pagina == "lista":
     st.title("📋 Tabela de Rancho")
-    
-    # Criando tabela vazia para exemplo (Aqui você usa sua função do Notion)
+    st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
+
+    # Dados Simulados (Integrar com sua função buscar_dados_notion)
     dados = {
-        "CÓDIGO": ["001", "002"],
-        "PROTEÍNA": ["Carne Moída", "Frango"],
-        "PREDEFINIDO": [10, 5],
-        "CONFIRMA": [0, 0]
+        "CÓDIGO": ["PR01", "PR02", "PR03"],
+        "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza"],
+        "UNID.": ["KG", "KG", "KG"],
+        "PREDEFINIDO": [20.0, 35.0, 15.0],
+        "CONFIRMA": [0.0, 0.0, 0.0]
     }
     df = pd.DataFrame(dados)
 
-    st.write(f"Responsável: {st.session_state.cozinheiro}")
+    # Editor de Tabela
+    df_editado = st.data_editor(
+        df,
+        column_config={
+            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO (Nutri)", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Sua Qtd)", min_value=0),
+        },
+        hide_index=True,
+        use_container_width=True,
+        key="editor_lista"
+    )
+
+    st.markdown("---")
     
-    df_editado = st.data_editor(df, hide_index=True, use_container_width=True)
+    col_pdf, col_back = st.columns(2)
+    with col_pdf:
+        # Função interna de PDF rápida
+        if st.button("📄 GERAR PDF"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(190, 10, f"Checklist de Rancho - Cozinheiro: {st.session_state.cozinheiro}", ln=True, align="C")
+            pdf.ln(5)
+            # Gerar bytes e disponibilizar download
+            pdf_out = pdf.output(dest='S').encode('latin-1')
+            st.download_button("Clique aqui para baixar", data=pdf_out, file_name="rancho_zion.pdf")
 
-    if st.button("📄 GERAR PDF", key="btn_pdf"):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(40, 10, f"Lista de Rancho - {st.session_state.cozinheiro}")
-        # Lógica simplificada de download
-        st.download_button("Baixar PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="lista.pdf")
+    with col_back:
+        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_menu"):
+            st.session_state.pagina = "menu"
+            st.rerun()
 
-    if st.button("⬅️ VOLTAR", key="btn_lista_voltar"):
+
+# =================================================================
+# BLOCO 6: TELA TRIPULAÇÃO (DESENVOLVIMENTO)
+# =================================================================
+elif st.session_state.pagina == "tripulacao":
+    st.title("👨‍✈️ Gestão de Tripulação")
+    st.info("Módulo em fase de alimentação de dados.")
+    
+    if st.button("⬅️ VOLTAR AO MENU", key="btn_v_trip"):
         st.session_state.pagina = "menu"
         st.rerun()
