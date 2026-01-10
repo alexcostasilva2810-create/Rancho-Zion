@@ -144,77 +144,85 @@ elif st.session_state.pagina == "lista":
 
         st.markdown("---")
         
-       # GERAÇÃO DO PDF (RETRATO + AJUSTE DE COLUNAS + LOGO NO RODAPÉ)
-        if st.button("📄 GERAR PDF"):
-            def blindar_texto(texto):
-                return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
+      # =================================================================
+# BLOCO DE GERAÇÃO DO PDF (DENTRO DA TELA DE LISTA)
+# =================================================================
+if st.button("📄 GERAR PDF"):
+    def blindar_texto(texto):
+        return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
 
-            try:
-                pdf = FPDF(orientation='P', unit='mm', format='A4')
-                pdf.set_auto_page_break(auto=True, margin=25) # Margem maior para a logo
-                pdf.add_page()
-                
-                # Cabeçalho
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
-                pdf.ln(5)
-                
-                # Configuração de Larguras (Total 190mm)
-                # Ajustei o TIPO para 40mm para caber melhor o texto longo
-                larg_item, larg_desc, larg_tipo, larg_unid, larg_pre, larg_conf = 12, 75, 40, 15, 18, 30
-                
-                pdf.set_font("Arial", "B", 8)
-                pdf.set_fill_color(200, 200, 200)
-                pdf.cell(larg_item, 10, "ITEM", 1, 0, "C", True)
-                pdf.cell(larg_desc, 10, "DESCRICAO", 1, 0, "C", True)
-                pdf.cell(larg_tipo, 10, "TIPO", 1, 0, "C", True)
-                pdf.cell(larg_unid, 10, "UNID", 1, 0, "C", True)
-                pdf.cell(larg_pre, 10, "ESTOQUE", 1, 0, "C", True)
-                pdf.cell(larg_conf, 10, "CONF.", 1, 1, "C", True)
+    try:
+        # P (Portrait), A4
+        pdf = FPDF(orientation='P', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=20)
+        pdf.add_page()
+        
+        # 1. LOGO NO CABEÇALHO (LADO ESQUERDO, PEQUENA)
+        if os.path.exists("APPRANCHO.png"):
+            pdf.image("APPRANCHO.png", x=10, y=8, w=20) 
+        
+        # Título deslocado para não bater na logo
+        pdf.set_font("Arial", "B", 14)
+        pdf.set_xy(35, 12)
+        pdf.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), ln=True)
+        pdf.ln(10)
+        
+        # Configuração de Larguras (Total 190mm)
+        larg_item, larg_desc, larg_tipo, larg_unid, larg_pre, larg_conf = 12, 70, 45, 15, 18, 30
+        
+        # Cabeçalho da Tabela
+        pdf.set_font("Arial", "B", 8)
+        pdf.set_fill_color(0, 102, 204) # Azul Zion
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(larg_item, 10, "ITEM", 1, 0, "C", True)
+        pdf.cell(larg_desc, 10, "DESCRICAO", 1, 0, "C", True)
+        pdf.cell(larg_tipo, 10, "TIPO", 1, 0, "C", True)
+        pdf.cell(larg_unid, 10, "UNID", 1, 0, "C", True)
+        pdf.cell(larg_pre, 10, "ESTOQUE", 1, 0, "C", True)
+        pdf.cell(larg_conf, 10, "CONF.", 1, 1, "C", True)
 
-                pdf.set_font("Arial", "", 8)
-                
-                for _, row in df_editado.iterrows():
-                    # PULO DO GATO: Cálculo de altura para múltiplas células na mesma linha
-                    # Verificamos qual texto é mais longo para definir a altura da borda
-                    texto_desc = blindar_texto(row["DESCRIÇÃO"])
-                    texto_tipo = blindar_texto(row["TIPO"])
-                    
-                    x_inicial = pdf.get_x()
-                    y_inicial = pdf.get_y()
-                    
-                    # 1. Coluna Item
-                    pdf.cell(larg_item, 10, str(int(row["ITEM"])), 1, 0, "C")
-                    
-                    # 2. Coluna Descrição (com quebra)
-                    pdf.multi_cell(larg_desc, 5, texto_desc, 1, "L")
-                    y_apos_desc = pdf.get_y()
-                    
-                    # Volta para o lado da descrição para fazer o Tipo
-                    pdf.set_xy(x_inicial + larg_item + larg_desc, y_inicial)
-                    
-                    # 3. Coluna Tipo (Ajustada para quebrar e não vazar)
-                    pdf.multi_cell(larg_tipo, 5, texto_tipo, 1, "C")
-                    y_apos_tipo = pdf.get_y()
-                    
-                    # Define a maior altura atingida nesta linha para alinhar as próximas colunas
-                    altura_max = max(y_apos_desc, y_apos_tipo)
-                    dif_h = altura_max - y_inicial
-                    
-                    # Ajusta a posição para as colunas finais
-                    pdf.set_xy(x_inicial + larg_item + larg_desc + larg_tipo, y_inicial)
-                    
-                    # 4. Colunas Restantes (ajustando a moldura pela altura_max)
-                    pdf.cell(larg_unid, dif_h, blindar_texto(row["UNID MED"]), 1, 0, "C")
-                    pdf.cell(larg_pre, dif_h, str(row["PREDEFINIDO"]), 1, 0, "C")
-                    pdf.cell(larg_conf, dif_h, str(row["CONFIRMA"]), 1, 1, "C")
+        pdf.set_font("Arial", "", 8)
+        pdf.set_text_color(0, 0, 0)
+        
+        for _, row in df_editado.iterrows():
+            texto_desc = blindar_texto(row["DESCRIÇÃO"])
+            texto_tipo = blindar_texto(row["TIPO"])
+            
+            # Altura base de cada linha de texto
+            alt_linha = 6 
+            
+            # Calcula quantas linhas cada texto vai ocupar
+            n_linhas_desc = pdf.get_string_width(texto_desc) / larg_desc
+            n_linhas_tipo = pdf.get_string_width(texto_tipo) / larg_tipo
+            
+            # Define a altura final da célula baseada no texto mais longo
+            max_linhas = max(int(n_linhas_desc) + 1, int(n_linhas_tipo) + 1)
+            altura_final = max_linhas * alt_linha
+            
+            x, y = pdf.get_x(), pdf.get_y()
+            
+            # Desenha as células com multi_cell para evitar vazamento
+            pdf.rect(x, y, larg_item, altura_final)
+            pdf.cell(larg_item, altura_final, str(int(row["ITEM"])), 0, 0, "C")
+            
+            pdf.set_xy(x + larg_item, y)
+            pdf.multi_cell(larg_desc, alt_linha, texto_desc, 1, "L")
+            
+            pdf.set_xy(x + larg_item + larg_desc, y)
+            pdf.multi_cell(larg_tipo, alt_linha, texto_tipo, 1, "C")
+            
+            # Completa o restante da linha com a altura sincronizada
+            pdf.set_xy(x + larg_item + larg_desc + larg_tipo, y)
+            pdf.cell(larg_unid, altura_final, blindar_texto(row["UNID MED"]), 1, 0, "C")
+            pdf.cell(larg_pre, altura_final, str(row["PREDEFINIDO"]), 1, 0, "C")
+            pdf.cell(larg_conf, altura_final, str(row["CONFIRMA"]), 1, 1, "C")
 
-                    # MARCA D'ÁGUA / LOGO NO CANTO INFERIOR ESQUERDO
-                    # Posiciona a 15mm do fim da página (área branca)
-                    if os.path.exists("APPRANCHO.png"):
-                        pdf.image("APPRANCHO.png", x=10, y=270, w=30) 
+        pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
+        st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+    except Exception as e:
+        st.error(f"Erro no layout: {e}")
 
-                pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
-                st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            except Exception as e:
-                st.error(f"Erro no ajuste de tabela: {e}")
+# BOTÃO DE VOLTAR (RESTAURADO)
+if st.button("⬅️ VOLTAR AO MENU"):
+    st.session_state.pagina = "menu"
+    st.rerun()
