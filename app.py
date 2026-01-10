@@ -168,15 +168,15 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - VERSÃO DEFINITIVA
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - VERSÃO FINAL REVISADA
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.markdown("## 📋 Tabela de Rancho")
     st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
 
-    # 1. GARANTINDO AS 8 COLUNAS NO OBJETO DE DADOS
+    # 1. GARANTINDO AS 8 COLUNAS NO SISTEMA
     if 'df_lista' not in st.session_state:
-        dados_completos = {
+        st.session_state.df_lista = pd.DataFrame({
             "CÓDIGO": ["PR01", "PR02", "PR03"],
             "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza"],
             "TIPO": ["Carne", "Aves", "Peixe"],
@@ -185,26 +185,24 @@ elif st.session_state.pagina == "lista":
             "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado"],
             "PREDEFINIDO": [20.0, 35.0, 15.0],
             "CONFIRMA": [0.0, 0.0, 0.0]
-        }
-        st.session_state.df_lista = pd.DataFrame(dados_completos)
+        })
 
-    # 2. RENDERIZAÇÃO DA TABELA COM AS 8 COLUNAS VISÍVEIS
-    # O df_final captura o que o usuário digita na coluna CONFIRMA
+    # 2. TABELA COM TODAS AS COLUNAS VISÍVEIS
     df_final = st.data_editor(
         st.session_state.df_lista,
         column_config={
-            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", width="small", disabled=True),
-            "PROTEÍNA": st.column_config.TextColumn("PROTEÍNA", width="medium", disabled=True),
-            "TIPO": st.column_config.TextColumn("TIPO", width="small", disabled=True),
-            "UNIDADE DE MEDIDA": st.column_config.TextColumn("UNIDADE", width="small", disabled=True),
-            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", width="small", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", width="medium", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", width="small", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", width="medium", min_value=0.0, format="%.2f"),
+            "CÓDIGO": st.column_config.TextColumn("CÓDIGO", disabled=True),
+            "PROTEÍNA": st.column_config.TextColumn("PROTEÍNA", disabled=True),
+            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
+            "UNIDADE DE MEDIDA": st.column_config.TextColumn("UNIDADE", disabled=True),
+            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
+            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO (Nutri)", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Sua Qtd)", min_value=0.0, format="%.2f"),
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_final_v10"
+        key="editor_definitivo"
     )
 
     st.markdown("---")
@@ -212,63 +210,48 @@ elif st.session_state.pagina == "lista":
     col_salvar, col_voltar = st.columns(2)
     
     with col_salvar:
-        # 3. BOTÃO DE SALVAR QUE GERA O PDF COM CONTEÚDO
-        if st.button("💾 SALVAR E GERAR PDF", key="btn_principal_salvar"):
-            try:
-                # Criar PDF em modo PAISAGEM (L) para caber as 8 colunas
-                pdf = FPDF(orientation='L', unit='mm', format='A4')
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 16)
-                
-                # Cabeçalho do PDF
-                pdf.cell(0, 10, "ZION RANCHO - RELATÓRIO DE COMPRAS", ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
-                pdf.ln(5)
+        # 3. GERAÇÃO DO PDF - AGORA LENDO O DF_FINAL DIRETAMENTE
+        if st.button("💾 SALVAR E GERAR PDF", key="btn_final_save"):
+            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            pdf.add_page()
+            
+            # Cabeçalho Zion
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "ZION RANCHO - RELATORIO DE COMPRAS", ln=True, align="C")
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Responsavel: {st.session_state.cozinheiro}", ln=True, align="C")
+            pdf.ln(5)
 
-                # Definir larguras das 8 colunas para o PDF (Total 277mm)
-                # COD, PROT, TIPO, UNID, ESTOQ, DESC, PREDEF, CONF
-                w = [20, 45, 25, 25, 25, 60, 27, 30]
-                
-                # Cabeçalho da Tabela no PDF
+            # Cabeçalho da Tabela no PDF (8 Colunas)
+            pdf.set_font("Arial", "B", 8)
+            pdf.set_fill_color(255, 140, 0)
+            
+            w = [20, 45, 25, 20, 25, 62, 25, 25] # Larguras ajustadas
+            cols = ["COD", "PROTEINA", "TIPO", "UNID", "ESTOQUE", "DESCRICAO", "PREDEF", "CONF"]
+            
+            for i in range(len(cols)):
+                pdf.cell(w[i], 10, cols[i], 1, 0, "C", True)
+            pdf.ln()
+
+            # Preenchimento garantido
+            pdf.set_font("Arial", "", 8)
+            for _, row in df_final.iterrows():
+                pdf.cell(w[0], 8, str(row["CÓDIGO"]), 1, 0, "C")
+                pdf.cell(w[1], 8, str(row["PROTEÍNA"]), 1)
+                pdf.cell(w[2], 8, str(row["TIPO"]), 1, 0, "C")
+                pdf.cell(w[3], 8, str(row["UNIDADE DE MEDIDA"]), 1, 0, "C")
+                pdf.cell(w[4], 8, str(row["ESTOQUE"]), 1, 0, "C")
+                pdf.cell(w[5], 8, str(row["DESCRIÇÃO"]), 1)
+                pdf.cell(w[6], 8, str(row["PREDEFINIDO"]), 1, 0, "C")
                 pdf.set_font("Arial", "B", 8)
-                pdf.set_fill_color(255, 140, 0) # Laranja Zion
-                titulos = ["CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "ESTOQUE", "DESCRIÇÃO", "PREDEF.", "CONFIRMA"]
-                
-                for i in range(len(titulos)):
-                    pdf.cell(w[i], 8, titulos[i], 1, 0, "C", True)
-                pdf.ln()
-
-                # 4. PREENCHENDO O CONTEÚDO (Onde estava saindo em branco)
+                pdf.cell(w[7], 8, str(row["CONFIRMA"]), 1, 1, "C")
                 pdf.set_font("Arial", "", 8)
-                for index, row in df_final.iterrows():
-                    pdf.cell(w[0], 7, str(row["CÓDIGO"]), 1, 0, "C")
-                    pdf.cell(w[1], 7, str(row["PROTEÍNA"]), 1)
-                    pdf.cell(w[2], 7, str(row["TIPO"]), 1, 0, "C")
-                    pdf.cell(w[3], 7, str(row["UNIDADE DE MEDIDA"]), 1, 0, "C")
-                    pdf.cell(w[4], 7, str(row["ESTOQUE"]), 1, 0, "C")
-                    pdf.cell(w[5], 7, str(row["DESCRIÇÃO"]), 1)
-                    pdf.cell(w[6], 7, str(row["PREDEFINIDO"]), 1, 0, "C")
-                    # Destaca o valor confirmado
-                    pdf.set_font("Arial", "B", 8)
-                    pdf.cell(w[7], 7, str(row["CONFIRMA"]), 1, 1, "C")
-                    pdf.set_font("Arial", "", 8)
 
-                # Gerar o arquivo para o navegador
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                
-                st.success("✅ Tabela salva! O PDF está pronto.")
-                st.download_button(
-                    label="📥 BAIXAR RELATÓRIO AGORA",
-                    data=pdf_output,
-                    file_name=f"Rancho_{st.session_state.cozinheiro}.pdf",
-                    mime="application/pdf",
-                    key="download_trigger"
-                )
-            except Exception as e:
-                st.error(f"Erro técnico: {e}")
+            pdf_bytes = pdf.output(dest='S').encode('latin-1')
+            st.success("✅ Salvo com sucesso!")
+            st.download_button("📥 BAIXAR RELATORIO", data=pdf_bytes, file_name="rancho.pdf", mime="application/pdf")
 
     with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_v10"):
+        if st.button("⬅️ VOLTAR AO MENU", key="btn_back"):
             st.session_state.pagina = "menu"
             st.rerun()
