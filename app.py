@@ -25,11 +25,11 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 3. Conteúdo da Tela Inicial
-st.title("Bem-vindo ao Zion Rancho App!")
+st.title("Bem-vindo ao Zion Rancho!")
 st.write("Seu controle de estoque inteligente com IA.")
 
 # Tentativa de carregar a imagem sem quebrar o app
-nome_da_imagem = "robo_humanizado.jpg"
+nome_da_imagem = "APPRANCHO.png"
 
 if os.path.exists(nome_da_imagem):
     st.image(nome_da_imagem, width=400)
