@@ -216,7 +216,7 @@ elif st.session_state.pagina == "lista":
             st.rerun()
 
 # =================================================================
-# BLOCO 5: TELA DE TRIPULAÇÃO E MANIFESTO DE VIAGEM
+# BLOCO 5: TELA DE TRIPULAÇÃO E DECLARAÇÃO DE REABASTECIMENTO
 # =================================================================
 
 elif st.session_state.pagina == "tripulacao":
@@ -224,96 +224,105 @@ elif st.session_state.pagina == "tripulacao":
     import unicodedata
     from fpdf import FPDF
 
-    st.title("👨‍✈️ Controle de Tripulação e Viagem")
+    st.title("👨‍✈️ Declaração de Reabastecimento")
     
-    # CSS para garantir que os campos desabilitados fiquem visíveis
-    st.markdown("""<style>input:disabled { color: #000000 !important; opacity: 1 !important; }</style>""", unsafe_allow_html=True)
-
     with st.container():
-        # Formulário que limpa os campos de digitação após salvar
+        # Formulário que limpa ao salvar
         with st.form("form_tripulacao", clear_on_submit=True):
-            col1, col2 = st.columns(2)
+            st.subheader("Dados do Reabastecimento")
             
+            col1, col2 = st.columns(2)
             with col1:
-                # Amarrados ao Login (Campos bloqueados para não haver erro)
                 st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
-                st.text_input("Empurrador / Embarcação", value=st.session_state.navio, disabled=True)
-                n_tripulantes = st.number_input("N° de Tripulantes", min_value=1, step=1)
+                st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
+                dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
             
             with col2:
-                origem = st.text_input("Origem", placeholder="Ex: Porto de Belém")
-                destino = st.text_input("Destino", placeholder="Ex: Manaus")
-                # Data no formato brasileiro
-                data_hoje = datetime.now().strftime("%d/%m/%Y")
-                st.text_input("Data de Referência", value=data_hoje, disabled=True)
+                data_inicio = st.date_input("A partir de (Data)", value=datetime.now())
+                origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
+                destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
-            btn_salvar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+            st.markdown("---")
+            st.subheader("📝 Considerações (Itens Extras)")
+            # Campo onde o cozinheiro descreve o que deseja adicionar
+            consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", 
+                                        placeholder="Ex: Foi acrescentado 10 água... Por gentileza colocar 06 vassouras...",
+                                        height=150)
 
-        if btn_salvar:
+            btn_gerar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+
+        if btn_gerar:
             if not origem or not destino:
                 st.error("⚠️ Por favor, preencha a Origem e o Destino!")
             else:
-                def blindar_texto(texto):
-                    txt = str(texto) if texto else ""
+                def blindar(t):
+                    txt = str(t) if t else ""
                     return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
+                data_fmt = data_inicio.strftime("%d/%m/%Y")
+                agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+                # TEXTO COM OS CAMPOS MESCLADOS AUTOMATICAMENTE
+                texto_corpo = (
+                    f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                    f"nutricionais da tripulacao por um periodo de [ {dias_nauticos} ] dias nauticos "
+                    f"a partir de [ {data_fmt} ]. Este suprimento e planejado para a viagem corrente."
+                )
+
                 try:
-                    pdf = FPDF(orientation='P', unit='mm', format='A4')
+                    pdf = FPDF()
                     pdf.add_page()
                     
-                    # Logo
                     if os.path.exists("APPRANCHO.png"):
                         pdf.image("APPRANCHO.png", 10, 8, 25)
                     
-                    # Título Profissional
-                    pdf.set_font("Arial", "B", 16)
+                    pdf.set_font("Arial", "B", 14)
                     pdf.set_xy(40, 15)
-                    pdf.cell(0, 10, "MANIFESTO DE VIAGEM E TRIPULACAO", 0, 1, "C")
+                    pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
                     
                     pdf.ln(20)
-                    pdf.set_draw_color(0, 102, 204)
-                    pdf.set_line_width(0.8)
-                    pdf.line(10, 35, 200, 35)
+                    # Parágrafo Principal com os campos mesclados
+                    pdf.set_font("Arial", "", 12)
+                    pdf.multi_cell(0, 8, blindar(texto_corpo))
                     
-                    # Dados do Manifesto
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.ln(10)
-                    
-                    # Linha 1: Responsável e Data
-                    pdf.cell(100, 10, blindar_texto(f"RESPONSAVEL: {st.session_state.cozinheiro}"), 0, 0)
-                    pdf.cell(90, 10, blindar_texto(f"DATA: {data_hoje}"), 0, 1)
-                    
-                    # Linha 2: Embarcação e Tripulantes
+                    # Origem e Destino
                     pdf.ln(5)
-                    pdf.cell(100, 10, blindar_texto(f"EMBARCACAO: {st.session_state.navio}"), 0, 0)
-                    pdf.cell(90, 10, blindar_texto(f"N DE TRIPULANTES: {n_tripulantes}"), 0, 1)
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.cell(0, 10, blindar(f"Origem: [ {origem} ]"), 0, 1)
+                    pdf.cell(0, 10, blindar(f"Destino: [ {destino} ]"), 0, 1)
                     
-                    # Rota em destaque
-                    pdf.ln(10)
-                    pdf.set_fill_color(240, 240, 240)
-                    pdf.set_font("Arial", "B", 14)
-                    pdf.cell(190, 15, blindar_texto(f"ROTA: {origem}  >>>  {destino}"), 1, 1, "C", True)
+                    # Bloco de Considerações preenchido pelo Cozinheiro
+                    if consideracoes:
+                        pdf.ln(5)
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
+                        pdf.set_font("Arial", "", 11)
+                        # Texto livre das considerações
+                        pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
                     
-                    # Rodapé
-                    agora_completo = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    pdf.set_y(-20)
-                    pdf.set_font("Arial", "I", 8)
-                    pdf.set_text_color(150, 150, 150)
-                    pdf.cell(0, 10, blindar_texto(f"Gerado em: {agora_completo} | Zion Rancho App"), 0, 0, "C")
+                    # Espaço para Assinatura
+                    pdf.ln(25)
+                    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+                    pdf.set_font("Arial", "I", 10)
+                    pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
+
+                    # Rodapé técnico
+                    pdf.set_y(-15)
+                    pdf.set_font("Arial", "I", 7)
+                    pdf.cell(0, 10, f"Gerado em: {agora} | Zion Rancho App", 0, 0, "C")
 
                     pdf_bytes = pdf.output(dest='S').encode('latin-1')
                     
-                    st.success("✅ Manifesto Processado!")
+                    st.success("✅ Documento gerado com os dados inseridos!")
                     st.download_button(
-                        label="📥 BAIXAR MANIFESTO PDF",
+                        label="📥 BAIXAR DECLARAÇÃO PDF",
                         data=pdf_bytes,
-                        file_name=f"Manifesto_{st.session_state.navio}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                        file_name=f"Declaracao_Rancho_{st.session_state.navio}.pdf",
                         mime="application/pdf"
                     )
                 except Exception as e:
-                    st.error(f"Erro técnico: {e}")
+                    st.error(f"Erro ao processar PDF: {e}")
 
-    # Botão de retorno
     st.markdown("---")
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
