@@ -89,6 +89,12 @@ elif st.session_state.pagina == "menu":
     if st.button("👨‍✈️ TRIPULAÇÃO"):
         st.session_state.pagina = "tripulacao"
         st.rerun()
+    
+    st.markdown("---")
+    # Botão de Sair no Menu Principal
+    if st.button("🚪 SAIR DO SISTEMA"):
+        st.session_state.pagina = "home"
+        st.rerun()
 
 elif st.session_state.pagina == "lista":
     st.title(f"📋 Rancho - {st.session_state.navio}")
@@ -112,9 +118,10 @@ elif st.session_state.pagina == "lista":
 
     st.markdown("---")
     
-    # --- SUB-BLOCO DE GERAÇÃO DO PDF PROFISSIONAL ---
+    # GERAÇÃO DO PDF PROFISSIONAL COM CORREÇÃO DE ERRO UNICODE
     if st.button("📄 GERAR PDF"):
         def blindar_texto(texto):
+            # Remove acentos e caracteres especiais incompatíveis com latin-1
             return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
 
         class PDF(FPDF):
@@ -124,7 +131,7 @@ elif st.session_state.pagina == "lista":
                 self.set_xy(35, 12)
                 self.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
                 self.ln(10)
-                # Cabeçalho Azul
+                # Cabeçalho da Tabela (Azul Zion)
                 self.set_font("Arial", "B", 8)
                 self.set_fill_color(0, 102, 204)
                 self.set_text_color(255, 255, 255)
@@ -146,6 +153,7 @@ elif st.session_state.pagina == "lista":
                 texto_desc = blindar_texto(row["DESCRIÇÃO"])
                 texto_tipo = blindar_texto(row["TIPO"])
                 alt_linha = 6
+                # Cálculo para evitar quebra de tabela no meio da linha
                 linhas = max(int(pdf.get_string_width(texto_desc)/70)+1, int(pdf.get_string_width(texto_tipo)/45)+1)
                 h = linhas * alt_linha
                 
@@ -161,18 +169,25 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(18, h, str(row["PREDEFINIDO"]), 1, 0, "C")
                 pdf.cell(30, h, str(row["CONFIRMA"]), 1, 1, "C")
 
-            pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
+            # Removido encode('latin-1') direto para evitar o erro da imagem
+            pdf_output = pdf.output(dest='S')
             st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
         except Exception as e:
-            st.error(f"Erro: {e}")
+            st.error(f"Erro ao processar PDF: {e}")
 
-    # --- BOTÃO VOLTAR (RESTAURADO) ---
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"
-        st.rerun()
+    # --- BOTÕES DE NAVEGAÇÃO ---
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅️ VOLTAR AO MENU"):
+            st.session_state.pagina = "menu"
+            st.rerun()
+    with col2:
+        if st.button("🚪 SAIR DO SISTEMA"):
+            st.session_state.pagina = "home"
+            st.rerun()
 
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Tripulação")
-    if st.button("⬅️ VOLTAR"):
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
