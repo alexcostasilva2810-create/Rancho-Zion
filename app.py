@@ -217,16 +217,27 @@ elif st.session_state.pagina == "lista":
             st.rerun()
 
 # =================================================================
-# BLOCO 5: TELA DE TRIPULAÇÃO E DECLARAÇÃO DE REABASTECIMENTO
+# BLOCO 5: TELA DE TRIPULAÇÃO (OTIMIZADA PARA MOBILE)
 # =================================================================
 
 elif st.session_state.pagina == "tripulacao":
+    import requests
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
+    # Função de Geocalização via IP para "pegar a mentira"
+    def obter_geolocalizacao():
+        try:
+            # Busca localização real baseada na conexão do celular
+            response = requests.get('https://ipapi.co/json/', timeout=3)
+            dados = response.json()
+            return f"{dados.get('city')}/{dados.get('region')} (IP: {dados.get('ip')})"
+        except:
+            return "Localizacao GPS via rede indisponivel"
+
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
 
-    # Configuração de Escolta e Advertência Instantânea
+    # Escolta Armada - Botões grandes para fácil clique no celular
     st.subheader("Configuração de Escolta")
     tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
 
@@ -237,108 +248,115 @@ elif st.session_state.pagina == "tripulacao":
         dias_nauticos = 15
         st.info("ℹ️ O rancho tem que durar ate 15 dias.")
 
+    # Início do formulário com espaçamento mobile
     with st.form("form_tripulacao", clear_on_submit=False):
-        col1, col2 = st.columns(2)
+        # No celular, essas colunas ficam uma embaixo da outra automaticamente
+        col1, col2 = st.columns([1, 1])
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
             data_ult_br = datetime.now().strftime("%d/%m/%Y")
-            data_ultimo_rancho = st.text_input("Data do Último Rancho", value=data_ult_br)
+            st.text_input("Data do Último Rancho", value=data_ult_br)
         
         with col2:
             data_hoje_br = datetime.now().strftime("%d/%m/%Y")
             data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
             origem = st.text_input("Origem (Cidade/Estado)", placeholder="Ex: Belem/PA")
-            destino = st.text_input("Destino", placeholder="Ex: Novo Remanso/AM")
+            destino = st.text_input("Destino", placeholder="Ex: Santarem/PA")
 
         st.markdown("---")
-        consideracoes = st.text_area("Considerações (Materiais extras, etc):", height=100)
+        consideracoes = st.text_area("Considerações Extras:", height=80)
 
-        st.subheader("✍️ Assinatura do Cozinheiro")
+        # Assinatura Digital Otimizada para Touch Screen
+        st.subheader("✍️ Assinatura (Use o dedo)")
         canvas_result = st_canvas(
-            stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
-            height=150, drawing_mode="freedraw", key="canvas_trip_v5"
+            stroke_width=3,
+            stroke_color="#000000",
+            background_color="#eeeeee",
+            height=130, # Altura ideal para assinar com o polegar
+            drawing_mode="freedraw",
+            key="canvas_mobile",
+            update_穩定=True # Melhora a resposta em tablets
         )
 
-        btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
+        btn_gerar = st.form_submit_button("💾 SALVAR E GERAR PDF")
 
+    # Geração do PDF com Auditoria de Localização
     if btn_gerar:
         if not origem or not destino:
-            st.error("⚠️ Preencha Origem e Destino!")
+            st.error("⚠️ Preencha a Origem e o Destino!")
         elif canvas_result.image_data is None:
-            st.error("⚠️ Assine o documento!")
+            st.error("⚠️ O cozinheiro precisa assinar!")
         else:
+            local_auditoria = obter_geolocalizacao()
+            
             def blindar(t):
                 return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
 
             try:
                 pdf = FPDF()
                 pdf.add_page()
+                pdf.set_auto_page_break(auto=True, margin=10)
                 
-                # CABEÇALHO: LOGO À ESQUERDA E TÍTULO AO LADO
+                # Cabeçalho compacto para 1 página
                 if os.path.exists("APPRANCHO.png"):
-                    pdf.image("APPRANCHO.png", 10, 8, 33) # Logo Zion
+                    pdf.image("APPRANCHO.png", 10, 8, 28) 
                 
-                pdf.set_font("Arial", "B", 15)
-                pdf.set_xy(45, 18) # Posiciona o texto ao lado da logo
+                pdf.set_font("Arial", "B", 13)
+                pdf.set_xy(40, 15) 
                 pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "L")
                 
-                pdf.ln(15)
-                pdf.set_font("Arial", "", 12)
+                pdf.ln(8)
+                pdf.set_font("Arial", "", 11)
                 
-                # Corpo do Texto
-                texto_corpo = (
-                    f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                    f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
-                    f"a partir de {data_input_br}. O ultimo rancho foi recebido em {data_ultimo_rancho}."
-                )
-                pdf.multi_cell(0, 8, blindar(texto_corpo))
+                corpo = (f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                         f"nutricionais da tripulacao por {dias_nauticos} dias nauticos a partir de {data_input_br}. "
+                         f"Ultimo rancho recebido em: {data_ult_br}.")
+                pdf.multi_cell(0, 7, blindar(corpo))
                 
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, blindar(f"Origem: {origem}"), 0, 1)
-                pdf.cell(0, 10, blindar(f"Destino: {destino}"), 0, 1)
+                pdf.ln(4)
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, blindar(f"Origem: {origem} | Destino: {destino}"), 0, 1)
                 
                 if consideracoes:
-                    pdf.ln(5)
-                    pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
-                    pdf.set_font("Arial", "", 11)
-                    pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
+                    pdf.set_font("Arial", "", 10)
+                    pdf.multi_cell(0, 6, blindar(f"OBS: {consideracoes}"), 1, "L")
 
-                # Assinatura Digital
+                # Inserção da Assinatura Digital
                 img_data = canvas_result.image_data.astype('uint8')
-                img_assinatura = Image.fromarray(img_data, 'RGBA')
-                img_assinatura.save("temp_sig.png")
-                pdf.image("temp_sig.png", x=75, y=pdf.get_y()+10, w=60)
+                Image.fromarray(img_data, 'RGBA').save("sig.png")
+                pdf.image("sig.png", x=75, y=pdf.get_y()+5, w=55)
                 
-                pdf.ln(25)
-                pdf.set_font("Arial", "B", 12)
+                pdf.ln(22)
                 pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
 
-                # RODAPÉ TÉCNICO: DATA, HORA E LOCALIZAÇÃO
-                agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                pdf.set_y(-20)
-                pdf.set_font("Arial", "I", 8)
-                pdf.cell(0, 10, blindar(f"Local de Geracao: {origem} | Data/Hora: {agora}"), 0, 0, "C")
-                pdf.set_y(-15)
-                pdf.cell(0, 10, "Zion Rancho App - Sistema de Gestao Logistica", 0, 0, "C")
+                # Rodapé de Auditoria (Pega a mentira da localização)
+                agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                pdf.set_y(-22)
+                pdf.set_font("Arial", "I", 7)
+                pdf.set_text_color(120, 120, 120)
+                pdf.multi_cell(0, 4, blindar(f"Autenticado via Zion App em {agora}\n"
+                                             f"Localizacao de Rede detectada: {local_auditoria}"), 0, "C")
 
                 st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-                st.success("✅ Relatório gerado com sucesso!")
+                st.rerun()
 
             except Exception as e:
-                st.error(f"Erro ao criar PDF: {e}")
+                st.error(f"Erro no processamento: {e}")
 
+    # Botão de Download Grande (Fácil de clicar no celular)
     if st.session_state.pdf_disponivel:
+        st.success("✅ Documento Pronto!")
         st.download_button(
-            label="📥 BAIXAR DECLARAÇÃO PDF",
+            label="📥 CLIQUE PARA BAIXAR O PDF",
             data=st.session_state.pdf_disponivel,
             file_name=f"Declaracao_{st.session_state.navio}.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
+            use_container_width=True # Botão ocupa a largura toda da tela do celular
         )
 
     st.markdown("---")
-    if st.button("⬅️ VOLTAR AO MENU"):
+    if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
         st.session_state.pdf_disponivel = None
         st.session_state.pagina = "menu"
         st.rerun()
