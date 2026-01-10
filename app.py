@@ -227,7 +227,6 @@ elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
     with st.container():
-        # Formulário que limpa ao salvar
         with st.form("form_tripulacao", clear_on_submit=True):
             st.subheader("Dados do Reabastecimento")
             
@@ -238,13 +237,13 @@ elif st.session_state.pagina == "tripulacao":
                 dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
             
             with col2:
-                data_inicio = st.date_input("A partir de (Data)", value=datetime.now())
+                # Campo de data ajustado para o padrão brasileiro na exibição
+                data_selecionada = st.date_input("A partir de (Data)", value=datetime.now())
                 origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
                 destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
 
             st.markdown("---")
             st.subheader("📝 Considerações (Itens Extras)")
-            # Campo onde o cozinheiro descreve o que deseja adicionar
             consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", 
                                         placeholder="Ex: Foi acrescentado 10 água... Por gentileza colocar 06 vassouras...",
                                         height=150)
@@ -259,10 +258,11 @@ elif st.session_state.pagina == "tripulacao":
                     txt = str(t) if t else ""
                     return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
-                data_fmt = data_inicio.strftime("%d/%m/%Y")
-                agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                # AJUSTE DA DATA: Converte 2026-01-10 para 10/01/2026
+                data_fmt = data_selecionada.strftime("%d/%m/%Y")
+                agora_rodape = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-                # TEXTO COM OS CAMPOS MESCLADOS AUTOMATICAMENTE
+                # Texto com os campos mesclados (Data agora em DD/MM/YYYY)
                 texto_corpo = (
                     f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                     f"nutricionais da tripulacao por um periodo de [ {dias_nauticos} ] dias nauticos "
@@ -281,39 +281,33 @@ elif st.session_state.pagina == "tripulacao":
                     pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
                     
                     pdf.ln(20)
-                    # Parágrafo Principal com os campos mesclados
                     pdf.set_font("Arial", "", 12)
                     pdf.multi_cell(0, 8, blindar(texto_corpo))
                     
-                    # Origem e Destino
                     pdf.ln(5)
                     pdf.set_font("Arial", "B", 12)
                     pdf.cell(0, 10, blindar(f"Origem: [ {origem} ]"), 0, 1)
                     pdf.cell(0, 10, blindar(f"Destino: [ {destino} ]"), 0, 1)
                     
-                    # Bloco de Considerações preenchido pelo Cozinheiro
                     if consideracoes:
                         pdf.ln(5)
                         pdf.set_font("Arial", "B", 12)
                         pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
                         pdf.set_font("Arial", "", 11)
-                        # Texto livre das considerações
                         pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
                     
-                    # Espaço para Assinatura
                     pdf.ln(25)
                     pdf.line(60, pdf.get_y(), 150, pdf.get_y())
                     pdf.set_font("Arial", "I", 10)
                     pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
 
-                    # Rodapé técnico
                     pdf.set_y(-15)
                     pdf.set_font("Arial", "I", 7)
-                    pdf.cell(0, 10, f"Gerado em: {agora} | Zion Rancho App", 0, 0, "C")
+                    pdf.cell(0, 10, f"Gerado em: {agora_rodape} | Zion Rancho App", 0, 0, "C")
 
                     pdf_bytes = pdf.output(dest='S').encode('latin-1')
                     
-                    st.success("✅ Documento gerado com os dados inseridos!")
+                    st.success(f"✅ Documento gerado com a data {data_fmt}!")
                     st.download_button(
                         label="📥 BAIXAR DECLARAÇÃO PDF",
                         data=pdf_bytes,
