@@ -69,46 +69,45 @@ if st.session_state.pagina == "home":
         st.rerun()
 
 # ==========================================
-# BLOCO 3: TELA DE LOGIN (ACESSO) COM FUNDO DE COZINHA
+# BLOCO 3: TELA DE LOGIN (ACESSO DO COZINHEIRO)
 # ==========================================
 
-# Estilo específico para esta tela com imagem de fundo leve
-st.markdown("""
-    <style>
-    /* Imagem de fundo leve (Marca d'água) */
-    .stApp {
-        background: linear-gradient(rgba(65, 105, 225, 0.85), rgba(65, 105, 225, 0.85)), 
-        url("https://images.unsplash.com/photo-1556910103-1c02745aae4d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80");
-        background-size: cover;
-    }
+elif st.session_state.pagina == "login":
+    # CSS específico para letras pretas nos botões e fundo de cozinha
+    st.markdown("""
+        <style>
+        /* Fundo com imagem de cozinha e máscara azul */
+        .stApp {
+            background: linear-gradient(rgba(65, 105, 225, 0.8), rgba(65, 105, 225, 0.8)), 
+            url("https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1350&q=80");
+            background-size: cover;
+        }
 
-    /* BOTÕES COM LETRAS PRETAS */
-    .stButton>button { 
-        background-color: #FFFFFF !important; 
-        color: #000000 !important; /* Letras Pretas */
-        font-size: 18px !important;
-        font-weight: bold !important; 
-        border-radius: 12px; 
-        height: 3.5em;
-        width: 100%;
-        border: 2px solid #000000;
-    }
-    
-    /* Labels e títulos em branco para contraste com o fundo azul/cozinha */
-    label, h1, h2, p { color: white !important; }
-    </style>
-    """, unsafe_allow_html=True)
+        /* FORÇAR LETRA PRETA NOS BOTÕES */
+        div.stButton > button {
+            background-color: #FFFFFF !important;
+            color: #000000 !important; /* PRETO ABSOLUTO */
+            font-weight: bold !important;
+            border: 2px solid #000000 !important;
+        }
 
-if st.session_state.pagina == "login":
+        /* Garante que o texto continue preto ao passar o mouse */
+        div.stButton > button:hover {
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
     st.title("🔐 Acesso do Cozinheiro")
     
-    # Campos de seleção
+    # Seleção de Navio e Senha
     navio = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()))
     senha = st.text_input("Senha de Acesso", type="password")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão ENTRAR
+    # Botão ENTRAR com ícone
     if st.button("🛒 ENTRAR"):
         if navio in USUARIOS and USUARIOS[navio] == senha:
             st.session_state.usuario_ativo = navio
@@ -117,11 +116,10 @@ if st.session_state.pagina == "login":
         else:
             st.error("Navio ou Senha incorretos!")
             
-    # Botão VOLTAR
+    # Botão VOLTAR com ícone
     if st.button("⬅️ VOLTAR"):
         st.session_state.pagina = "home"
         st.rerun()
-
 # ==========================================
 # BLOCO 4: #--- SUBSTELA (MENU PRINCIPAL) ---#
 # ==========================================
