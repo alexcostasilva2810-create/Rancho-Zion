@@ -168,104 +168,71 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - VERSÃO 8 COLUNAS
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - DADOS REAIS DO NOTION
 # =================================================================
 elif st.session_state.pagina == "lista":
-    # Recupera o navio logado (ajustar para a variável correta se necessário)
-    nome_unidade = st.session_state.get('navio', 'UNIDADE ZION').upper()
+    nome_navio = st.session_state.get('navio', 'NAVIO').upper()
+    st.markdown(f"## 📋 Tabela de Rancho - {nome_navio}")
     
-    st.markdown(f"## 📋 Tabela de Rancho - {nome_unidade}")
-    st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
+    # 1. PUXAR DADOS (Aqui usamos os dados que você acabou de inserir no Notion)
+    # Se a função query_notion ainda não estiver integrada, os dados não aparecerão.
+    df_notion = st.session_state.get('df_lista', pd.DataFrame())
 
-    # 1. DEFINIÇÃO DAS 8 COLUNAS (Baseado no modelo CUMARU) 
-    if 'df_lista' not in st.session_state:
-        st.session_state.df_lista = pd.DataFrame({
-            "ID": ["1", "2", "3", "4"],
-            "CÓDIGO": ["PR01", "PR02", "PR03", "PR04"],
-            "PROTEÍNA": ["Carne Moída", "Alcatra", "Pá ou Agulha", "Charque"],
-            "TIPO": ["PROTEÍNAS", "PROTEÍNAS", "PROTEÍNAS", "PROTEÍNAS"],
-            "UNID. MED": ["kg", "kg", "kg", "kg"],
-            "ESTOQUE": [0.0, 0.0, 0.0, 0.0],
-            "PREDEFINIDO": [8.0, 10.0, 8.0, 7.0],
-            "CONFIRMA": [0.0, 0.0, 0.0, 0.0]
-        })
-
-    # 2. CONFIGURAÇÃO DA TABELA (Interface com 8 colunas)
-    df_atualizado = st.data_editor(
-        st.session_state.df_lista,
-        column_config={
-            "ID": st.column_config.TextColumn(width="small", disabled=True),
-            "CÓDIGO": st.column_config.TextColumn(width="small", disabled=True),
-            "PROTEÍNA": st.column_config.TextColumn(width="medium", disabled=True),
-            "TIPO": st.column_config.TextColumn(width="small", disabled=True),
-            "UNID. MED": st.column_config.TextColumn(width="small", disabled=True),
-            "ESTOQUE": st.column_config.NumberColumn(width="small", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("PREDEF.", width="small", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Qtd)", width="medium", min_value=0.0),
-        },
-        hide_index=True,
-        use_container_width=True,
-        key="editor_rancho_v20"
-    )
-
-    st.markdown("---")
-    
-    col_pdf, col_menu = st.columns(2)
-    
-    with col_pdf:
-        if st.button("💾 SALVAR E GERAR PDF"):
-            try:
-                # PDF em modo Paisagem (L) para caber as 8 colunas 
-                pdf = FPDF(orientation='L', unit='mm', format='A4')
-                pdf.add_page()
-                
-                # Cabeçalho do PDF
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, f"CHECKLIST DE RANCHO - {nome_unidade}", ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
-                pdf.ln(5)
-
-                # Cabeçalho da Tabela no PDF (Definindo larguras para 277mm totais)
-                pdf.set_font("Arial", "B", 8)
-                pdf.set_fill_color(200, 200, 200) # Cinza claro
-                
-                w = [12, 25, 60, 35, 25, 25, 25, 30] # Soma das larguras
-                titulos = ["ID", "CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "ESTOQUE", "PREDEF.", "CONFIRMA"]
-                
-                for i in range(len(titulos)):
-                    pdf.cell(w[i], 10, titulos[i], 1, 0, "C", True)
-                pdf.ln()
-
-                # 3. PREENCHIMENTO DAS LINHAS (O que faltava para não sair em branco)
-                pdf.set_font("Arial", "", 8)
-                for index, row in df_atualizado.iterrows():
-                    pdf.cell(w[0], 8, str(row["ID"]), 1, 0, "C")
-                    pdf.cell(w[1], 8, str(row["CÓDIGO"]), 1, 0, "C")
-                    pdf.cell(w[2], 8, str(row["PROTEÍNA"]), 1)
-                    pdf.cell(w[3], 8, str(row["TIPO"]), 1, 0, "C")
-                    pdf.cell(w[4], 8, str(row["UNID. MED"]), 1, 0, "C")
-                    pdf.cell(w[5], 8, str(row["ESTOQUE"]), 1, 0, "C")
-                    pdf.cell(w[6], 8, str(row["PREDEFINIDO"]), 1, 0, "C")
-                    
-                    # Coluna CONFIRMA em negrito
-                    pdf.set_font("Arial", "B", 9)
-                    pdf.cell(w[7], 8, str(row["CONFIRMA"]), 1, 1, "C")
-                    pdf.set_font("Arial", "", 8)
-
-                # Gerar o arquivo para download
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                st.success("✅ Tabela processada!")
-                st.download_button(
-                    label="📥 BAIXAR RELATÓRIO PDF",
-                    data=pdf_output,
-                    file_name=f"Rancho_{nome_unidade}.pdf",
-                    mime="application/pdf"
-                )
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
-
-    with col_menu:
-        if st.button("⬅️ VOLTAR AO MENU"):
+    if df_notion.empty:
+        st.warning("⚠️ O sistema ainda não carregou os dados do Notion. Clique em 'Sincronizar' ou verifique a conexão.")
+        if st.button("⬅️ VOLTAR"):
             st.session_state.pagina = "menu"
             st.rerun()
+    else:
+        # 2. EXIBIÇÃO NA TELA (Configurada para as colunas do seu Notion)
+        df_usuario = st.data_editor(
+            df_notion,
+            column_config={
+                "CODIGO": st.column_config.TextColumn("CÓD.", disabled=True),
+                "PROTEINA": st.column_config.TextColumn("ITEM", disabled=True),
+                "TIPO": st.column_config.TextColumn(disabled=True),
+                "UNIDADE DE MEDIDA": st.column_config.TextColumn("UNID.", disabled=True),
+                "ESTOQUE": st.column_config.NumberColumn(disabled=True),
+                "DESCRIÇÃO": st.column_config.TextColumn(disabled=True),
+                "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0.0),
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="editor_real_com_dados"
+        )
+
+        # 3. GERAÇÃO DO PDF COM OS DADOS DO NOTION
+        if st.button("💾 GERAR PDF COM LISTA DO NOTION"):
+            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            pdf.add_page()
+            
+            # Cabeçalho
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, f"LISTA DE RANCHO - {nome_navio}", ln=True, align="C")
+            pdf.ln(5)
+
+            # Cabeçalho da Tabela
+            pdf.set_font("Arial", "B", 8)
+            pdf.set_fill_color(240, 240, 240)
+            
+            # Larguras para as colunas reais do seu Notion
+            w = [20, 50, 30, 20, 20, 80, 25] 
+            titulos = ["COD", "PROTEINA", "TIPO", "UNID", "ESTQ", "DESCRICAO", "CONF."]
+            
+            for i in range(len(titulos)):
+                pdf.cell(w[i], 10, titulos[i], 1, 0, "C", True)
+            pdf.ln()
+
+            # Preenchimento das Linhas (Agora pegando do Notion)
+            pdf.set_font("Arial", "", 8)
+            for _, row in df_usuario.iterrows():
+                pdf.cell(w[0], 8, str(row.get("CODIGO", "")), 1)
+                pdf.cell(w[1], 8, str(row.get("PROTEINA", "")), 1)
+                pdf.cell(w[2], 8, str(row.get("TIPO", "")), 1)
+                pdf.cell(w[3], 8, str(row.get("UNIDADE DE MEDIDA", "")), 1)
+                pdf.cell(w[4], 8, str(row.get("ESTOQUE", "0")), 1, 0, "C")
+                pdf.cell(w[5], 8, str(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(w[6], 8, str(row.get("CONFIRMA", "0")), 1, 1, "C")
+
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR PDF COMPLETO", data=pdf_output, file_name="Rancho_Zion.pdf")
