@@ -168,29 +168,28 @@ elif st.session_state.pagina == "lista":
 
 
 # =================================================================
-# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) + GERADOR DE PDF REAL
+# BLOCO 6: TELA DA TABELA (LISTA DE RANCHO) - SALVAR E GERAR PDF
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.markdown("## 📋 Tabela de Rancho")
     st.write(f"Responsável Logado: **{st.session_state.cozinheiro}**")
 
-    # 1. DEFINIÇÃO COMPLETA DOS DADOS (CUIDADO COM OS NOMES DAS COLUNAS)
+    # 1. BASE DE DADOS COM TODAS AS COLUNAS (CÓDIGO, PROTEÍNA, TIPO, UNIDADE, ESTOQUE, DESCRIÇÃO, CONFIRMA)
     if 'df_lista' not in st.session_state:
-        dados = {
-            "CÓDIGO": ["PR01", "PR02", "PR03"],
-            "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza"],
-            "TIPO": ["Carne", "Aves", "Peixe"],
-            "UNID. MEDIDA": ["KG", "KG", "KG"],
-            "PREDEFINIDO": [20.0, 35.0, 15.0], 
-            "ESTOQUE": [5.0, 2.0, 10.0],
-            "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado"],
-            "CONFIRMA": [0.0, 0.0, 0.0]
+        dados_fixos = {
+            "CÓDIGO": ["PR01", "PR02", "PR03", "PR04"],
+            "PROTEÍNA": ["Alcatra", "Sobrecoxa Frango", "Filé de Merluza", "Ovos Brancos"],
+            "TIPO": ["Carne", "Aves", "Peixe", "Perecíveis"],
+            "UNID. MEDIDA": ["KG", "KG", "KG", "DZ"],
+            "PREDEFINIDO": [20.0, 35.0, 15.0, 50.0], 
+            "ESTOQUE": [5.0, 2.0, 10.0, 12.0],
+            "DESCRIÇÃO": ["Peça inteira", "Bandeja 1kg", "Filé congelado", "Cartela c/ 30"],
+            "CONFIRMA": [0.0, 0.0, 0.0, 0.0]
         }
-        st.session_state.df_lista = pd.DataFrame(dados)
+        st.session_state.df_lista = pd.DataFrame(dados_fixos)
 
-    # 2. TABELA INTERATIVA - EXIBINDO TODAS AS COLUNAS
-    # Bloqueamos todas exceto a 'CONFIRMA'
-    df_editado = st.data_editor(
+    # 2. TABELA INTERATIVA (APENAS 'CONFIRMA' É EDITÁVEL)
+    df_final = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "CÓDIGO": st.column_config.TextColumn("CÓDIGO", disabled=True),
@@ -204,65 +203,76 @@ elif st.session_state.pagina == "lista":
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_rancho_v3"
+        key="editor_rancho_v5"
     )
 
     st.markdown("---")
     
-    # 3. BOTÕES DE AÇÃO
-    col_pdf, col_back = st.columns(2)
+    col_acao, col_voltar = st.columns(2)
     
-    with col_pdf:
-        if st.button("📄 GERAR PDF COM TABELA"):
+    with col_acao:
+        # BOTÃO ÚNICO: SALVAR E PROCESSAR PDF
+        if st.button("💾 SALVAR E GERAR PDF", key="btn_salvar_pdf"):
             try:
-                # 'L' para modo Paisagem para caber todas as colunas
+                # Criar o PDF em modo PAISAGEM (L) para caber as 8 colunas
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
-                pdf.set_font("Arial", "B", 14)
                 
-                # Título e Cabeçalho
-                pdf.cell(0, 10, "Zion Tecnologia - Relatorio de Rancho", ln=True, align="C")
-                pdf.set_font("Arial", "", 10)
-                pdf.cell(0, 10, f"Responsavel: {st.session_state.cozinheiro}", ln=True, align="C")
+                # Título e Informações de Cabeçalho
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "ZION TECNOLOGIA - RELATÓRIO DE RANCHO", ln=True, align="C")
+                pdf.set_font("Arial", "", 11)
+                pdf.cell(0, 8, f"Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
                 pdf.ln(5)
 
-                # CABEÇALHO DA TABELA NO PDF (Ajustado para as 7 colunas)
+                # CABEÇALHO DA TABELA NO PDF (Cores e Títulos)
                 pdf.set_font("Arial", "B", 8)
                 pdf.set_fill_color(255, 140, 0) # Laranja Zion
+                pdf.set_text_color(0, 0, 0)     # Texto Preto
                 
-                pdf.cell(20, 10, "CODIGO", 1, 0, "C", True)
-                pdf.cell(45, 10, "PROTEINA", 1, 0, "C", True)
-                pdf.cell(25, 10, "TIPO", 1, 0, "C", True)
-                pdf.cell(20, 10, "UNID.", 1, 0, "C", True)
-                pdf.cell(25, 10, "PREDEF.", 1, 0, "C", True)
-                pdf.cell(25, 10, "ESTOQUE", 1, 0, "C", True)
-                pdf.cell(40, 10, "DESCRICAO", 1, 0, "C", True)
-                pdf.cell(25, 10, "CONFIRMA", 1, 1, "C", True)
+                larguras = [20, 45, 25, 20, 25, 25, 75, 25] # Total 260mm
+                colunas = ["CÓDIGO", "PROTEÍNA", "TIPO", "UNID.", "PREDEF.", "ESTOQUE", "DESCRIÇÃO", "CONFIRMA"]
+                
+                for i in range(len(colunas)):
+                    pdf.cell(larguras[i], 10, colunas[i], 1, 0, "C", True)
+                pdf.ln()
 
-                # LINHAS DA TABELA (O segredo para não sair em branco)
+                # LINHAS DA TABELA (DESENHANDO CADA PRODUTO)
                 pdf.set_font("Arial", "", 8)
-                for i in range(len(df_editado)):
-                    pdf.cell(20, 8, str(df_editado.iloc[i]["CÓDIGO"]), 1, 0, "C")
-                    pdf.cell(45, 8, str(df_editado.iloc[i]["PROTEÍNA"]), 1)
-                    pdf.cell(25, 8, str(df_editado.iloc[i]["TIPO"]), 1)
-                    pdf.cell(20, 8, str(df_editado.iloc[i]["UNID. MEDIDA"]), 1, 0, "C")
-                    pdf.cell(25, 8, str(df_editado.iloc[i]["PREDEFINIDO"]), 1, 0, "C")
-                    pdf.cell(25, 8, str(df_editado.iloc[i]["ESTOQUE"]), 1, 0, "C")
-                    pdf.cell(40, 8, str(df_editado.iloc[i]["DESCRIÇÃO"]), 1)
-                    pdf.cell(25, 8, str(df_editado.iloc[i]["CONFIRMA"]), 1, 1, "C")
+                pdf.set_text_color(0, 0, 0)
+                
+                for _, row in df_final.iterrows():
+                    pdf.cell(larguras[0], 8, str(row["CÓDIGO"]), 1, 0, "C")
+                    pdf.cell(larguras[1], 8, str(row["PROTEÍNA"]), 1)
+                    pdf.cell(larguras[2], 8, str(row["TIPO"]), 1, 0, "C")
+                    pdf.cell(larguras[3], 8, str(row["UNID. MEDIDA"]), 1, 0, "C")
+                    pdf.cell(larguras[4], 8, str(row["PREDEFINIDO"]), 1, 0, "C")
+                    pdf.cell(larguras[5], 8, str(row["ESTOQUE"]), 1, 0, "C")
+                    pdf.cell(larguras[6], 8, str(row["DESCRIÇÃO"]), 1)
+                    
+                    # Destacar a quantidade confirmada em Negrito
+                    pdf.set_font("Arial", "B", 8)
+                    pdf.cell(larguras[7], 8, str(row["CONFIRMA"]), 1, 1, "C")
+                    pdf.set_font("Arial", "", 8)
 
-                # Preparar arquivo para download
-                pdf_output = pdf.output(dest='S').encode('latin-1')
+                # Transformar em Bytes para Download
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                
+                st.success("✅ Dados salvos e PDF gerado!")
+                
+                # Exibe o botão de download real logo abaixo após o processamento
                 st.download_button(
-                    label="📥 BAIXAR AGORA O PDF",
-                    data=pdf_output,
+                    label="📥 CLIQUE AQUI PARA BAIXAR O ARQUIVO",
+                    data=pdf_bytes,
                     file_name=f"Relatorio_Rancho_{st.session_state.cozinheiro}.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="download_final"
                 )
+                
             except Exception as e:
-                st.error(f"Erro ao gerar: {e}")
+                st.error(f"Erro ao salvar: {e}")
 
-    with col_back:
-        if st.button("⬅️ VOLTAR AO MENU", key="btn_v_menu_lista"):
+    with col_voltar:
+        if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar"):
             st.session_state.pagina = "menu"
             st.rerun()
