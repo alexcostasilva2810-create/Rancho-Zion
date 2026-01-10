@@ -99,21 +99,52 @@ elif st.session_state.pagina == "login":
         st.rerun()
 
 # ==========================================
-# BLOCO 5: MENU PRINCIPAL (SAUDAÇÃO)
+# BLOCO 5: MENU PRINCIPAL (SAUDAÇÃO AO COZINHEIRO)
 # ==========================================
 elif st.session_state.pagina == "menu":
+    # Reforço do CSS para garantir botões Laranja com letras Pretas nesta tela
+    st.markdown("""
+        <style>
+        .stApp { background-color: #4169E1 !important; }
+        
+        /* BOTÃO LARANJA COM TEXTO PRETO */
+        div.stButton > button {
+            background-color: #FF8C00 !important; 
+            color: #000000 !important; 
+            font-weight: 900 !important; 
+            font-size: 18px !important;
+            border-radius: 12px !important;
+            border: 2px solid #000000 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # Exibe o nome do Responsável (Cozinheiro) em vez do nome do Navio
+    # Nota: Certifique-se de que st.session_state.usuario_ativo contenha o nome do cozinheiro
     st.markdown(f"## Seja Bem-vindo, {st.session_state.usuario_ativo}!")
     st.write("Escolha o que deseja fazer:")
     
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Organização dos botões com ícones
     col1, col2 = st.columns(2)
+    
     with col1:
         if st.button("🛒 LISTA DE RANCHO"):
-            st.info("Acessando sua lista...")
-            # Aqui entra a conexão com Notion no futuro
+            st.session_state.pagina = "lista_rancho"
+            st.rerun()
+            
     with col2:
         if st.button("👨‍✈️ TRIPULAÇÃO"):
-            st.info("Em desenvolvimento...")
+            st.session_state.pagina = "tripulacao"
+            st.rerun()
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Botão de Sair menor
+    if st.button("SAIR"):
+        st.session_state.pagina = "home"
+        st.rerun()
     if st.button("SAIR"):
         st.session_state.pagina = "home"
         st.rerun()
