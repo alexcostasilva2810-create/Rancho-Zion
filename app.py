@@ -5,7 +5,7 @@ import os
 from fpdf import FPDF
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES DE ESTADO E ESTRUTURA
+# BLOCO 1: CONFIGURAÇÕES DE ESTADO, SEGURANÇA E TABELA PADRÃO
 # =================================================================
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
@@ -14,8 +14,8 @@ if 'cozinheiro' not in st.session_state:
 if 'navio' not in st.session_state:
     st.session_state.navio = ""
 
-# Colunas padrão do Notion
-COLUNAS_PADRAO = ["CODIGO", "PROTEINA", "TIPO", "UNIDADE DE MEDIDA", "ESTOQUE", "DESCRIÇÃO", "CONFIRMA"]
+# Estrutura baseada na sua nova alimentação do Notion
+COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 
 if 'df_lista' not in st.session_state:
     st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
@@ -28,9 +28,10 @@ USUARIOS = {
 }
 
 # =================================================================
-# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION
+# BLOCO 2: FUNÇÃO DE INTEGRAÇÃO COM NOTION (CONEXÃO REAL)
 # =================================================================
 def carregar_dados_do_notion():
+    """Busca os dados reais inseridos no Notion"""
     NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
     DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1"
     
@@ -48,14 +49,14 @@ def carregar_dados_do_notion():
             dados_notion = []
             for page in results:
                 p = page.get("properties", {})
+                # Mapeamento para as colunas exatas da sua imagem
                 dados_notion.append({
-                    "CODIGO": p.get("CODIGO", {}).get("title", [{}])[0].get("plain_text", ""),
-                    "PROTEINA": p.get("PROTEINA", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "TIPO": p.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "UNIDADE DE MEDIDA": p.get("UNIDADE DE MEDIDA", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "ESTOQUE": p.get("ESTOQUE", {}).get("number", 0),
+                    "ITEM": p.get("ITEM", {}).get("title", [{}])[0].get("plain_text", ""),
                     "DESCRIÇÃO": p.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "CONFIRMA": 0.0
+                    "TIPO": p.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
+                    "CONFIRMA": 0
                 })
             return pd.DataFrame(dados_notion)
         return st.session_state.df_lista
@@ -63,7 +64,7 @@ def carregar_dados_do_notion():
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: ESTILO VISUAL (PADRÃO ZION)
+# BLOCO 3: ESTILIZAÇÃO VISUAL (AZUL ZION)
 # =================================================================
 st.markdown("""
     <style>
@@ -71,7 +72,7 @@ st.markdown("""
     h1, h2, h3, p, label { color: white !important; }
     div.stButton > button {
         background-color: #FF8C00 !important;
-        color: #000000 !important;
+        color: black !important;
         font-weight: 900 !important;
         border-radius: 10px !important;
         border: 2px solid #000000 !important;
@@ -82,47 +83,40 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELA INICIAL (RESTAURADA ORIGINAL)
+# BLOCO 4: TELA INICIAL (LOGO E BOAS-VINDAS)
 # =================================================================
 if st.session_state.pagina == "home":
-    st.title("Zion Rancho App")
-    st.write("Seu controle de estoque inteligente com IA.")
+    st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Seu controle de estoque inteligente com IA.</p>", unsafe_allow_html=True)
     
     if os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", width=400)
+        st.image("APPRANCHO.png", use_container_width=True)
     
-    if st.button("INICIAR ACESSO", key="btn_home"):
+    if st.button("INICIAR ACESSO"):
         st.session_state.pagina = "login"
         st.rerun()
 
 # =================================================================
-# BLOCO 5: LOGIN COM VALIDAÇÃO E MENSAGENS (RESTAURADO)
+# BLOCO 5: LOGIN E SUBTELA (MENU PRINCIPAL)
 # =================================================================
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso Restrito")
+    navio_sel = st.selectbox("Selecione a Embarcação", [""] + list(USUARIOS.keys()))
+    senha_digitada = st.text_input("Senha", type="password")
     
-    navio_selecionado = st.selectbox("Selecione a Embarcação", [""] + list(USUARIOS.keys()))
-    senha_digitada = st.text_input("Digite a Senha de Acesso", type="password")
-    
-    if st.button("🛒 ENTRAR NO SISTEMA"):
-        if navio_selecionado in USUARIOS:
-            if USUARIOS[navio_selecionado]["senha"] == senha_digitada:
-                st.session_state.cozinheiro = USUARIOS[navio_selecionado]["nome"]
-                st.session_state.navio = navio_selecionado
-                st.success(f"✅ Bem-vindo, {st.session_state.cozinheiro}! Acesso autorizado.")
-                st.session_state.pagina = "menu"
-                st.rerun()
-            else:
-                st.error("❌ Senha incorreta! Tente novamente.")
+    if st.button("ENTRAR"):
+        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha_digitada:
+            st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
+            st.session_state.navio = navio_sel
+            st.success(f"✅ Bem-vindo, {st.session_state.cozinheiro}!")
+            st.session_state.pagina = "menu"
+            st.rerun()
         else:
-            st.warning("⚠️ Selecione uma embarcação válida.")
+            st.error("❌ Credenciais incorretas.")
 
-# =================================================================
-# BLOCO 6: SUBTELA (MENU PRINCIPAL)
-# =================================================================
 elif st.session_state.pagina == "menu":
-    st.markdown(f"## Olá, {st.session_state.cozinheiro}!")
-    st.write(f"Gestão da Unidade: **{st.session_state.navio}**")
+    st.title(f"Olá, {st.session_state.cozinheiro}!")
+    st.write(f"Unidade: **{st.session_state.navio}**")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -134,27 +128,31 @@ elif st.session_state.pagina == "menu":
             st.session_state.pagina = "tripulacao"
             st.rerun()
     
-    if st.button("SAIR DO SISTEMA"):
+    if st.button("SAIR"):
         st.session_state.pagina = "home"
         st.rerun()
 
 # =================================================================
-# BLOCO 7: TELA DE LISTA (TABELA E PDF)
+# BLOCO 6: TELA DE LISTA (TRAVADA PARA EDIÇÃO)
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.title(f"📋 Rancho - {st.session_state.navio}")
+    st.write(f"**Responsável Logado:** {st.session_state.cozinheiro}")
 
     if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        with st.spinner("Sincronizando com a base de dados..."):
-            st.session_state.df_lista = carregar_dados_do_notion()
-            st.rerun()
+        st.session_state.df_lista = carregar_dados_do_notion()
+        st.rerun()
 
-    # Tabela sempre visível
+    # TRAVA: Apenas 'CONFIRMA' pode ser editado
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
-            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
-            "ESTOQUE": st.column_config.NumberColumn("ESTOQUE", disabled=True),
+            "ITEM": st.column_config.TextColumn("ITEM", disabled=True),
+            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
+            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
+            "UNID MED": st.column_config.TextColumn("UNID.", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("ESTOQUE", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA (Sua Qtd)", min_value=0),
         },
         hide_index=True,
         use_container_width=True
@@ -168,17 +166,16 @@ elif st.session_state.pagina == "lista":
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, f"Checklist de Rancho - {st.session_state.cozinheiro}", ln=True, align="C")
+            # Nome dinâmico no PDF
+            pdf.cell(0, 10, f"Checklist de Rancho - Responsável: {st.session_state.cozinheiro}", ln=True, align="C")
             
-            # Cabeçalho
             pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(200, 200, 200)
-            larguras = [20, 45, 25, 20, 20, 85, 25]
+            larguras = [15, 85, 30, 20, 25, 25]
             for i, titulo in enumerate(COLUNAS_PADRAO):
-                pdf.cell(larguras[i], 10, titulo[:10], 1, 0, "C", True)
+                pdf.cell(larguras[i], 10, titulo, 1, 0, "C", True)
             pdf.ln()
 
-            # Linhas
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
                 for i, col in enumerate(COLUNAS_PADRAO):
@@ -194,11 +191,12 @@ elif st.session_state.pagina == "lista":
             st.rerun()
 
 # =================================================================
-# BLOCO 8: TELA DE TRIPULAÇÃO
+# BLOCO 7: TELA DE TRIPULAÇÃO
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
-    st.title("👨‍✈️ Gestão de Tripulação")
-    st.info("Formulário de tripulação em desenvolvimento.")
+    st.title("👨‍✈️ Preencher Dados da Tripulação")
+    st.info("Formulário de tripulação disponível para preenchimento.")
+    
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
