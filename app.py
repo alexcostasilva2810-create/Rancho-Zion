@@ -80,11 +80,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELA INICIAL (RESTAURADA)
+# BLOCO 4: TELA INICIAL
 # =================================================================
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Seu controle de estoque inteligente com IA.</p>", unsafe_allow_html=True)
     if os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", use_container_width=True)
     if st.button("INICIAR ACESSO"):
@@ -120,16 +119,13 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ TRIPULAÇÃO"):
             st.session_state.pagina = "tripulacao"
             st.rerun()
-    if st.button("SAIR"):
-        st.session_state.pagina = "home"
-        st.rerun()
 
 # =================================================================
-# BLOCO 6: TELA DE LISTA (O PULO DO GATO ESTÁ AQUI)
+# BLOCO 6: TELA DE LISTA (O FIM DEFINITIVO DO ERRO DO PDF)
 # =================================================================
 elif st.session_state.pagina == "lista":
     st.title(f"📋 Rancho - {st.session_state.navio}")
-    st.write(f"**Responsável Logado:** {st.session_state.cozinheiro}")
+    st.write(f"**Responsável:** {st.session_state.cozinheiro}")
 
     if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
         st.session_state.df_lista = carregar_dados_do_notion()
@@ -151,22 +147,16 @@ elif st.session_state.pagina == "lista":
     )
 
     st.markdown("---")
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        if st.button("📄 GERAR PDF"):
-            # FUNÇÃO DE NORMALIZAÇÃO BLINDADA
-            def limpar(texto):
-                # Remove acentos e caracteres que o FPDF não gosta
-                nfkd_form = unicodedata.normalize('NFKD', str(texto))
-                return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    if st.button("📄 GERAR PDF"):
+        # O PULO DO GATO: Função que força o texto para ASCII, matando símbolos invisíveis
+        def blindar_texto(texto):
+            return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
 
+        try:
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             pdf.set_font("Arial", "B", 14)
-            
-            # Título sem acentos para evitar erro
-            pdf.cell(0, 10, limpar(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.cell(0, 10, blindar_texto(f"Checklist de Rancho - Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
             
             pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(200, 200, 200)
@@ -179,25 +169,22 @@ elif st.session_state.pagina == "lista":
 
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, limpar(row["ITEM"]), 1)
-                pdf.cell(larguras[1], 8, limpar(row["DESCRIÇÃO"]), 1)
-                pdf.cell(larguras[2], 8, limpar(row["TIPO"]), 1)
-                pdf.cell(larguras[3], 8, limpar(row["UNID MED"]), 1)
+                pdf.cell(larguras[0], 8, blindar_texto(row["ITEM"]), 1)
+                pdf.cell(larguras[1], 8, blindar_texto(row["DESCRIÇÃO"]), 1)
+                pdf.cell(larguras[2], 8, blindar_texto(row["TIPO"]), 1)
+                pdf.cell(larguras[3], 8, blindar_texto(row["UNID MED"]), 1)
                 pdf.cell(larguras[4], 8, str(row["PREDEFINIDO"]), 1)
                 pdf.cell(larguras[5], 8, str(row["CONFIRMA"]), 1)
                 pdf.ln()
 
-            # O PULO DO GATO: encode com 'ignore' mata o erro de vez
-            try:
-                pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
-                st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            except Exception as e:
-                st.error(f"Erro técnico ao converter PDF: {e}")
+            pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
+            st.download_button("📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+        except Exception as e:
+            st.error(f"Erro de conversão: {e}")
 
-    with c2:
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
-            st.rerun()
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
 
 # =================================================================
 # BLOCO 7: TELA DE TRIPULAÇÃO
