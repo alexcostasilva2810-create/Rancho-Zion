@@ -1,10 +1,8 @@
 import streamlit as st
 import requests
 import pandas as pd
-from io import BytesIO
 
-# --- CONFIGURAÇÕES ---
-# O Streamlit lê as chaves que você colocou nos 'Secrets'
+# --- CONFIGURAÇÕES DE SEGURANÇA ---
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
 DATABASE_ID = st.secrets["DATABASE_ID"]
 
@@ -14,116 +12,69 @@ headers = {
     "Notion-Version": "2022-06-28",
 }
 
-# --- FUNÇÕES AUXILIARES DE LEITURA DO NOTION ---
-def get_text(p_dict, prop_name):
-    prop = p_dict.get(prop_name, {})
-    if prop.get("title") and prop["title"]:
-        return prop["title"][0]["text"]["content"]
-    if prop.get("rich_text") and prop["rich_text"]:
-        return prop["rich_text"][0]["text"]["content"]
-    return ""
-
-def get_num(p_dict, prop_name):
-    return p_dict.get(prop_name, {}).get("number", 0)
-
-# --- FUNÇÃO PRINCIPAL DE BUSCA DE DADOS ---
-@st.cache_data(ttl=600) # Cache para não consultar o Notion toda hora
+# --- FUNÇÃO PARA BUSCAR DADOS ---
 def buscar_dados():
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
     try:
         response = requests.post(url, headers=headers)
-        response.raise_for_status() # Lança um erro para status 4xx/5xx
         data = response.json()
-        
         itens = []
         for row in data.get("results", []):
             p = row["properties"]
+            
+            # Captura segura dos dados baseada na sua tabela real
+            nome_item = ""
+            if "PROTEINA" in p and p["PROTEINA"]["rich_text"]:
+                nome_item = p["PROTEINA"]["rich_text"][0]["text"]["content"]
+            elif "Nome" in p and p["Nome"]["title"]:
+                nome_item = p["Nome"]["title"][0]["text"]["content"]
+
             itens.append({
-                "CÓDIGO": get_text(p, "CÓDIGO"),
-                "PROTEÍNA": get_text(p, "PROTEÍNA"),
-                "TIPO": p.get("TIPO", {}).get("select", {}).get("name", ""),
-                "UNIDADE DE MEDIDA": get_text(p, "UNIDADE DE MEDIDA"),
-                "ESTOQUE": get_num(p, "ESTOQUE")
+                "CÓDIGO": p["CODIGO"]["title"][0]["text"]["content"] if "CODIGO" in p and p["CODIGO"]["title"] else "N/A",
+                "ITEM": nome_item,
+                "ESTOQUE": p["ESTOQUE"]["number"] if "ESTOQUE" in p else 0,
+                "UNID MED": p["UNID MED"]["rich_text"][0]["text"]["content"] if "UNID MED" in p and p["UNID MED"]["rich_text"] else ""
             })
         return pd.DataFrame(itens)
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro de conexão com o Notion: {e}. Verifique sua conexão e as credenciais.")
-        return pd.DataFrame()
     except Exception as e:
-        st.error(f"Erro ao processar dados do Notion: {e}. Verifique os nomes das colunas.")
         return pd.DataFrame()
 
-# --- INTERFACE STREAMLIT ---
-st.set_page_config(page_title="Zion Rancho App", layout="centered", initial_sidebar_state="collapsed")
+# --- INTERFACE VISUAL ---
+st.set_page_config(page_title="Zion Rancho", layout="centered")
 
-# Estilo CSS para a tela azul royal
+# Estilo Azul Royal
 st.markdown("""
-<style>
-.stApp {
-    background-color: #4169E1; /* Azul Royal */
-    text-align: center;
-    padding-top: 50px;
-}
-.title-container {
-    color: white;
-    font-size: 3em;
-    margin-bottom: 20px;
-}
-.slogan {
-    color: white;
-    font-size: 1.2em;
-    margin-bottom: 40px;
-}
-.stButton>button {
-    background-color: #364F6B; /* Azul mais escuro para o botão */
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: none;
-    font-size: 1.1em;
-    cursor: pointer;
-}
-.stButton>button:hover {
-    background-color: #2F4050; /* Um pouco mais escuro no hover */
-}
-</style>
-""", unsafe_allow_html=True)
+    <style>
+    .stApp { background-color: #4169E1; color: white; text-align: center; }
+    h1 { color: white !important; }
+    .stButton>button { background-color: #ffffff; color: #4169E1; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Lógica de controle de página (Home ou App)
-if 'page' not in st.session_state:
-    st.session_state.page = 'home'
+if 'logado' not in st.session_state:
+    st.session_state.logado = False
 
-if st.session_state.page == 'home':
-    # Tela inicial
-    st.markdown('<div class="title-container">Bem-vindo ao Zion Rancho App!</div>', unsafe_allow_html=True)
-    st.markdown('<div class="slogan">Seu controle de estoque inteligente com IA.</div>', unsafe_allow_html=True)
+if not st.session_state.logado:
+    # TELA INICIAL
+    st.title("Bem-vindo ao Zion Rancho App!")
+    st.write("Seu controle de estoque inteligente com IA.")
     
-    # Imagem do robô humanizado
-    # CERTIFIQUE-SE QUE ESTE É O NOME EXATO DO ARQUIVO DE IMAGEM
-    st.image("NOME_DA_SUA_IMAGEM.png", width=300) 
+    # USANDO O NOME CORRETO DO SEU ARQUIVO
+    st.image("robo_humanizado.jpg", width=400)
     
-    if st.button("Iniciar Aplicativo"):
-        st.session_state.page = 'app'
+    if st.button("ACESSAR SISTEMA"):
+        st.session_state.logado = True
         st.rerun()
-
-elif st.session_state.page == 'app':
-    # Tela principal do aplicativo (onde estava antes)
+else:
+    # TELA DO SISTEMA
     st.title("🛒 Estoque Zion Rancho")
-
-    with st.spinner("Carregando dados do Notion..."):
-        df = buscar_dados()
-
+    df = buscar_dados()
+    
     if not df.empty:
-        st.write("### Itens no Sistema")
         st.dataframe(df, use_container_width=True)
     else:
-        st.warning("Nenhum dado encontrado ou erro de conexão. Verifique suas credenciais e os nomes das colunas no Notion.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Atualizar Lista"):
-            st.rerun()
-    with col2:
-        if st.button("⬅️ Voltar para o Início"):
-            st.session_state.page = 'home'
-            st.rerun()
+        st.error("Erro ao carregar dados. Verifique a conexão com o Notion.")
+        
+    if st.button("SAIR"):
+        st.session_state.logado = False
+        st.rerun()
