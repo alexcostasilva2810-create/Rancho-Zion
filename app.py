@@ -6,8 +6,8 @@ import os
 # --- 1. DEFINIÇÃO DE USUÁRIOS E SENHAS ---
 # EDITE AQUI: "NOME DO NAVIO": "SENHA"
 USUARIOS = {
-    "NAVIO 01": "zion01",
-    "NAVIO 02": "zion02",
+    "AROEIRA": "ALLAN",
+    "ANGICO": "ELZA",
     "NAVIO 03": "zion03",
     "NAVIO 04": "zion04",
     "NAVIO 05": "zion05",
