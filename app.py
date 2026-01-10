@@ -220,114 +220,80 @@ elif st.session_state.pagina == "lista":
 # =================================================================
 
 elif st.session_state.pagina == "tripulacao":
-    from datetime import datetime
-    import unicodedata
-    from fpdf import FPDF
-
-    st.title("👨‍✈️ Declaração de Reabastecimento")
+    st.title("Declaração de Reabastecimento")
     
-    # Inicializa variáveis para evitar erro de referência
     if 'pdf_disponivel' not in st.session_state:
         st.session_state.pdf_disponivel = None
 
-    with st.container():
-        # Formulário para entrada de dados
-        with st.form("form_tripulacao", clear_on_submit=True):
-            st.subheader("Dados do Reabastecimento")
+    with st.form("form_tripulacao", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
+            st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
+            # Campo de Escolta
+            tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
+        
+        with col2:
+            data_hoje_br = datetime.now().strftime("%d/%m/%Y")
+            data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
+            origem = st.text_input("Origem", placeholder="Ex: Belém")
+            destino = st.text_input("Destino", placeholder="Ex: Santarém")
+
+        # Regra da Escolta: Trava em 12 dias se marcado Sim
+        dias_nauticos = 12 if tem_escolta == "Sim" else st.number_input("Dias Náuticos", min_value=1, value=15)
+        if tem_escolta == "Sim":
+            st.info("ℹ️ Duração fixada em 12 dias devido à escolta.")
+
+        consideracoes = st.text_area("Considerações (Materiais extras, etc):", height=100)
+
+        st.subheader("✍️ Assinatura do Cozinheiro")
+        canvas_result = st_canvas(
+            stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
+            height=150, drawing_mode="freedraw", key="canvas_trip"
+        )
+
+        btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
+
+    if btn_gerar:
+        if not origem or not destino:
+            st.error("⚠️ Preencha a Origem e o Destino!")
+        else:
+            def blindar(t): return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
             
-            col1, col2 = st.columns(2)
-            with col1:
-                st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
-                st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
-                dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
-            
-            with col2:
-                # CORREÇÃO DEFINITIVA DA DATA NA TELA
-                data_hoje_br = datetime.now().strftime("%d/%m/%Y")
-                data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
-                origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
-                destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
-
-            st.markdown("---")
-            st.subheader("📝 Considerações (Itens Extras)")
-            consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", 
-                                        placeholder="Ex: Foi acrescentado 10 água... Por gentileza colocar 06 vassouras...",
-                                        height=150)
-
-            btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
-
-        # Lógica de geração (fora do comando de limpeza automática)
-        if btn_gerar:
-            if not origem or not destino:
-                st.error("⚠️ Por favor, preencha a Origem e o Destino!")
-            else:
-                def blindar(t):
-                    txt = str(t) if t else ""
-                    return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
-
-                agora_rodape = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-                # TEXTO COM CAMPOS ENTRE COLCHETES PARA O PDF
-                texto_corpo = (
-                    f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                    f"nutricionais da tripulacao por um periodo de [ {dias_nauticos} ] dias nauticos "
-                    f"a partir de [ {data_input_br} ]. Este suprimento e planejado para a viagem corrente."
-                )
-
-                try:
-                    pdf = FPDF()
-                    pdf.add_page()
-                    
-                    if os.path.exists("APPRANCHO.png"):
-                        pdf.image("APPRANCHO.png", 10, 8, 25)
-                    
-                    pdf.set_font("Arial", "B", 14)
-                    pdf.set_xy(40, 15)
-                    pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
-                    
-                    pdf.ln(20)
-                    pdf.set_font("Arial", "", 12)
-                    pdf.multi_cell(0, 8, blindar(texto_corpo))
-                    
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.cell(0, 10, blindar(f"Origem: [ {origem} ]"), 0, 1)
-                    pdf.cell(0, 10, blindar(f"Destino: [ {destino} ]"), 0, 1)
-                    
-                    if consideracoes:
-                        pdf.ln(5)
-                        pdf.set_font("Arial", "B", 12)
-                        pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
-                        pdf.set_font("Arial", "", 11)
-                        pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
-                    
-                    pdf.ln(25)
-                    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
-                    pdf.set_font("Arial", "I", 10)
-                    pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
-
-                    pdf.set_y(-15)
-                    pdf.set_font("Arial", "I", 7)
-                    pdf.cell(0, 10, f"Gerado em: {agora_rodape} | Zion Rancho App", 0, 0, "C")
-
-                    st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-                    st.success("✅ PDF gerado com sucesso! Clique no botão abaixo para baixar.")
-
-                except Exception as e:
-                    st.error(f"Erro ao processar PDF: {e}")
-
-        # BOTÃO DE DOWNLOAD SEPARADO (Para evitar o erro de arquivo não disponível)
-        if st.session_state.pdf_disponivel:
-            st.download_button(
-                label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
-                data=st.session_state.pdf_disponivel,
-                file_name=f"Declaracao_{st.session_state.navio}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
-                mime="application/pdf",
-                key="btn_download_final"
+            # Texto limpo sem colchetes para a impressão
+            texto_corpo = (
+                f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
+                f"a partir de {data_input_br}. Este suprimento e planejado para a viagem corrente."
             )
 
-    st.markdown("---")
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pdf_disponivel = None # Limpa o PDF ao sair
-        st.session_state.pagina = "menu"
-        st.rerun()
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
+            pdf.ln(10)
+            pdf.set_font("Arial", "", 12)
+            pdf.multi_cell(0, 8, blindar(texto_corpo))
+            pdf.ln(5)
+            pdf.cell(0, 10, blindar(f"Origem: {origem}"), 0, 1)
+            pdf.cell(0, 10, blindar(f"Destino: {destino}"), 0, 1)
+            
+            if consideracoes:
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
+
+            # Adiciona a Assinatura no PDF
+            if canvas_result.image_data is not None:
+                img = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img.save("assinatura.png")
+                pdf.image("assinatura.png", x=70, y=pdf.get_y()+10, w=60)
+            
+            pdf.ln(25)
+            pdf.cell(0, 10, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
+            st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
+
+    if st.session_state.pdf_disponivel:
+        st.download_button("📥 BAIXAR PDF ASSINADO", data=st.session_state.pdf_disponivel, 
+                           file_name="Declaracao.pdf", mime="application/pdf")
