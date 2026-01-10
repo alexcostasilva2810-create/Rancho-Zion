@@ -1,80 +1,42 @@
 import streamlit as st
-import requests
-import pandas as pd
+import os
 
-# --- CONFIGURAÇÕES DE SEGURANÇA ---
-NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
-DATABASE_ID = st.secrets["DATABASE_ID"]
-
-headers = {
-    "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Content-Type": "application/json",
-    "Notion-Version": "2022-06-28",
-}
-
-# --- FUNÇÃO PARA BUSCAR DADOS ---
-def buscar_dados():
-    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    try:
-        response = requests.post(url, headers=headers)
-        data = response.json()
-        itens = []
-        for row in data.get("results", []):
-            p = row["properties"]
-            
-            # Captura segura dos dados baseada na sua tabela real
-            nome_item = ""
-            if "PROTEINA" in p and p["PROTEINA"]["rich_text"]:
-                nome_item = p["PROTEINA"]["rich_text"][0]["text"]["content"]
-            elif "Nome" in p and p["Nome"]["title"]:
-                nome_item = p["Nome"]["title"][0]["text"]["content"]
-
-            itens.append({
-                "CÓDIGO": p["CODIGO"]["title"][0]["text"]["content"] if "CODIGO" in p and p["CODIGO"]["title"] else "N/A",
-                "ITEM": nome_item,
-                "ESTOQUE": p["ESTOQUE"]["number"] if "ESTOQUE" in p else 0,
-                "UNID MED": p["UNID MED"]["rich_text"][0]["text"]["content"] if "UNID MED" in p and p["UNID MED"]["rich_text"] else ""
-            })
-        return pd.DataFrame(itens)
-    except Exception as e:
-        return pd.DataFrame()
-
-# --- INTERFACE VISUAL ---
+# 1. Configuração da Página
 st.set_page_config(page_title="Zion Rancho", layout="centered")
 
-# Estilo Azul Royal
+# 2. Estilo Azul Royal
 st.markdown("""
     <style>
-    .stApp { background-color: #4169E1; color: white; text-align: center; }
-    h1 { color: white !important; }
-    .stButton>button { background-color: #ffffff; color: #4169E1; font-weight: bold; }
+    .stApp {
+        background-color: #4169E1;
+        color: white;
+        text-align: center;
+    }
+    h1, p { color: white !important; }
+    .stButton>button {
+        background-color: white;
+        color: #4169E1;
+        font-weight: bold;
+        border-radius: 10px;
+        height: 3em;
+        width: 50%;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
+# 3. Conteúdo da Tela Inicial
+st.title("Bem-vindo ao Zion Rancho App!")
+st.write("Seu controle de estoque inteligente com IA.")
 
-if not st.session_state.logado:
-    # TELA INICIAL
-    st.title("Bem-vindo ao Zion Rancho App!")
-    st.write("Seu controle de estoque inteligente com IA.")
-    
-    # USANDO O NOME CORRETO DO SEU ARQUIVO
-    st.image("robo_humanizado.jpg", width=400)
-    
-    if st.button("ACESSAR SISTEMA"):
-        st.session_state.logado = True
-        st.rerun()
+# Tentativa de carregar a imagem sem quebrar o app
+nome_da_imagem = "robo_humanizado.jpg"
+
+if os.path.exists(nome_da_imagem):
+    st.image(nome_da_imagem, width=400)
 else:
-    # TELA DO SISTEMA
-    st.title("🛒 Estoque Zion Rancho")
-    df = buscar_dados()
-    
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-    else:
-        st.error("Erro ao carregar dados. Verifique a conexão com o Notion.")
-        
-    if st.button("SAIR"):
-        st.session_state.logado = False
-        st.rerun()
+    st.error(f"Arquivo '{nome_da_imagem}' não encontrado no GitHub. Verifique o nome!")
+
+# 4. Botão de entrada
+if st.button("ACESSAR SISTEMA"):
+    st.success("Conectando ao banco de dados...")
+    # Aqui depois colocaremos a troca para a tabela
