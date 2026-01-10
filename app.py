@@ -10,7 +10,7 @@ if 'usuario_ativo' not in st.session_state:
     st.session_state.usuario_ativo = ""
 
 USUARIOS = {
-    "NAVIO 01": "zion01", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
+    "AROEIRA": "ALLAN", "NAVIO 02": "zion02", "NAVIO 03": "zion03",
     "NAVIO 04": "zion04", "NAVIO 05": "zion05", "NAVIO 06": "zion06",
     "NAVIO 07": "zion07", "NAVIO 08": "zion08", "NAVIO 09": "zion09",
     "NAVIO 10": "zion10", "NAVIO 11": "zion11", "NAVIO 12": "zion12",
