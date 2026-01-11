@@ -7,272 +7,359 @@ from fpdf import FPDF
 from PIL import Image
 import os
 import requests
-import pytz
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, IDs E ESTILOS GERAIS
+# BLOCO 1: CONFIGURAÇÕES E IDs
 # =================================================================
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
 
-# Credenciais e IDs
+COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-# Inicialização de Variáveis de Estado
 if 'pagina' not in st.session_state: st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
 if 'navio' not in st.session_state: st.session_state.navio = ""
-if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
+if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
-# Funções Utilitárias
-def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-
-def aplicar_estilo_tecnologico():
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 20, 50, 0.88), rgba(0, 20, 50, 0.88)), 
-            url('https://images.unsplash.com/photo-1544383333-546e16fd3a51?q=80&w=1920');
-            background-size: cover; background-position: center;
-        }
-        h1, h2, h3, p, label { color: white !important; }
-        .stButton > button {
-            border: 1px solid #00D4FF !important; background: rgba(0, 212, 255, 0.1) !important;
-            color: white !important; border-radius: 8px; width: 100%; height: 50px; font-weight: bold;
-        }
-        .stButton > button:hover { background: #00D4FF !important; color: black !important; }
-        .mensagem-validade { 
-            background-color: rgba(60, 45, 30, 0.9); 
-            padding: 20px; border-radius: 8px; border-left: 6px solid #FF8C00;
-            color: white; margin-bottom: 20px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+USUARIOS = {
+    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
+}
 
 # =================================================================
-# BLOCO 2: TELA HOME (ZION TECNOLOGIA)
+# BLOCO 2: CONEXÕES E ESTILO
 # =================================================================
+def carregar_dados_do_notion():
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+    try:
+        response = requests.post(url, headers=headers)
+        if response.status_code == 200:
+            results = response.json().get("results", [])
+            dados = []
+            for page in results:
+                p = page.get("properties", {})
+                dados.append({
+                    "ITEM": p.get("ITEM", {}).get("title", [{}])[0].get("plain_text", ""),
+                    "DESCRIÇÃO": p.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "TIPO": p.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
+                    "CONFIRMA": 0
+                })
+            df = pd.DataFrame(dados)
+            df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
+            return df.sort_values(by='ITEM').reset_index(drop=True)
+        return st.session_state.df_lista
+    except: return st.session_state.df_lista
+
+def aplicar_estilo_azul():
+    st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
+
+# =================================================================
+# BLOCO 4: NAVEGAÇÃO
+# =================================================================
+
 if st.session_state.pagina == "home":
-    st.markdown("<style>.stApp { background-color: #4169E1; }</style>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center; color: white;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
+    aplicar_estilo_azul()
+    st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
     if os.path.exists("ZION.jpg"): st.image("ZION.jpg", use_container_width=True)
     if st.button("🚀 ACESSAR SISTEMA"): st.session_state.pagina = "login"; st.rerun()
 
-# =================================================================
-# BLOCO 3: TELA DE LOGIN
-# =================================================================
 elif st.session_state.pagina == "login":
-    st.title("🔐 Login")
-    navio_sel = st.selectbox("Selecione a Embarcação", ["NAVIO 01", "AROEIRA", "NAVIO 03"])
-    nome_user = st.text_input("Nome do Cozinheiro Responsável")
-    if st.button("ENTRAR NO SISTEMA"):
-        if nome_user:
-            st.session_state.cozinheiro = nome_user
-            st.session_state.navio = navio_sel
+    aplicar_estilo_azul(); st.title("🔐 Login")
+    navio_sel = st.selectbox("Navio", list(USUARIOS.keys()))
+    senha_dig = st.text_input("Senha", type="password")
+    if st.button("ENTRAR"):
+        dados = USUARIOS.get(navio_sel)
+        if dados and senha_dig == dados["senha"]:
+            st.session_state.cozinheiro = dados["nome"]; st.session_state.navio = navio_sel
             st.session_state.pagina = "menu"; st.rerun()
-        else: st.warning("Por favor, informe seu nome.")
+        else: st.error("❌ Senha incorreta!")
 
-# =================================================================
-# BLOCO 4: MENU PRINCIPAL (PROFISSIONAL)
-# =================================================================
 elif st.session_state.pagina == "menu":
-    aplicar_estilo_tecnologico()
-    h1, h2 = st.columns([1, 6])
-    with h1: 
-        if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=80)
-    with h2: st.markdown(f"<h1>Painel - {st.session_state.navio}</h1>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    c1, c2 = st.columns(2)
-    with c1:
+    aplicar_estilo_azul()
+    st.title(f"🚢 Painel - {st.session_state.navio}")
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True): st.session_state.pagina = "lista"; st.rerun()
         if st.button("📜 VER HISTÓRICO", use_container_width=True): st.session_state.pagina = "historico"; st.rerun()
-    with c2:
+    with col2:
         if st.button("👨‍✈️ DECLARAÇÃO", use_container_width=True): st.session_state.pagina = "tripulacao"; st.rerun()
-        if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
+    if st.button("⬅️ SAIR"): st.session_state.pagina = "home"; st.rerun()
 
-# =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (VERSÃO ORIGINAL RESTAURADA)
-# =================================================================
+# --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
-    aplicar_estilo_tecnologico()
-    
-    # Cabeçalho com Logo Lateral
-    col_logo, col_tit = st.columns([1, 8])
-    with col_logo:
-        if os.path.exists("ZION.jpg"): 
-            st.image("ZION.jpg", width=80)
-    with col_tit:
-        st.markdown("<h1 style='color: white; margin-top: 10px;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-
-    # BOTÃO DE ATUALIZAÇÃO (Lógica que sincroniza de verdade)
-    if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
-        headers = {
-            "Authorization": f"Bearer {NOTION_TOKEN}",
-            "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28"
+    # CSS: Fundo de estoque e botões nítidos
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
+            background-size: cover; background-position: center;
         }
-        try:
-            response = requests.post(f"https://api.notion.com/v1/databases/{DATABASE_ID}/query", headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                itens = []
-                for page in data["results"]:
-                    p = page["properties"]
-                    
-                    # A CHAVE DO SUCESSO: Acessar 'title' para descrição e 'number' para código
-                    try:
-                        # Verifica se a coluna DESCRIÇÃO existe e tem conteúdo
-                        desc_list = p.get("DESCRIÇÃO", {}).get("title", [])
-                        nome_item = desc_list[0]["text"]["content"] if desc_list else "Sem Nome"
-                        
-                        # Puxa o número do ITEM
-                        codigo = p.get("ITEM", {}).get("number")
-                        if codigo is None: codigo = 0
-                        
-                        # Puxa a Unidade de Medida
-                        unid_obj = p.get("UNID MED", {}).get("select")
-                        unid = unid_obj["name"] if unid_obj else "un"
-                        
-                        itens.append({
-                            "ITEM": codigo,
-                            "DESCRIÇÃO": nome_item,
-                            "UNID MED": unid,
-                            "CONFIRMA": 0 # Coluna onde o cozinheiro digita
-                        })
-                    except Exception:
-                        continue # Pula linhas vazias ou com erro no Notion
-                
-                # Ordena e salva na sessão
-                st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success(f"✅ Sincronizado: {len(itens)} itens encontrados!")
-                st.rerun()
-            else:
-                st.error(f"Erro na API: {response.status_code}")
-        except Exception as e:
-            st.error(f"Erro ao carregar: {e}")
+        div.stButton > button {
+            background-color: #FF8C00 !important;
+            color: white !important;
+            border: 1px solid #FF8C00 !important;
+            font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
+        }
+        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    st.title("📋 Conferência de Estoque")
+    
+    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
+        st.session_state.df_lista = carregar_dados_do_notion()
+        st.rerun()
 
-    # TABELA DE CONFERÊNCIA
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "UNID MED": st.column_config.TextColumn("UNID", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
+            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
         },
-        hide_index=True,
-        use_container_width=True,
-        key="editor_estoque_oficial_v12"
+        hide_index=True, use_container_width=True, key="editor_estoque_final"
     )
 
     st.markdown("---")
-    
-    # GERADOR DE PDF (Usando os dados que estão na tela)
     col_pdf, col_voltar = st.columns(2)
+    
     with col_pdf:
-        if st.button("💾 GERAR E SALVAR RELATÓRIO"):
-            fuso_br = pytz.timezone('America/Sao_Paulo')
-            data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
-            
-            pdf = FPDF()
+        def preparar_celula(conteudo):
+            texto = str(conteudo) if conteudo is not None else ""
+            texto = texto.replace('\u2013', '-').replace('\u2014', '-')
+            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
+
+        try:
+            from datetime import timedelta
+
+            class PDF(FPDF):
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    # AJUSTE DE HORÁRIO: UTC-3 (Brasília)
+                    agora_brasilia = datetime.now() - timedelta(hours=3)
+                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
+                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+
+            # Orientação Retrato (P)
+            pdf = PDF(orientation='P', unit='mm', format='A4')
             pdf.add_page()
-            if os.path.exists("ZION.jpg"): 
-                pdf.image("ZION.jpg", 95, 8, 20)
             
+            # Logo Centralizada
+            if os.path.exists("ZION.jpg"):
+                pdf.image("ZION.jpg", 95, 8, 20) 
+            
+            # Cabeçalho Centralizado
             pdf.set_font("Arial", "B", 14)
-            pdf.set_y(35)
-            pdf.cell(0, 10, preparar(f"Relatório de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            pdf.set_font("Arial", "", 10)
-            pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro} | {data_hora}"), ln=True, align="C")
-            pdf.ln(5)
-
-            # Cabeçalho da Tabela PDF
-            pdf.set_fill_color(200, 220, 255)
-            pdf.set_font("Arial", "B", 8)
-            pdf.cell(20, 8, "COD", 1, 0, "C", True)
-            pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True)
-            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
-
-            # Dados do PDF (Vem direto do que foi editado na tela)
-            pdf.set_font("Arial", "", 8)
-            for _, row in df_editado.iterrows():
-                pdf.cell(20, 7, str(row["ITEM"]), 1, 0, "C")
-                pdf.cell(110, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
-                pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
+            pdf.set_y(30)
+            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
             
-            st.download_button("📥 BAIXAR RELATÓRIO PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Rancho_{st.session_state.navio}.pdf")
+            pdf.set_font("Arial", "", 11)
+            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.ln(5)
+            
+            # Tabela (Larguras ajustadas para Retrato)
+            pdf.set_font("Arial", "B", 8)
+            pdf.set_fill_color(220, 220, 220)
+            larguras = [10, 55, 25, 15, 20, 50, 15] 
+            titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
+            
+            for i, t in enumerate(titulos):
+                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
+            pdf.ln()
+
+            pdf.set_font("Arial", "", 7)
+            for _, row in df_editado.iterrows():
+                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
+                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
+                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
+                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
+                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
+                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
+
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            
+            st.download_button(
+                label="📥 BAIXAR PDF DO ESTOQUE",
+                data=pdf_output,
+                file_name=f"Rancho_{st.session_state.navio}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Erro ao preparar PDF: {e}")
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"
             st.rerun()
-
-# =================================================================
-# BLOCO 7: DECLARAÇÃO (RESTAURADA COM DATAS BR)
-# =================================================================
-elif st.session_state.pagina == "tripulacao":
-    aplicar_estilo_tecnologico()
-    
-    col_logo, col_tit = st.columns([1, 8])
-    with col_logo:
-        if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=70)
-    with col_tit:
-        st.markdown("<h2 style='color: white; margin-top: 10px;'>⚓ Declaração de Reabastecimento</h2>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
-        # Formato de data restaurado para DD/MM/YYYY
-        data_ultimo = st.date_input("Data do Último Rancho", format="DD/MM/YYYY")
-        origem = st.text_input("Origem", value="Porto Velho")
-    with c2:
-        data_pedido = st.date_input("Data do Pedido", value=datetime.now(), format="DD/MM/YYYY")
-        escolta = st.selectbox("Possui Escolta?", ["NÃO", "SIM"])
-        destino = st.text_input("Destino", value="Novo remanso")
-
-    qtd_tripulantes = st.number_input("Tripulantes a bordo", min_value=1, value=14)
-    dias = 12 if escolta == "SIM" else 15
-    vencimento = data_pedido + timedelta(days=dias)
-    
-    st.markdown(f"""<div class='mensagem-validade'>📢 Duração: {dias} dias | Validade até: {vencimento.strftime('%d/%m/%Y')}</div>""", unsafe_allow_html=True)
-
-    st.markdown("### ✍️ Assinatura do Comandante")
-    canvas_result = st_canvas(fill_color="white", stroke_width=2, stroke_color="black", background_color="white", height=150, key="canvas_restored")
-    consideracoes = st.text_area("CONSIDERAÇÕES:", placeholder="Observações adicionais...")
-
-    st.markdown("---")
-    if st.button("📄 GERAR PDF DA DECLARAÇÃO", use_container_width=True):
-        if canvas_result.image_data is not None:
-            pdf = FPDF(); pdf.add_page()
-            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 90, 10, 25)
-            pdf.set_font("Arial", "B", 14); pdf.set_y(45)
-            pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
-            
-            # Texto formal conforme imagem
-            pdf.set_font("Arial", "", 11); pdf.ln(10)
-            texto = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador e de {qtd_tripulantes} tripulantes. "
-                     f"A provisao de rancho se destina a cobrir as necessidades por {dias} dias a partir de {data_pedido.strftime('%d/%m/%Y')}.")
-            pdf.multi_cell(0, 8, preparar(texto))
-            
-            # Rodapé e Assinatura
-            img_path = "temp_sig.png"
-            Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA').save(img_path)
-            pdf.image(img_path, x=75, y=pdf.get_y() + 10, w=50)
-            
-            st.download_button("📥 BAIXAR DECLARAÇÃO", data=pdf.output(dest='S').encode('latin-1'), file_name="Declaracao.pdf")
-
-    if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
-        st.session_state.pagina = "menu"; st.rerun()
-# =================================================================
-# BLOCO 8: TELA DE HISTÓRICO
-# =================================================================
+# --- BLOCO 8: TELA DE HISTÓRICO ---
 elif st.session_state.pagina == "historico":
-    aplicar_estilo_tecnologico()
-    st.title("📜 Histórico de Registros")
+    aplicar_estilo_azul(); st.title("📜 Histórico de Registros")
+    try:
+        url_h = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
+        headers_h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+        payload = {"filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}}}
+        res = requests.post(url_h, headers=headers_h, json=payload)
+        if res.status_code == 200:
+            results = res.json().get("results", [])
+            dados_h = [{"Data": r["properties"]["Data Pedido"]["date"]["start"], "Responsável": r["properties"]["Cozinheiro"]["title"][0]["text"]["content"], "Validade": r["properties"]["Validade"]["date"]["start"]} for r in results if r["properties"]["Cozinheiro"]["title"]]
+            st.dataframe(pd.DataFrame(dados_h), use_container_width=True, hide_index=True)
+        else: st.warning("Sem registros.")
+    except: st.error("Erro ao carregar módulo.")
     if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
+
+# --- BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO ---
+elif st.session_state.pagina == "tripulacao":
+    from datetime import datetime, timedelta
+    
+    # CSS: Fundo de alto mar e centralização do cabeçalho
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
+            background-size: cover; background-position: center;
+        }
+        /* Centraliza o Título e o Ícone */
+        .titulo-centralizado {
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px black;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        div.stButton > button {
+            background-color: #FF8C00 !important;
+            color: white !important;
+            border: 1px solid #FF8C00 !important;
+            font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
+        }
+        h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # Cabeçalho Centralizado com Ícone de Âncora
+    st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
+    
+    # --- LÓGICA DE ALERTAS E CÁLCULOS ---
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta == "SIM" else 15
+    
+    col_datas1, col_datas2 = st.columns(2)
+    with col_datas1:
+        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
+    
+    data_validade = data_recebimento + timedelta(days=dias_duracao)
+    
+    with col_datas2:
+        st.markdown(f"### 📅 Validade do Rancho")
+        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
+        st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
+                    f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
+                    f"</div>", unsafe_allow_html=True)
+
+    with st.form("form_declaracao_final"):
+        col1, col2 = st.columns(2)
+        with col1:
+            # Responsável preenchido com o nome do login
+            resp_nome = st.text_input("Responsável (Login)", value=st.session_state.cozinheiro, disabled=True)
+            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16)
+            origem = st.text_input("Porto de Origem", value="Porto Velho")
+        
+        with col2:
+            data_ultimo_rancho = st.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
+            destino = st.text_input("Porto de Destino", value="Novo remanso")
+        
+        necessidades_extras = st.text_area("Considerações / Necessidades Extras:", 
+            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
+        
+        st.write("Assinatura Digital:")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=3, stroke_color="#000000",
+            background_color="#FFFFFF",
+            height=120, drawing_mode="freedraw", key="ass_final_ancora",
+        )
+        
+        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
+
+    if enviar:
+        if canvas_result.image_data is None:
+            st.error("❌ Realize a assinatura antes de gerar o PDF.")
+        else:
+            try:
+                import unicodedata
+                from fpdf import FPDF
+                from PIL import Image
+
+                class PDF_Final(FPDF):
+                    def footer(self):
+                        self.set_y(-15)
+                        self.set_font('Arial', 'I', 8)
+                        agora_br = datetime.now() - timedelta(hours=3)
+                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+
+                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
+                pdf.add_page()
+
+                def preparar(t):
+                    return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+
+                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
+                pdf.set_font("Arial", "B", 16)
+                pdf.set_y(30)
+                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
+                pdf.ln(10)
+
+                # Conteúdo do documento
+                pdf.set_font("Arial", "", 12)
+                texto_corpo = (
+                    f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
+                    f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
+                    f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
+                    f"Este suprimento é planejado para a viagem corrente."
+                )
+                pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
+                pdf.ln(5)
+
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo_rancho.strftime('%d/%m/%Y')}"), ln=True)
+                
+                if necessidades_extras:
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, preparar("CONSIDERAÇÕES:"), ln=True)
+                    pdf.set_font("Arial", "", 10); pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
+                
+                # Área de Assinatura
+                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img_ass.save("temp_ass.png")
+                pdf.ln(15)
+                pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
+                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
+                pdf.cell(0, 10, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf.output(dest='S').encode('latin-1'), 
+                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
+            except Exception as e:
+                st.error(f"Erro: {e}")
+
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"; st.rerun()
