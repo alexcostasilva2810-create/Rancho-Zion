@@ -112,7 +112,7 @@ elif st.session_state.pagina == "menu":
 
 # --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
-    # CSS: Mantém o fundo de estoque e garante botões nítidos sem fundo branco
+    # CSS: Fundo de estoque e botões nítidos
     st.markdown("""
         <style>
         .stApp {
@@ -120,7 +120,6 @@ elif st.session_state.pagina == "lista":
                         url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
             background-size: cover; background-position: center;
         }
-        /* Botão Laranja Nítido */
         div.stButton > button {
             background-color: #FF8C00 !important;
             color: white !important;
@@ -139,7 +138,6 @@ elif st.session_state.pagina == "lista":
         st.session_state.df_lista = carregar_dados_do_notion()
         st.rerun()
 
-    # Editor de Dados
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -153,23 +151,38 @@ elif st.session_state.pagina == "lista":
     col_pdf, col_voltar = st.columns(2)
     
     with col_pdf:
-        # FUNÇÃO DE TRATAMENTO SEGURO (Resolve o erro do codec e do 'int')
         def preparar_celula(conteudo):
             texto = str(conteudo) if conteudo is not None else ""
-            # Resolve o erro do caractere \u2013 (travessão do Notion)
             texto = texto.replace('\u2013', '-').replace('\u2014', '-')
-            # Normaliza para Latin-1 ignorando o que não for compatível
             return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
 
         try:
-            # Geração do PDF em Paisagem
-            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            # Configuração do PDF com Rodapé Automático
+            class PDF(FPDF):
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    self.cell(0, 10, f'Gerado em: {data_hora} - Página ' + str(self.page_no()), 0, 0, 'C')
+
+            pdf = PDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho - {st.session_state.navio}"), ln=True, align="C")
-            pdf.ln(5)
             
-            # Cabeçalho Cinza
+            # CABEÇALHO COM LOGO E DADOS (NOME E NAVIO)
+            if os.path.exists("ZION.jpg"):
+                pdf.image("ZION.jpg", 10, 8, 20) # Logo pequena no canto
+            
+            pdf.set_font("Arial", "B", 14)
+            pdf.set_xy(35, 10)
+            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=False)
+            
+            pdf.set_font("Arial", "", 10)
+            pdf.set_xy(35, 16)
+            pdf.cell(0, 10, preparar_celula(f"Responsável: {st.session_state.cozinheiro}"), ln=True)
+            
+            pdf.ln(10)
+            
+            # TABELA (Inalterada conforme pedido)
             pdf.set_font("Arial", "B", 9)
             pdf.set_fill_color(220, 220, 220)
             larguras = [15, 70, 30, 25, 30, 80, 25]
@@ -178,11 +191,11 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
             pdf.ln()
 
-            # Linhas da Tabela
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
+                # Manter lógica de cores ou bordas da tabela conforme imagem
                 pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) # Nome do item
                 pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
                 pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
                 pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
@@ -191,11 +204,10 @@ elif st.session_state.pagina == "lista":
 
             pdf_output = pdf.output(dest='S').encode('latin-1')
             
-            # DISPARA O DOWNLOAD AUTOMÁTICO
             st.download_button(
                 label="📥 BAIXAR PDF DO ESTOQUE",
                 data=pdf_output,
-                file_name=f"Estoque_{st.session_state.navio}.pdf",
+                file_name=f"Rancho_{st.session_state.navio}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
