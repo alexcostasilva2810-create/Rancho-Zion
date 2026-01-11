@@ -93,23 +93,28 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (RESTAURADO E FUNCIONAL)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (VERSÃO RESTAURADA E ESTÁVEL)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho com Logo e Título alinhados
+    # Cabeçalho com Logo Lateral e Título
     col_logo, col_tit = st.columns([1, 8])
     with col_logo:
-        if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=70)
+        if os.path.exists("ZION.jpg"): 
+            st.image("ZION.jpg", width=80)
     with col_tit:
-        st.markdown("<h2 style='color: white; margin-top: 10px;'>📋 Conferência de Estoque</h2>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: white; margin-top: 10px;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
     
     st.markdown("---")
 
-    # Botão de Atualização com mapeamento direto das colunas do Notion
-    if st.button("🔄 ATUALIZAR LISTA DO NOTION", use_container_width=True):
-        headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
+    # Botão de Atualização com Mapeamento Direto
+    if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
         try:
             response = requests.post(f"https://api.notion.com/v1/databases/{DATABASE_ID}/query", headers=headers)
             if response.status_code == 200:
@@ -117,64 +122,90 @@ elif st.session_state.pagina == "lista":
                 itens = []
                 for page in data["results"]:
                     p = page["properties"]
-                    # Captura direta e segura para evitar 'Sem Descrição'
+                    
+                    # Lógica de Captura: Acessa o 'title' para a Descrição e 'number' para o Item
                     try:
-                        nome_item = p["DESCRIÇÃO"]["title"][0]["text"]["content"] if p["DESCRIÇÃO"]["title"] else "N/A"
+                        # No Notion, a coluna 'DESCRIÇÃO' é do tipo title (sempre uma lista)
+                        desc_data = p.get("DESCRIÇÃO", {}).get("title", [])
+                        nome_item = desc_data[0]["text"]["content"] if desc_data else "Sem Descrição"
+                        
+                        codigo = p.get("ITEM", {}).get("number") or 0
+                        unidade = p.get("UNID MED", {}).get("select", {}).get("name") or "un"
+                        
                         itens.append({
-                            "ITEM": p["ITEM"]["number"] if p["ITEM"]["number"] else 0,
+                            "ITEM": codigo,
                             "DESCRIÇÃO": nome_item,
-                            "TIPO": p["TIPO"]["select"]["name"] if p["TIPO"]["select"] else "DIVERSOS",
-                            "UNID MED": p["UNID MED"]["select"]["name"] if p["UNID MED"]["select"] else "un",
-                            "CONFIRMA": 0  # Coluna para o cozinheiro preencher
+                            "UNID MED": unidade,
+                            "CONFIRMA": 0  # Campo para entrada do usuário
                         })
-                    except Exception: continue
+                    except Exception:
+                        continue # Pula linhas com erro de estrutura
                 
+                # Atualiza a tabela e ordena pelo Código
                 st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success("✅ Tabela atualizada com sucesso!")
+                st.success(f"✅ {len(itens)} itens sincronizados com sucesso!")
                 st.rerun()
+            else:
+                st.error(f"Erro na API Notion: {response.status_code}")
         except Exception as e:
-            st.error(f"Erro ao conectar: {e}")
+            st.error(f"Falha na sincronização: {str(e)}")
 
-    # Editor de Dados (Captura o que foi digitado)
+    # Tabela de Conferência (Data Editor)
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
             "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
+            "UNID MED": st.column_config.TextColumn("UNID", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, help="Quantidade em estoque")
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_fix"
+        hide_index=True,
+        use_container_width=True,
+        key="editor_estoque_restaurado"
     )
 
     st.markdown("---")
-    c1, c2 = st.columns(2)
-    with c1:
+    
+    # Botões de Ação
+    col_pdf, col_voltar = st.columns(2)
+    with col_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
             fuso_br = pytz.timezone('America/Sao_Paulo')
             data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
             
-            pdf = FPDF(); pdf.add_page()
-            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
-            pdf.set_font("Arial", "B", 14); pdf.set_y(35)
+            pdf = FPDF()
+            pdf.add_page()
+            if os.path.exists("ZION.jpg"): 
+                pdf.image("ZION.jpg", 95, 8, 20)
+            
+            pdf.set_font("Arial", "B", 14)
+            pdf.set_y(35)
             pdf.cell(0, 10, preparar(f"Relatório de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            pdf.set_font("Arial", "", 10); pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro} | Data: {data_hora}"), ln=True, align="C")
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro} | {data_hora}"), ln=True, align="C")
             pdf.ln(5)
 
             # Cabeçalho da Tabela no PDF
-            pdf.set_fill_color(200, 220, 255); pdf.set_font("Arial", "B", 8)
-            pdf.cell(15, 8, "COD", 1, 0, "C", True); pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True); pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
-            
-            # Dados - Usa df_editado para garantir que o PDF tenha conteúdo
+            pdf.set_fill_color(200, 220, 255)
+            pdf.set_font("Arial", "B", 8)
+            pdf.cell(20, 8, "COD", 1, 0, "C", True)
+            pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True)
+            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
+
+            # Conteúdo da Tabela no PDF
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
-                pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
+                pdf.cell(20, 7, str(row["ITEM"]), 1, 0, "C")
                 pdf.cell(110, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
                 pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
             
-            st.download_button("📥 BAIXAR RELATÓRIO PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="Relatorio_Rancho.pdf")
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR PDF DO ESTOQUE", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
 
-    with c2:
-        if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
+    with col_voltar:
+        if st.button("⬅️ VOLTAR AO MENU"):
+            st.session_state.pagina = "menu"
+            st.rerun()
 
 # =================================================================
 # BLOCO 7: DECLARAÇÃO (RESTAURADA COM DATAS BR)
