@@ -100,15 +100,36 @@ elif st.session_state.pagina == "login":
             st.session_state.pagina = "menu"; st.rerun()
         else: st.error("❌ Senha incorreta!")
 
+# --- MENU PRINCIPAL ATUALIZADO ---
 elif st.session_state.pagina == "menu":
-    aplicar_estilo_azul()
-    st.title(f"🚢 Painel - {st.session_state.navio}")
+    # Estilização do Painel conforme sua imagem
+    st.markdown(f"""
+        <h1 style='color: white;'>🚢 Painel - {st.session_state.navio}</h1>
+        <p style='color: white;'>Bem-vindo, <b>{st.session_state.cozinheiro}</b></p>
+    """, unsafe_allow_html=True)
+
+    # Organização dos botões em colunas para scannability
     col1, col2 = st.columns(2)
+
     with col1:
-        if st.button("📋 TABELA DE RANCHO"): st.session_state.pagina = "lista"; st.rerun()
+        if st.button("📋 TABELA DE RANCHO", use_container_width=True):
+            st.session_state.pagina = "conferencia"
+            st.rerun()
+        
+        # NOVO BOTÃO: Leva ao Bloco 8 que você solicitou
+        if st.button("📜 VER HISTÓRICO", use_container_width=True):
+            st.session_state.pagina = "historico"
+            st.rerun()
+
     with col2:
-        if st.button("👨‍✈️ DECLARAÇÃO"): st.session_state.pagina = "tripulacao"; st.rerun()
-    if st.button("⬅️ SAIR"): st.session_state.pagina = "home"; st.rerun()
+        if st.button("👨‍🍳 DECLARAÇÃO", use_container_width=True):
+            st.session_state.pagina = "declaracao"
+            st.rerun()
+
+    st.markdown("---")
+    if st.button("⬅️ SAIR", use_container_width=True):
+        st.session_state.pagina = "login"
+        st.rerun()
 
 # --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
