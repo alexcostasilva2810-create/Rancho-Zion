@@ -157,37 +157,37 @@ elif st.session_state.pagina == "lista":
             return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
 
         try:
-            # Configuração do PDF com Rodapé Automático e Orientação RETRATO (P)
+            from datetime import timedelta
+
             class PDF(FPDF):
                 def footer(self):
                     self.set_y(-15)
                     self.set_font('Arial', 'I', 8)
-                    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    # AJUSTE DE HORÁRIO: UTC-3 (Brasília)
+                    agora_brasilia = datetime.now() - timedelta(hours=3)
+                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
                     self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
 
-            # Mudança para 'P' (Portrait/Retrato)
+            # Orientação Retrato (P)
             pdf = PDF(orientation='P', unit='mm', format='A4')
             pdf.add_page()
             
-            # LOGO CENTRALIZADA (Opcional, se preferir no topo central) ou no Canto
+            # Logo Centralizada
             if os.path.exists("ZION.jpg"):
-                # Posiciona a logo de forma centralizada (A4 tem 210mm, logo tem 20mm -> (210-20)/2 = 95)
                 pdf.image("ZION.jpg", 95, 8, 20) 
             
-            # CABEÇALHO CENTRALIZADO
+            # Cabeçalho Centralizado
             pdf.set_font("Arial", "B", 14)
-            pdf.set_y(30) # Espaço após a logo
+            pdf.set_y(30)
             pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
             
             pdf.set_font("Arial", "", 11)
             pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
-            
             pdf.ln(5)
             
-            # TABELA - Ajuste de larguras para caber no formato Retrato (Total ~190mm)
+            # Tabela (Larguras ajustadas para Retrato)
             pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(220, 220, 220)
-            # Reduzi proporcionalmente as larguras para o papel vertical
             larguras = [10, 55, 25, 15, 20, 50, 15] 
             titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
             
