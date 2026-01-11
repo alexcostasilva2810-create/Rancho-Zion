@@ -80,10 +80,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (ESTÁVEL E EM INGLÊS)
+# BLOCO 4: LOGICA DE NAVEGACAO (CORRIGIDA E SEM ACENTOS)
 # =================================================================
-
-import os
 
 if st.session_state.pagina == "lar":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
@@ -98,7 +96,7 @@ if st.session_state.pagina == "lar":
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # O comando TEM que ser st.button e st.rerun (nunca botão ou reprise)
+    # O comando TEM que ser st.button e st.rerun
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
