@@ -80,42 +80,50 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS (HOME E LOGIN) - VERSÃO FINAL COM IMAGEM
+# BLOCO 4: TELAS INICIAIS E LÓGICA DE ACESSO (COMPLETO)
 # =================================================================
 
+# 1. TELA INICIAL (HOME)
 if st.session_state.pagina == "home":
-    # Título centralizado
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # ---------------------------------------------------------
-    # LOGICA DA IMAGEM: Se o arquivo existir, ele mostra. 
-    # Se não existir, o sistema pula para o botão e não trava.
-    # ---------------------------------------------------------
+    # Busca a imagem do robô que está na sua biblioteca
     nome_imagem = "ZION.jpg" 
-
     if os.path.exists(nome_imagem):
         st.image(nome_imagem, use_container_width=True)
     elif os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", use_container_width=True)
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão de Início (Variável 'home' restaurada)
+    # Botão que leva para a tela de Login
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "login"
         st.rerun()
 
+# 2. TELA DE LOGIN (RESGATADA)
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
-    # Seleção do Navio
+    # Seleção que você já utilizava
     navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
     
-    # Botão de entrar no Menu
-    if st.button("🛒 ENTRAR", use_container_width=True):
-        st.session_state.cozinheiro = "Marcos"
+    # Campo para o nome (opcional, conforme seu padrão anterior)
+    nome_usuario = st.text_input("Nome do Responsável", "Marcos")
+    
+    if st.button("🛒 ENTRAR NO MENU", use_container_width=True):
+        st.session_state.cozinheiro = nome_usuario
         st.session_state.navio = navio
-        st.session_state.pagina = "menu"
+        st.session_state.pagina = "menu" # Direciona para o formulário principal
+        st.rerun()
+
+# 3. TELA DE MENU (CASO ESTEJA NO MESMO BLOCO)
+elif st.session_state.pagina == "menu":
+    st.subheader(f"Bem-vindo, {st.session_state.cozinheiro}!")
+    st.info(f"Navio selecionado: {st.session_state.navio}")
+    
+    if st.button("⬅️ Voltar para Início"):
+        st.session_state.pagina = "home"
         st.rerun()
 # =================================================================
 # BLOCO 5: TELA DE TRIPULAÇÃO (VERSÃO AJUSTADA E PROFISSIONAL)
