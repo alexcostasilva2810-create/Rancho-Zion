@@ -80,18 +80,39 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS (HOME E LOGIN)
+# BLOCO 4: TELAS INICIAIS (HOME E LOGIN) - VERSÃO FINAL COM IMAGEM
 # =================================================================
+
 if st.session_state.pagina == "home":
-    st.title("Bem-vindo ao Zion Rancho App!")
-    if st.button("INICIAR ACESSO"):
+    # Título centralizado
+    st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
+    
+    # ---------------------------------------------------------
+    # LOGICA DA IMAGEM: Se o arquivo existir, ele mostra. 
+    # Se não existir, o sistema pula para o botão e não trava.
+    # ---------------------------------------------------------
+    nome_imagem = "ZION.jpg" 
+
+    if os.path.exists(nome_imagem):
+        st.image(nome_imagem, use_container_width=True)
+    elif os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", use_container_width=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Botão de Início (Variável 'home' restaurada)
+    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "login"
         st.rerun()
 
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
+    
+    # Seleção do Navio
     navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
-    if st.button("🛒 ENTRAR"):
+    
+    # Botão de entrar no Menu
+    if st.button("🛒 ENTRAR", use_container_width=True):
         st.session_state.cozinheiro = "Marcos"
         st.session_state.navio = navio
         st.session_state.pagina = "menu"
