@@ -299,3 +299,141 @@ elif st.session_state.pagina == "tripulacao":
     if st.session_state.pdf_disponivel:
         st.download_button("📥 BAIXAR PDF ASSINADO", data=st.session_state.pdf_disponivel, 
                            file_name="Declaracao.pdf", mime="application/pdf")
+
+# =================================================================
+# BLOCO 5: TELA DE TRIPULAÇÃO E DECLARAÇÃO DE REABASTECIMENTO
+# =================================================================
+
+elif st.session_state.pagina == "tripulacao":
+    from datetime import datetime, timedelta
+    import unicodedata
+    from fpdf import FPDF
+    import numpy as np
+    from PIL import Image
+
+    st.title("👨‍✈️ Declaração de Reabastecimento")
+    
+    if 'pdf_disponivel' not in st.session_state:
+        st.session_state.pdf_disponivel = None
+
+    with st.container():
+        with st.form("form_tripulacao", clear_on_submit=False):
+            st.subheader("Dados do Reabastecimento")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
+                st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
+                # Opção de Escolta Armada
+                tem_escolta = st.radio("Terá Escolta Armada?", ("Não", "Sim"), horizontal=True)
+            
+            with col2:
+                data_hoje_br = datetime.now().strftime("%d/%m/%Y")
+                data_input_br = st.text_input("A partir de (Data)", value=data_hoje_br)
+                origem = st.text_input("Origem", placeholder="Ex: Porto Velho")
+                destino = st.text_input("Destino", placeholder="Ex: Novo Remanso")
+
+            # Regra da Escolta: Se sim, trava em 12 dias. Se não, permite escolher.
+            if tem_escolta == "Sim":
+                dias_nauticos = 12
+                st.info("ℹ️ Com escolta armada, a duração do rancho é fixada em 12 dias.")
+            else:
+                dias_nauticos = st.number_input("Dias Náuticos", min_value=1, value=15)
+
+            st.markdown("---")
+            st.subheader("📝 Considerações (Itens Extras)")
+            consideracoes = st.text_area("Descreva materiais de limpeza, água ou pessoal extra:", height=100)
+
+            st.markdown("---")
+            st.subheader("✍️ Assinatura Digital")
+            st.write("Assine no quadro abaixo (use o dedo no celular):")
+            
+            # Quadro de assinatura touch screen
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 255, 255, 0.3)",
+                stroke_width=3,
+                stroke_color="#000000",
+                background_color="#eeeeee",
+                height=150,
+                drawing_mode="freedraw",
+                key="canvas",
+            )
+
+            btn_gerar = st.form_submit_button("💾 GERAR DECLARAÇÃO")
+
+        if btn_gerar:
+            if not origem or not destino:
+                st.error("⚠️ Preencha Origem e Destino!")
+            elif canvas_result.image_data is None:
+                st.error("⚠️ Por favor, o cozinheiro deve assinar o documento!")
+            else:
+                def blindar(t):
+                    return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
+
+                try:
+                    pdf = FPDF()
+                    pdf.add_page()
+                    
+                    if os.path.exists("APPRANCHO.png"):
+                        pdf.image("APPRANCHO.png", 10, 8, 25)
+                    
+                    pdf.set_font("Arial", "B", 14)
+                    pdf.set_xy(40, 15)
+                    pdf.cell(0, 10, blindar(f"DECLARACAO DE RANCHO - {st.session_state.navio}"), 0, 1, "C")
+                    
+                    pdf.ln(20)
+                    pdf.set_font("Arial", "", 12)
+                    
+                    # Texto limpo sem os colchetes na impressão
+                    texto_corpo = (
+                        f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                        f"nutricionais da tripulacao por um periodo de {dias_nauticos} dias nauticos "
+                        f"a partir de {data_input_br}. Este suprimento e planejado para a viagem corrente."
+                    )
+                    if tem_escolta == "Sim":
+                        texto_corpo += " (Viagem com Escolta Armada)."
+
+                    pdf.multi_cell(0, 8, blindar(texto_corpo))
+                    
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.cell(0, 10, blindar(f"Origem: {origem}"), 0, 1)
+                    pdf.cell(0, 10, blindar(f"Destino: {destino}"), 0, 1)
+                    
+                    if consideracoes:
+                        pdf.ln(5)
+                        pdf.cell(0, 10, "CONSIDERACOES:", 0, 1)
+                        pdf.set_font("Arial", "", 11)
+                        pdf.multi_cell(0, 7, blindar(consideracoes), 1, "L")
+                    
+                    # Processar e Inserir Assinatura Digital no PDF
+                    pdf.ln(10)
+                    img_assinatura = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                    img_assinatura.save("temp_assinatura.png")
+                    
+                    curr_y = pdf.get_y()
+                    pdf.image("temp_assinatura.png", x=70, y=curr_y, w=70)
+                    pdf.ln(15)
+                    pdf.line(60, pdf.get_y()+5, 150, pdf.get_y()+5)
+                    pdf.set_font("Arial", "I", 10)
+                    pdf.cell(0, 15, blindar(f"Responsavel: {st.session_state.cozinheiro}"), 0, 1, "C")
+
+                    st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
+                    st.success("✅ Declaração assinada e gerada!")
+
+                except Exception as e:
+                    st.error(f"Erro: {e}")
+
+        if st.session_state.pdf_disponivel:
+            st.download_button(
+                label="📥 BAIXAR DECLARAÇÃO ASSINADA",
+                data=st.session_state.pdf_disponivel,
+                file_name=f"Declaracao_{st.session_state.navio}.pdf",
+                mime="application/pdf"
+            )
+
+    st.markdown("---")
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pdf_disponivel = None
+        st.session_state.pagina = "menu"
+        st.rerun()
