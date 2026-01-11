@@ -157,45 +157,48 @@ elif st.session_state.pagina == "lista":
             return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
 
         try:
-            # Configuração do PDF com Rodapé Automático
+            # Configuração do PDF com Rodapé Automático e Orientação RETRATO (P)
             class PDF(FPDF):
                 def footer(self):
                     self.set_y(-15)
                     self.set_font('Arial', 'I', 8)
                     data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    self.cell(0, 10, f'Gerado em: {data_hora} - Página ' + str(self.page_no()), 0, 0, 'C')
+                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
 
-            pdf = PDF(orientation='L', unit='mm', format='A4')
+            # Mudança para 'P' (Portrait/Retrato)
+            pdf = PDF(orientation='P', unit='mm', format='A4')
             pdf.add_page()
             
-            # CABEÇALHO COM LOGO E DADOS (NOME E NAVIO)
+            # LOGO CENTRALIZADA (Opcional, se preferir no topo central) ou no Canto
             if os.path.exists("ZION.jpg"):
-                pdf.image("ZION.jpg", 10, 8, 20) # Logo pequena no canto
+                # Posiciona a logo de forma centralizada (A4 tem 210mm, logo tem 20mm -> (210-20)/2 = 95)
+                pdf.image("ZION.jpg", 95, 8, 20) 
             
+            # CABEÇALHO CENTRALIZADO
             pdf.set_font("Arial", "B", 14)
-            pdf.set_xy(35, 10)
-            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=False)
+            pdf.set_y(30) # Espaço após a logo
+            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
             
-            pdf.set_font("Arial", "", 10)
-            pdf.set_xy(35, 16)
-            pdf.cell(0, 10, preparar_celula(f"Responsável: {st.session_state.cozinheiro}"), ln=True)
+            pdf.set_font("Arial", "", 11)
+            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
             
-            pdf.ln(10)
+            pdf.ln(5)
             
-            # TABELA (Inalterada conforme pedido)
-            pdf.set_font("Arial", "B", 9)
+            # TABELA - Ajuste de larguras para caber no formato Retrato (Total ~190mm)
+            pdf.set_font("Arial", "B", 8)
             pdf.set_fill_color(220, 220, 220)
-            larguras = [15, 70, 30, 25, 30, 80, 25]
+            # Reduzi proporcionalmente as larguras para o papel vertical
+            larguras = [10, 55, 25, 15, 20, 50, 15] 
             titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
+            
             for i, t in enumerate(titulos):
                 pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
             pdf.ln()
 
-            pdf.set_font("Arial", "", 8)
+            pdf.set_font("Arial", "", 7)
             for _, row in df_editado.iterrows():
-                # Manter lógica de cores ou bordas da tabela conforme imagem
                 pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) # Nome do item
+                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
                 pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
                 pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
                 pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
