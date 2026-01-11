@@ -80,23 +80,29 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LOGICA DE NAVEGACAO (FOCO NA IMAGEM EXISTENTE)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (VERSÃO FINAL DE RECUPERAÇÃO)
 # =================================================================
 
+# Garantimos que a página atual seja a inicial
 if st.session_state.pagina == "lar":
+    # Título centralizado
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Puxando apenas a imagem que voce confirmou na biblioteca
-    # Se quiser usar o robo, use "ZION.jpg". Se quiser a antiga, use "APPRANCHO.png"
-    nome_imagem = "ZION.jpg" 
+    # Tentativa de carregar a imagem disponível
+    # Se você excluiu a ZION.jpg, ele passará direto para o 'else'
+    nome_da_imagem = "ZION.jpg" 
 
-    if os.path.exists(nome_imagem):
-        st.image(nome_imagem, use_container_width=True)
+    if os.path.exists(nome_da_imagem):
+        st.image(nome_da_imagem, use_container_width=True)
+    elif os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", use_container_width=True)
     else:
-        st.info("Bem-vindo! Clique no botão abaixo para acessar o checklist.")
+        # Se nenhuma imagem for encontrada, mostramos apenas um aviso para não dar tela azul
+        st.info("Bem-vindo! Clique no botão abaixo para iniciar.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # O botão de acesso (sempre em inglês: st.button)
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
