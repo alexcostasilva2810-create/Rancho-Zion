@@ -86,14 +86,12 @@ st.markdown("""
 if st.session_state.pagina == "lar":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # IMPORTANTE: O nome entre aspas deve ser EXATAMENTE o nome do arquivo na biblioteca
+    # O nome deve ser igual ao que está na sua biblioteca
     nome_imagem_nova = "logo_robot.jpg" 
 
     if os.path.exists(nome_imagem_nova):
         st.image(nome_imagem_nova, use_container_width=True)
     else:
-        # Se a tela ficar azul aqui, é porque o nome do arquivo na biblioteca 
-        # não é 'logo_robot.jpg'. Verifique letras maiúsculas ou minúsculas.
         st.error(f"Erro: O arquivo '{nome_imagem_nova}' não foi encontrado na biblioteca.")
 
     st.markdown("<br>", unsafe_allow_html=True)
