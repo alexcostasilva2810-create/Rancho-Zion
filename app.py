@@ -80,19 +80,21 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL - APENAS ROBÔ)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL CORRIGIDA)
 # =================================================================
 
 if st.session_state.pagina == "lar":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # O nome deve ser igual ao que está na sua biblioteca
-    nome_imagem_nova = "logo_robot.jpg" 
+    # AJUSTADO: Nome exato conforme seu print de propriedades
+    nome_da_imagem = "ZION.jpg" 
 
-    if os.path.exists(nome_imagem_nova):
-        st.image(nome_imagem_nova, use_container_width=True)
+    if os.path.exists(nome_da_imagem):
+        st.image(nome_da_imagem, use_container_width=True)
     else:
-        st.error(f"Erro: O arquivo '{nome_imagem_nova}' não foi encontrado na biblioteca.")
+        # Se ainda assim não carregar, ele vai te mostrar o erro exato
+        st.error(f"Erro: O arquivo '{nome_da_imagem}' não foi encontrado na biblioteca do Streamlit.")
+        st.write("Verifique se você fez o 'Upload' deste arquivo para a pasta do projeto.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
