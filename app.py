@@ -80,22 +80,25 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (ESTÁVEL)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (ESTÁVEL E EM INGLÊS)
 # =================================================================
+
+import os
 
 if st.session_state.pagina == "lar":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Detalhe 1: Verificamos se o arquivo APPRANCHO.png existe antes de tentar abrir
-    if os.path.exists("APPRANCHO.png"):
+    # Conferimos se o arquivo que vimos na sua biblioteca existe
+    if os.path.exists("ZION.jpg"):
+        st.image("ZION.jpg", use_container_width=True)
+    elif os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", use_container_width=True)
     else:
-        # Detalhe 2: Se a imagem sumiu da biblioteca, mostramos apenas um texto
-        st.write("Bem-vindo ao sistema de Checklist!")
+        st.write("Bem-vindo! Carregando interface...")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Detalhe 3: O botão precisa estar fora de qualquer formulário para funcionar aqui
+    # O comando TEM que ser st.button e st.rerun (nunca botão ou reprise)
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
