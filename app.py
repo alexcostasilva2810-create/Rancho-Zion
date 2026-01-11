@@ -85,7 +85,7 @@ st.markdown("""
 
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
-    if os.path.exists("APPRANCHO.png"):
+    if os.path.exists("ZION.jpg"):
         st.image("APPRANCHO.png", use_container_width=True)
     if st.button("INICIAR ACESSO"):
         st.session_state.pagina = "login"
