@@ -80,25 +80,28 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA DE BOAS-VINDAS)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL)
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    # Centraliza o título no topo
+    # 1. Título centralizado
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Verifica se a imagem do robô existe e a exibe
-    if os.path.exists("logo_robot.jpg"):
-        st.image("logo_robot.jpg", use_container_width=True)
+    # 2. Tentativa de carregar a imagem do Robô
+    # IMPORTANTE: Verifique se o nome do arquivo na sua biblioteca é exatamente este:
+    nome_da_imagem = "logo_robot.jpg" 
+    
+    if os.path.exists(nome_da_imagem):
+        st.image(nome_da_imagem, use_container_width=True)
+    elif os.path.exists("APPRANCHO.png"):
+        # Se não achar o robô, carrega a logo antiga para não ficar azul
+        st.image("APPRANCHO.png", use_container_width=True)
     else:
-        # Caso a imagem falte, ele avisa mas não trava o app
-        st.error("Arquivo 'logo_robot.jpg' não encontrado na biblioteca.")
-        if os.path.exists("APPRANCHO.png"):
-            st.image("APPRANCHO.png", width=200)
+        st.warning("⚠️ Nenhuma imagem encontrada na biblioteca. Verifique os nomes dos arquivos.")
 
+    # 3. Espaçamento e Botão
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # Botão de Acesso - Ocupa a largura total para facilitar no celular
+    
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
