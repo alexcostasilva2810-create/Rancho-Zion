@@ -9,7 +9,7 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, ESTILO E IDs (SUBSTITUA TUDO)
+# BLOCO 1: CONFIGURAÇÕES, ESTILO E IDs (UNIFICADO)
 # =================================================================
 st.set_page_config(
     page_title="Zion Rancho App", 
@@ -20,30 +20,21 @@ st.set_page_config(
 # ESTILO PARA REMOVER COROA, FUNDO AZUL E DEIXAR LETRA PRETA
 st.markdown("""
     <style>
-    /* 1. Remove a coroa e menus */
     #viewerBadge {display: none !important;}
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* 2. Remove o azul e define fundo branco */
     .stApp { 
         margin-top: -80px; 
         background-color: #FFFFFF !important; 
     }
-
-    /* 3. Letras Pretas e legíveis */
     h1, h2, h3, p, label, .stMarkdown, .stTextInput, .stSelectbox {
         color: #000000 !important;
     }
-    
-    /* 4. Texto digitado em preto */
     input {
         color: #000000 !important;
         background-color: #F0F2F6 !important;
     }
-    
-    /* 5. Botões em Laranja Zion */
     div.stButton > button {
         background-color: #FF8C00 !important;
         color: white !important;
@@ -53,11 +44,72 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# IDs DE CONEXÃO (MANTIDOS CONFORME SUA IMAGEM)
+# IDs DE CONEXÃO
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
+
+# INICIALIZAÇÃO DE VARIÁVEIS (Corrige o erro de AttributeError)
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "home"
+if 'cozinheiro' not in st.session_state:
+    st.session_state.cozinheiro = ""
+if 'navio' not in st.session_state:
+    st.session_state.navio = ""
+if 'df_lista' not in st.session_state:
+    st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
+
+USUARIOS = {
+    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
+}
+
+# =================================================================
+# BLOCO 2: CONEXÃO COM O NOTION
+# =================================================================
+def carregar_dados_do_notion():
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {
+        "Authorization": f"Bearer {NOTION_TOKEN}", 
+        "Content-Type": "application/json", 
+        "Notion-Version": "2022-06-28"
+    }
+    try:
+        response = requests.post(url, headers=headers)
+        if response.status_code == 200:
+            results = response.json().get("results", [])
+            dados = []
+            for page in results:
+                p = page.get("properties", {})
+                item_list = p.get("ITEM", {}).get("title", [])
+                item_val = item_list[0].get("plain_text", "") if item_list else ""
+                desc_list = p.get("DESCRIÇÃO", {}).get("rich_text", [])
+                desc_val = desc_list[0].get("plain_text", "") if desc_list else ""
+                tipo_val = p.get("TIPO", {}).get("select", {}).get("name", "DIVERSOS")
+                unid_val = p.get("UNID MED", {}).get("select", {}).get("name", "un")
+                predef = p.get("PREDEFINIDO", {}).get("number", 0)
+                if predef is None: predef = 0
+                dados.append({
+                    "ITEM": item_val, "DESCRIÇÃO": desc_val, "TIPO": tipo_val,
+                    "UNID MED": unid_val, "PREDEFINIDO": predef, "CONFIRMA": 0
+                })
+            df = pd.DataFrame(dados)
+            return df.sort_values(by="DESCRIÇÃO").reset_index(drop=True)
+        return st.session_state.df_lista
+    except Exception as e:
+        return st.session_state.df_lista
+
+# =================================================================
+# BLOCO 3: FUNÇÕES AUXILIARES
+# =================================================================
+def mudar_pagina(nova_pagina):
+    st.session_state.pagina = nova_pagina
+    st.rerun()
+
+if st.session_state.df_lista.empty:
+    st.session_state.df_lista = carregar_dados_do_notion()
 # =================================================================
 # BLOCO 4: NAVEGAÇÃO
 # =================================================================
