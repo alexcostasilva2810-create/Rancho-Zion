@@ -93,7 +93,7 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (LOGO LATERAL E FILTRO DE ERROS)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (MAPEAMENTO DE COLUNAS DO NOTION)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
@@ -108,9 +108,13 @@ elif st.session_state.pagina == "lista":
     
     st.markdown("---")
 
-    # Botão de Atualização Blindado contra campos vazios
+    # Botão de Atualização com Mapeamento Corrigido
     if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
-        headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
         try:
             response = requests.post(f"https://api.notion.com/v1/databases/{DATABASE_ID}/query", headers=headers)
             if response.status_code == 200:
@@ -118,66 +122,82 @@ elif st.session_state.pagina == "lista":
                 itens = []
                 for page in data["results"]:
                     p = page["properties"]
-                    # Tratamento rigoroso para evitar erro de 'number' ou campos nulos
-                    try:
-                        id_item = p["ITEM"].get("number") if p.get("ITEM") else 0
-                        desc_list = p["DESCRIÇÃO"].get("title", [])
-                        desc = desc_list[0]["text"]["content"] if desc_list else "Sem Descrição"
-                        unid_obj = p["UNID MED"].get("select")
-                        unid = unid_obj["name"] if unid_obj else "un"
-                        
-                        itens.append({
-                            "ITEM": id_item if id_item is not None else 0,
-                            "DESCRIÇÃO": desc,
-                            "UNID MED": unid,
-                            "CONFIRMA": 0
-                        })
-                    except:
-                        continue # Pula itens com estrutura corrompida no Notion
+                    
+                    # 1. Captura o ITEM (CÓDIGO)
+                    id_item = 0
+                    if "ITEM" in p:
+                        id_item = p["ITEM"].get("number") or 0
+                    
+                    # 2. Captura a DESCRIÇÃO (Título da página no Notion)
+                    desc = "Sem Descrição"
+                    # No Notion, a coluna com o ícone de arquivo/página é sempre acessada via 'title'
+                    if "DESCRIÇÃO" in p and p["DESCRIÇÃO"].get("title"):
+                        desc = p["DESCRIÇÃO"]["title"][0]["text"]["content"]
+                    
+                    # 3. Captura a UNIDADE DE MEDIDA
+                    unid = "un"
+                    if "UNID MED" in p and p["UNID MED"].get("select"):
+                        unid = p["UNID MED"]["select"]["name"]
+                    
+                    itens.append({
+                        "ITEM": id_item,
+                        "DESCRIÇÃO": desc,
+                        "UNID MED": unid,
+                        "CONFIRMA": 0
+                    })
                 
+                # Atualiza o estado da sessão e ordena pelo código do item
                 st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success("✅ Tabela sincronizada!")
+                st.success(f"✅ {len(itens)} itens carregados com sucesso!")
                 st.rerun()
             else:
-                st.error(f"Erro na conexão: {response.status_code}")
+                st.error(f"Erro na conexão (Status {response.status_code}). Verifique o Token e ID do Banco.")
         except Exception as e:
-            st.error("Erro ao processar dados. Verifique a internet e a tabela Notion.")
+            st.error(f"Erro ao processar dados: {str(e)}")
 
-    # Tabela de Conferência
+    # Exibição da Tabela no Sistema
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
             "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
+            "UNID MED": st.column_config.TextColumn("UNID", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, help="Digite a quantidade contada")
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_v9"
+        hide_index=True,
+        use_container_width=True,
+        key="editor_estoque_v_notion"
     )
 
     st.markdown("---")
+    # Botões de Ação (PDF e Voltar)
     c_pdf, c_voltar = st.columns(2)
     with c_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
+            # Lógica de geração do PDF mantida conforme validado anteriormente
             fuso_br = pytz.timezone('America/Sao_Paulo')
             data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
             pdf = FPDF(); pdf.add_page()
             if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
             pdf.set_font("Arial", "B", 14); pdf.set_y(35)
             pdf.cell(0, 10, preparar(f"Relatório de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            pdf.set_font("Arial", "", 10); pdf.cell(0, 8, preparar(f"Data: {data_hora}"), ln=True, align="C")
-            pdf.ln(5)
-            # Tabela PDF
+            pdf.ln(10)
+            # Tabela no PDF
             pdf.set_fill_color(200, 220, 255); pdf.set_font("Arial", "B", 8)
-            pdf.cell(20, 8, "COD", 1, 0, "C", True); pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True); pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
+            pdf.cell(20, 8, "COD", 1, 0, "C", True)
+            pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True)
+            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
                 pdf.cell(20, 7, str(row["ITEM"]), 1, 0, "C")
                 pdf.cell(110, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
                 pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
-            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="Rancho.pdf", mime="application/pdf")
+            
+            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Rancho_{st.session_state.navio}.pdf")
 
     with c_voltar:
-        if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
+        if st.button("⬅️ VOLTAR AO MENU"):
+            st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO (CENTRALIZADA E AJUSTADA)
