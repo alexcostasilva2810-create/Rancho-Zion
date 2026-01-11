@@ -80,27 +80,21 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LOGICA DE NAVEGACAO (RESET TOTAL)
+# BLOCO 4: TELAS INICIAIS (HOME E LOGIN)
 # =================================================================
+if st.session_state.pagina == "home":
+    st.title("Bem-vindo ao Zion Rancho App!")
+    if st.button("INICIAR ACESSO"):
+        st.session_state.pagina = "login"
+        st.rerun()
 
-if st.session_state.pagina == "lar":
-    # 1. Título simples
-    st.header("Aplicativo Zion Rancho")
-    
-    # 2. Verificação de imagem sem travar
-    # Se você excluiu ZION.jpg, ele não fará nada aqui
-    if os.path.exists("ZION.jpg"):
-        st.image("ZION.jpg", use_container_width=True)
-    elif os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", use_container_width=True)
-    else:
-        st.info("Aguardando carregamento do sistema...")
-
-    st.write("---") # Linha divisória
-
-    # 3. O Botão (Verifique se não há acentos em 'pagina')
-    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
-        st.session_state.pagina = "Conecte-se"
+elif st.session_state.pagina == "login":
+    st.title("🔐 Acesso do Cozinheiro")
+    navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
+    if st.button("🛒 ENTRAR"):
+        st.session_state.cozinheiro = "Marcos"
+        st.session_state.navio = navio
+        st.session_state.pagina = "menu"
         st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
