@@ -93,12 +93,12 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (MAPEAMENTO DE COLUNAS DO NOTION)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (MAPEAMENTO DINÂMICO E ROBUSTO)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho com Logo ao lado do título
+    # Cabeçalho com Logo Lateral restaurada
     col_logo, col_tit = st.columns([1, 8])
     with col_logo:
         if os.path.exists("ZION.jpg"): 
@@ -108,7 +108,7 @@ elif st.session_state.pagina == "lista":
     
     st.markdown("---")
 
-    # Botão de Atualização com Mapeamento Corrigido
+    # Botão de Atualização com Mapeamento Flexível
     if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
         headers = {
             "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -123,21 +123,29 @@ elif st.session_state.pagina == "lista":
                 for page in data["results"]:
                     p = page["properties"]
                     
-                    # 1. Captura o ITEM (CÓDIGO)
+                    # --- LÓGICA DE CAPTURA FLEXÍVEL ---
+                    
+                    # 1. Busca o CÓDIGO (ITEM) - Tenta várias grafias
                     id_item = 0
-                    if "ITEM" in p:
-                        id_item = p["ITEM"].get("number") or 0
+                    for key in ["ITEM", "Item", "item", "COD", "CÓDIGO"]:
+                        if key in p and p[key].get("number") is not None:
+                            id_item = p[key]["number"]
+                            break
                     
-                    # 2. Captura a DESCRIÇÃO (Título da página no Notion)
+                    # 2. Busca a DESCRIÇÃO (Coluna Principal do Notion)
                     desc = "Sem Descrição"
-                    # No Notion, a coluna com o ícone de arquivo/página é sempre acessada via 'title'
-                    if "DESCRIÇÃO" in p and p["DESCRIÇÃO"].get("title"):
-                        desc = p["DESCRIÇÃO"]["title"][0]["text"]["content"]
+                    for key in ["DESCRIÇÃO", "Descricao", "Nome", "Name"]:
+                        if key in p and p[key].get("title"):
+                            if len(p[key]["title"]) > 0:
+                                desc = p[key]["title"][0]["text"]["content"]
+                                break
                     
-                    # 3. Captura a UNIDADE DE MEDIDA
+                    # 3. Busca a UNIDADE DE MEDIDA
                     unid = "un"
-                    if "UNID MED" in p and p["UNID MED"].get("select"):
-                        unid = p["UNID MED"]["select"]["name"]
+                    for key in ["UNID MED", "UNIDADE", "Unid", "Medida"]:
+                        if key in p and p[key].get("select"):
+                            unid = p[key]["select"]["name"]
+                            break
                     
                     itens.append({
                         "ITEM": id_item,
@@ -146,35 +154,37 @@ elif st.session_state.pagina == "lista":
                         "CONFIRMA": 0
                     })
                 
-                # Atualiza o estado da sessão e ordena pelo código do item
-                st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success(f"✅ {len(itens)} itens carregados com sucesso!")
+                # Atualiza e ordena
+                if itens:
+                    st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
+                    st.success(f"✅ Sucesso! {len(itens)} itens carregados do Notion.")
+                else:
+                    st.warning("⚠️ O Notion respondeu, mas a lista veio vazia. Verifique os filtros no Notion.")
                 st.rerun()
             else:
-                st.error(f"Erro na conexão (Status {response.status_code}). Verifique o Token e ID do Banco.")
+                st.error(f"Erro de Conexão: Status {response.status_code}")
         except Exception as e:
-            st.error(f"Erro ao processar dados: {str(e)}")
+            st.error(f"Erro Crítico: {str(e)}")
 
-    # Exibição da Tabela no Sistema
+    # Exibição da Tabela Corrigida
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
             "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
             "UNID MED": st.column_config.TextColumn("UNID", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, help="Digite a quantidade contada")
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_estoque_v_notion"
+        key="editor_estoque_v_notion_final"
     )
 
     st.markdown("---")
-    # Botões de Ação (PDF e Voltar)
+    # Ações
     c_pdf, c_voltar = st.columns(2)
     with c_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
-            # Lógica de geração do PDF mantida conforme validado anteriormente
             fuso_br = pytz.timezone('America/Sao_Paulo')
             data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
             pdf = FPDF(); pdf.add_page()
@@ -182,7 +192,6 @@ elif st.session_state.pagina == "lista":
             pdf.set_font("Arial", "B", 14); pdf.set_y(35)
             pdf.cell(0, 10, preparar(f"Relatório de Rancho: {st.session_state.navio}"), ln=True, align="C")
             pdf.ln(10)
-            # Tabela no PDF
             pdf.set_fill_color(200, 220, 255); pdf.set_font("Arial", "B", 8)
             pdf.cell(20, 8, "COD", 1, 0, "C", True)
             pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True)
@@ -192,8 +201,7 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(20, 7, str(row["ITEM"]), 1, 0, "C")
                 pdf.cell(110, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
                 pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
-            
-            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Rancho_{st.session_state.navio}.pdf")
+            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="Rancho.pdf")
 
     with c_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
