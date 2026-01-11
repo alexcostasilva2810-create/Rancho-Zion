@@ -13,6 +13,16 @@ import requests
 # =================================================================
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
 
+# COLE O CÓDIGO DA IMAGEM AQUI (Ajuste de aparência para App)
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stApp { margin-top: -80px; }
+    </style>
+    """, unsafe_allow_html=True)
+
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
