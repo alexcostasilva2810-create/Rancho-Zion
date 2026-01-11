@@ -80,23 +80,18 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (RESTAURANDO TELA ORIGINAL)
+# BLOCO 4: RESET DA TELA INICIAL
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    # Título do Aplicativo
-    st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
+    st.title("Aplicativo Zion Rancho")
     
-    # Voltando para a imagem que funcionava
-    # Certifique-se de que o arquivo APPRANCHO.png ainda está na biblioteca
+    # Tentativa simples de carregar a logo que existia antes
     if os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", use_container_width=True)
+        st.image("APPRANCHO.png")
     else:
-        st.warning("Imagem APPRANCHO.png não encontrada. Verifique a biblioteca.")
+        st.write("Bem-vindo! Clique no botão abaixo para acessar.")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Botão padrão de acesso
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
