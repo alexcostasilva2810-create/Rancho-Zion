@@ -80,26 +80,27 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL DEFINITIVA)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (VERSÃO FINAL SEM ERROS)
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    # 1. Título centralizado
+    # Centraliza o título
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # 2. Caminho da Imagem (Exatamente como está na sua biblioteca)
-    # IMPORTANTE: Se o navegador traduzir para 'SION.jpg', corrija para 'ZION.jpg'
-    imagem_robot = "ZION.jpg" 
+    # Nome do arquivo exatamente como está na sua biblioteca (Vimos no print)
+    nome_da_imagem = "ZION.jpg" 
 
-    if os.path.exists(imagem_robot):
-        st.image(imagem_robot, use_container_width=True)
+    # Se o arquivo existir, ele mostra. Se não, ele avisa o que falta.
+    if os.path.exists(nome_da_imagem):
+        st.image(nome_da_imagem, use_container_width=True)
     else:
-        # Caso ocorra algum erro de carregamento, ele avisa aqui
-        st.error(f"Arquivo '{imagem_robot}' não encontrado. Verifique se o nome está correto.")
+        st.error(f"Erro: O arquivo '{nome_da_imagem}' nao foi encontrado na biblioteca.")
+        st.write("Arquivos que o sistema está vendo agora:")
+        st.code(os.listdir('.'))
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 3. Botão de Acesso (Ficará logo abaixo da imagem)
+    # Botão de acesso
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
