@@ -110,9 +110,9 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ DECLARAÇÃO"): st.session_state.pagina = "tripulacao"; st.rerun()
     if st.button("⬅️ SAIR"): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO 6: TELA DE LISTA ---
+# --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
-    # CSS: Fundo de estoque e botões nítidos (sem fundo branco)
+    # CSS: Mantém o fundo de estoque e garante botões nítidos sem fundo branco
     st.markdown("""
         <style>
         .stApp {
@@ -120,17 +120,15 @@ elif st.session_state.pagina == "lista":
                         url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
             background-size: cover; background-position: center;
         }
-        /* Botões Laranjas e Nítidos */
+        /* Botão Laranja Nítido */
         div.stButton > button {
             background-color: #FF8C00 !important;
             color: white !important;
             border: 1px solid #FF8C00 !important;
             font-weight: bold !important;
             text-shadow: 1px 1px 2px black !important;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
         }
         h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        /* Ajuste na tabela para legibilidade */
         .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
         </style>
         """, unsafe_allow_html=True)
@@ -141,6 +139,7 @@ elif st.session_state.pagina == "lista":
         st.session_state.df_lista = carregar_dados_do_notion()
         st.rerun()
 
+    # Editor de Dados
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -151,26 +150,26 @@ elif st.session_state.pagina == "lista":
     )
 
     st.markdown("---")
-    c1, c2 = st.columns(2)
+    col_pdf, col_voltar = st.columns(2)
     
-    with c1:
-        # --- SOLUÇÃO DO ERRO DE CODEC ---
-        def normalizar_texto(texto):
-            """ Remove caracteres que o FPDF latin-1 não suporta """
-            if not texto: return ""
-            # Transforma caracteres especiais (como o travessão \u2013) em hífens simples
+    with col_pdf:
+        # FUNÇÃO DE TRATAMENTO SEGURO (Resolve o erro do codec e do 'int')
+        def preparar_celula(conteudo):
+            texto = str(conteudo) if conteudo is not None else ""
+            # Resolve o erro do caractere \u2013 (travessão do Notion)
             texto = texto.replace('\u2013', '-').replace('\u2014', '-')
-            # Normaliza acentos para o formato compatível com latin-1
-            return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
+            # Normaliza para Latin-1 ignorando o que não for compatível
+            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
 
         try:
+            # Geração do PDF em Paisagem
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, normalizar_texto(f"Checklist de Rancho - {st.session_state.navio}"), ln=True, align="C")
+            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho - {st.session_state.navio}"), ln=True, align="C")
             pdf.ln(5)
             
-            # Cabeçalho
+            # Cabeçalho Cinza
             pdf.set_font("Arial", "B", 9)
             pdf.set_fill_color(220, 220, 220)
             larguras = [15, 70, 30, 25, 30, 80, 25]
@@ -179,19 +178,20 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
             pdf.ln()
 
-            # Dados (Aplicando a normalização em cada célula)
+            # Linhas da Tabela
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, normalizar_texto(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, normalizar_texto(row.get("DESCRIÇÃO", "")), 1) # Aqui era o erro
-                pdf.cell(larguras[2], 8, normalizar_texto(row.get("TIPO", "")), 1)
-                pdf.cell(larguras[3], 8, normalizar_texto(row.get("UNID MED", "")), 1, 0, "C")
-                pdf.cell(larguras[4], 8, normalizar_texto(row.get("PREDEFINIDO", "0")), 1, 0, "C")
-                pdf.cell(larguras[5], 8, normalizar_texto(row.get("DESCRIÇÃO", "")), 1)
-                pdf.cell(larguras[6], 8, normalizar_texto(row.get("CONFIRMA", "0")), 1, 1, "C")
+                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
+                pdf.cell(larguras[1], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
+                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
+                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
+                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
 
             pdf_output = pdf.output(dest='S').encode('latin-1')
             
+            # DISPARA O DOWNLOAD AUTOMÁTICO
             st.download_button(
                 label="📥 BAIXAR PDF DO ESTOQUE",
                 data=pdf_output,
@@ -202,7 +202,7 @@ elif st.session_state.pagina == "lista":
         except Exception as e:
             st.error(f"Erro ao preparar PDF: {e}")
 
-    with c2:
+    with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"
             st.rerun()
