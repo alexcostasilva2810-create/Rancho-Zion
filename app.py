@@ -80,32 +80,27 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL - APENAS ROBÔ)
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    # 1. Título centralizado
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # 2. Tentativa de carregar a imagem do Robô
-    # IMPORTANTE: Verifique se o nome do arquivo na sua biblioteca é exatamente este:
-    nome_da_imagem = "logo_robot.jpg" 
-    
-    if os.path.exists(nome_da_imagem):
-        st.image(nome_da_imagem, use_container_width=True)
-    elif os.path.exists("APPRANCHO.png"):
-        # Se não achar o robô, carrega a logo antiga para não ficar azul
-        st.image("APPRANCHO.png", use_container_width=True)
-    else:
-        st.warning("⚠️ Nenhuma imagem encontrada na biblioteca. Verifique os nomes dos arquivos.")
+    # IMPORTANTE: O nome entre aspas deve ser EXATAMENTE o nome do arquivo na biblioteca
+    nome_imagem_nova = "logo_robot.jpg" 
 
-    # 3. Espaçamento e Botão
+    if os.path.exists(nome_imagem_nova):
+        st.image(nome_imagem_nova, use_container_width=True)
+    else:
+        # Se a tela ficar azul aqui, é porque o nome do arquivo na biblioteca 
+        # não é 'logo_robot.jpg'. Verifique letras maiúsculas ou minúsculas.
+        st.error(f"Erro: O arquivo '{nome_imagem_nova}' não foi encontrado na biblioteca.")
+
     st.markdown("<br>", unsafe_allow_html=True)
     
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
-
 # =================================================================
 # BLOCO 5: TELA DE TRIPULAÇÃO (VERSÃO AJUSTADA E PROFISSIONAL)
 # =================================================================
