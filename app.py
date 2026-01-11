@@ -224,7 +224,7 @@ elif st.session_state.pagina == "lista":
 
 # --- BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO ---
 elif st.session_state.pagina == "tripulacao":
-    # CSS: Fundo de viagem em alto mar e botões nítidos
+    # Estilo visual com fundo de viagem em alto mar
     st.markdown("""
         <style>
         .stApp {
@@ -240,64 +240,71 @@ elif st.session_state.pagina == "tripulacao":
             text-shadow: 1px 1px 2px black !important;
         }
         h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stTextInput>div>div>input { background-color: rgba(255, 255, 255, 0.9) !important; }
+        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+        }
         </style>
         """, unsafe_allow_html=True)
 
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
-    # --- LÓGICA DE ALERTAS DE ESCOTA ---
+    # --- LÓGICA DE ALERTAS E CÁLCULOS ---
     escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta == "SIM" else 15
     
-    if escolta == "SIM":
-        st.warning("⚠️ ATENÇÃO: Com escolta, o rancho deve ser planejado para durar ATÉ 12 DIAS.")
-        prazo_limite = 12
-    else:
-        st.info("ℹ️ NOTA: Sem escolta, o rancho deve ser planejado para durar ATÉ 15 DIAS.")
-        prazo_limite = 15
+    col_datas1, col_datas2 = st.columns(2)
+    with col_datas1:
+        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
+    
+    # Cálculo automático da validade do rancho
+    data_validade = data_recebimento + timedelta(days=dias_duracao)
+    
+    with col_datas2:
+        st.markdown(f"### 📅 Validade do Rancho")
+        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
+        st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
+                    f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
+                    f"</div>", unsafe_allow_html=True)
 
-    with st.form("form_declaracao"):
+    with st.form("form_declaracao_completa"):
         col1, col2 = st.columns(2)
         with col1:
-            resp = st.text_input("Cozinheiro Responsável", value=st.session_state.cozinheiro, disabled=True)
-            origem = st.text_input("Porto de Origem")
-        with col2:
-            data_atual = datetime.now().strftime("%d/%m/%Y")
-            st.text_input("Data da Emissão", value=data_atual, disabled=True)
-            destino = st.text_input("Porto de Destino")
+            st.session_state.cozinheiro = st.text_input("Cozinheiro Responsável", value="Catiano")
+            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16) # Campo solicitado
+            origem = st.text_input("Porto de Origem", value="Porto Velho")
         
-        # CAMPO DE ASSINATURA TOUCH SCREEN
-        st.write("Assinatura Digital (Touch Screen):")
+        with col2:
+            data_ultimo_rancho = st.date_input("Data do último rancho recebido:") # Campo solicitado
+            destino = st.text_input("Porto de Destino", value="Novo remanso")
+            # A data de início no texto do PDF será a data de recebimento informada acima
+        
+        # Campo para necessidades fora da lista
+        necessidades_extras = st.text_area("Necessidades que NÃO estão na lista de rancho (Ex: Material de limpeza, reparos):", 
+            placeholder="Descreva aqui o que mais você precisa (vassouras, rodos, galões de água extras, etc...)")
+        
+        st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=3,
-            stroke_color="#000000",
+            stroke_width=3, stroke_color="#000000",
             background_color="#FFFFFF",
-            height=150,
-            drawing_mode="freedraw",
-            key="assinatura_cozinheiro",
+            height=120, drawing_mode="freedraw", key="assinatura_final_dec",
         )
         
-        salvar = st.form_submit_button("💾 SALVAR E GERAR PDF DA DECLARAÇÃO")
+        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
 
-    if salvar:
-        if not origem or not destino:
-            st.error("❌ Por favor, preencha a Origem e o Destino.")
-        elif canvas_result.image_data is None:
-            st.error("❌ Por favor, realize a assinatura no campo acima.")
+    if enviar:
+        if canvas_result.image_data is None:
+            st.error("❌ Por favor, realize a assinatura antes de gerar o PDF.")
         else:
             try:
-                from datetime import timedelta
-                
-                # Criar PDF Retrato com Rodapé e Cabeçalho
-                class PDF_Decl(FPDF):
+                class PDF_Completo(FPDF):
                     def footer(self):
                         self.set_y(-15)
                         self.set_font('Arial', 'I', 8)
                         agora_br = datetime.now() - timedelta(hours=3)
                         self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
 
-                pdf = PDF_Decl(orientation='P', unit='mm', format='A4')
+                pdf = PDF_Completo(orientation='P', unit='mm', format='A4')
                 pdf.add_page()
 
                 def preparar(t):
@@ -308,40 +315,49 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.set_font("Arial", "B", 16)
                 pdf.set_y(30)
                 pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
+                pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
                 pdf.ln(10)
 
-                # Conteúdo da Declaração
-                pdf.set_font("Arial", "", 12)
-                texto_decl = (
-                    f"Eu, {st.session_state.cozinheiro}, declaro que o reabastecimento "
-                    f"realizado na data de {data_atual} saindo de {origem} com destino a {destino}, "
-                    f"foi conferido e está em conformidade com as normas da Zion Tecnologia. "
-                    f"Considerando o regime de {'escolta' if escolta == 'SIM' else 'operação normal'}, "
-                    f"o rancho está provisionado para {prazo_limite} dias."
+                # Texto Principal com campos restaurados
+                pdf.set_font("Arial", "", 11)
+                texto_doc = (
+                    f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
+                    f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
+                    f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}, "
+                    f"com validade calculada até {data_validade.strftime('%d/%m/%Y')}. "
+                    f"O último suprimento foi recebido em {data_ultimo_rancho.strftime('%d/%m/%Y')}."
                 )
-                pdf.multi_cell(0, 10, preparar(texto_decl), align="J")
-                
-                # Inserir Assinatura do Canvas no PDF
-                img_assinatura = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_assinatura.save("temp_assinatura.png")
-                pdf.ln(20)
-                pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
-                pdf.image("temp_assinatura.png", x=75, y=pdf.get_y()-15, w=60)
-                pdf.cell(0, 10, preparar(f"Assinatura do Cozinheiro: {st.session_state.cozinheiro}"), ln=True, align="C")
+                pdf.multi_cell(0, 8, preparar(texto_doc), align="J")
+                pdf.ln(5)
 
-                pdf_out = pdf.output(dest='S').encode('latin-1')
-                st.download_button(
-                    label="📥 BAIXAR DECLARAÇÃO ASSINADA",
-                    data=pdf_out,
-                    file_name=f"Declaracao_{st.session_state.navio}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-                st.success("✅ Declaração gerada com sucesso!")
+                # Informações de Trajeto
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                pdf.ln(5)
+
+                # Necessidades Extras (Campo dinâmico restaurado)
+                if necessidades_extras:
+                    pdf.set_font("Arial", "B", 11)
+                    pdf.cell(0, 8, preparar("NECESSIDADES EXTRAS (FORA DA LISTA):"), ln=True)
+                    pdf.set_font("Arial", "", 10)
+                    pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
+                    pdf.ln(5)
+                
+                # Espaço para Assinatura
+                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img_ass.save("temp_ass_final.png")
+                pdf.ln(10)
+                pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
+                pdf.image("temp_ass_final.png", x=75, y=pdf.get_y()-15, w=60)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, preparar(f"Assinatura do Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO COMPLETA (PDF)", data=pdf_bytes, 
+                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
             except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+                st.error(f"Erro ao processar documento: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
