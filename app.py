@@ -80,18 +80,22 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: RESET DA TELA INICIAL
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (ESTÁVEL)
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    st.title("Aplicativo Zion Rancho")
+    st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Tentativa simples de carregar a logo que existia antes
+    # Detalhe 1: Verificamos se o arquivo APPRANCHO.png existe antes de tentar abrir
     if os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png")
+        st.image("APPRANCHO.png", use_container_width=True)
     else:
-        st.write("Bem-vindo! Clique no botão abaixo para acessar.")
+        # Detalhe 2: Se a imagem sumiu da biblioteca, mostramos apenas um texto
+        st.write("Bem-vindo ao sistema de Checklist!")
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Detalhe 3: O botão precisa estar fora de qualquer formulário para funcionar aqui
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
