@@ -16,9 +16,11 @@ st.set_page_config(page_title="Zion Rancho App", layout="wide")
 # COLE O CÓDIGO DA IMAGEM AQUI (Ajuste de aparência para App)
 st.markdown("""
     <style>
+    <style>
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
+    #viewerBadge {display: none;} /* ESTA LINHA REMOVE A COROA VERMELHA */
     .stApp { margin-top: -80px; }
     </style>
     """, unsafe_allow_html=True)
