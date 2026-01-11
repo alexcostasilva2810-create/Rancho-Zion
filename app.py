@@ -80,23 +80,23 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LOGICA DE NAVEGACAO (CORRIGIDA E SEM ACENTOS)
+# BLOCO 4: LOGICA DE NAVEGACAO (FOCO NA IMAGEM EXISTENTE)
 # =================================================================
 
 if st.session_state.pagina == "lar":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Conferimos se o arquivo que vimos na sua biblioteca existe
-    if os.path.exists("ZION.jpg"):
-        st.image("ZION.jpg", use_container_width=True)
-    elif os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", use_container_width=True)
+    # Puxando apenas a imagem que voce confirmou na biblioteca
+    # Se quiser usar o robo, use "ZION.jpg". Se quiser a antiga, use "APPRANCHO.png"
+    nome_imagem = "ZION.jpg" 
+
+    if os.path.exists(nome_imagem):
+        st.image(nome_imagem, use_container_width=True)
     else:
-        st.write("Bem-vindo! Carregando interface...")
+        st.info("Bem-vindo! Clique no botão abaixo para acessar o checklist.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # O comando TEM que ser st.button e st.rerun
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
