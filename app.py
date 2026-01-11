@@ -93,12 +93,12 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (VERSÃO RESTAURADA E ESTÁVEL)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (VERSÃO ORIGINAL RESTAURADA)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho com Logo Lateral e Título
+    # Cabeçalho com Logo Lateral
     col_logo, col_tit = st.columns([1, 8])
     with col_logo:
         if os.path.exists("ZION.jpg"): 
@@ -108,7 +108,7 @@ elif st.session_state.pagina == "lista":
     
     st.markdown("---")
 
-    # Botão de Atualização com Mapeamento Direto
+    # BOTÃO DE ATUALIZAÇÃO (Lógica que sincroniza de verdade)
     if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
         headers = {
             "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -123,50 +123,55 @@ elif st.session_state.pagina == "lista":
                 for page in data["results"]:
                     p = page["properties"]
                     
-                    # Lógica de Captura: Acessa o 'title' para a Descrição e 'number' para o Item
+                    # A CHAVE DO SUCESSO: Acessar 'title' para descrição e 'number' para código
                     try:
-                        # No Notion, a coluna 'DESCRIÇÃO' é do tipo title (sempre uma lista)
-                        desc_data = p.get("DESCRIÇÃO", {}).get("title", [])
-                        nome_item = desc_data[0]["text"]["content"] if desc_data else "Sem Descrição"
+                        # Verifica se a coluna DESCRIÇÃO existe e tem conteúdo
+                        desc_list = p.get("DESCRIÇÃO", {}).get("title", [])
+                        nome_item = desc_list[0]["text"]["content"] if desc_list else "Sem Nome"
                         
-                        codigo = p.get("ITEM", {}).get("number") or 0
-                        unidade = p.get("UNID MED", {}).get("select", {}).get("name") or "un"
+                        # Puxa o número do ITEM
+                        codigo = p.get("ITEM", {}).get("number")
+                        if codigo is None: codigo = 0
+                        
+                        # Puxa a Unidade de Medida
+                        unid_obj = p.get("UNID MED", {}).get("select")
+                        unid = unid_obj["name"] if unid_obj else "un"
                         
                         itens.append({
                             "ITEM": codigo,
                             "DESCRIÇÃO": nome_item,
-                            "UNID MED": unidade,
-                            "CONFIRMA": 0  # Campo para entrada do usuário
+                            "UNID MED": unid,
+                            "CONFIRMA": 0 # Coluna onde o cozinheiro digita
                         })
                     except Exception:
-                        continue # Pula linhas com erro de estrutura
+                        continue # Pula linhas vazias ou com erro no Notion
                 
-                # Atualiza a tabela e ordena pelo Código
+                # Ordena e salva na sessão
                 st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success(f"✅ {len(itens)} itens sincronizados com sucesso!")
+                st.success(f"✅ Sincronizado: {len(itens)} itens encontrados!")
                 st.rerun()
             else:
-                st.error(f"Erro na API Notion: {response.status_code}")
+                st.error(f"Erro na API: {response.status_code}")
         except Exception as e:
-            st.error(f"Falha na sincronização: {str(e)}")
+            st.error(f"Erro ao carregar: {e}")
 
-    # Tabela de Conferência (Data Editor)
+    # TABELA DE CONFERÊNCIA
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
             "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
             "UNID MED": st.column_config.TextColumn("UNID", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, help="Quantidade em estoque")
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_estoque_restaurado"
+        key="editor_estoque_oficial_v12"
     )
 
     st.markdown("---")
     
-    # Botões de Ação
+    # GERADOR DE PDF (Usando os dados que estão na tela)
     col_pdf, col_voltar = st.columns(2)
     with col_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
@@ -185,22 +190,21 @@ elif st.session_state.pagina == "lista":
             pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro} | {data_hora}"), ln=True, align="C")
             pdf.ln(5)
 
-            # Cabeçalho da Tabela no PDF
+            # Cabeçalho da Tabela PDF
             pdf.set_fill_color(200, 220, 255)
             pdf.set_font("Arial", "B", 8)
             pdf.cell(20, 8, "COD", 1, 0, "C", True)
             pdf.cell(110, 8, "DESCRICAO", 1, 0, "L", True)
             pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
 
-            # Conteúdo da Tabela no PDF
+            # Dados do PDF (Vem direto do que foi editado na tela)
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
                 pdf.cell(20, 7, str(row["ITEM"]), 1, 0, "C")
                 pdf.cell(110, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
                 pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
             
-            pdf_output = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR PDF DO ESTOQUE", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+            st.download_button("📥 BAIXAR RELATÓRIO PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Rancho_{st.session_state.navio}.pdf")
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
