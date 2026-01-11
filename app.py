@@ -82,26 +82,33 @@ st.markdown("""
 # =================================================================
 # BLOCO 4: TELAS INICIAIS (HOME E LOGIN)
 # =================================================================
-if st.session_state.pagina == "home":
-    st.title("Bem-vindo ao Zion Rancho App!")
-    if st.button("INICIAR ACESSO"):
-        st.session_state.pagina = "login"
-        st.rerun()
-
 elif st.session_state.pagina == "login":
-    st.title("🔐 Acesso do Cozinheiro")
-    navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
-    if st.button("🛒 ENTRAR"):
-        st.session_state.cozinheiro = "Marcos"
-        st.session_state.navio = navio
-        st.session_state.pagina = "menu"
-        st.rerun()
+    # Fundo leve de cozinha apenas nesta tela
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(65, 105, 225, 0.8), rgba(65, 105, 225, 0.8)), 
+            url("https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1350&q=80");
+            background-size: cover;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.title("🔐 Acesso do Cozinheiro")
     
-    # O botão de acesso (sempre em inglês: st.button)
-    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
-        st.session_state.pagina = "Conecte-se"
+    navio_sel = st.selectbox("Selecione o seu Navio", [""] + list(USUARIOS.keys()), key="sel_login")
+    senha_sel = st.text_input("Senha de Acesso", type="password", key="pwd_login")
+    
+    if st.button("🛒 ENTRAR", key="btn_entrar"):
+        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha_sel:
+            st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
+            st.session_state.pagina = "menu"
+            st.rerun()
+        else:
+            st.error("Credenciais inválidas.")
+
+    if st.button("⬅️ VOLTAR", key="btn_voltar_home"):
+        st.session_state.pagina = "home"
         st.rerun()
 # =================================================================
 # BLOCO 5: TELA DE TRIPULAÇÃO (VERSÃO AJUSTADA E PROFISSIONAL)
