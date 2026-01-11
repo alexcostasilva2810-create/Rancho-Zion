@@ -9,67 +9,55 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E IDs
+# BLOCO 1: CONFIGURAÇÕES, ESTILO E IDs (SUBSTITUA TUDO)
 # =================================================================
-st.set_page_config(page_title="Zion Rancho App", layout="wide")
+st.set_page_config(
+    page_title="Zion Rancho App", 
+    layout="wide", 
+    page_icon="ZION.jpg"
+)
 
-# COLE O CÓDIGO DA IMAGEM AQUI (Ajuste de aparência para App)
+# ESTILO PARA REMOVER COROA, FUNDO AZUL E DEIXAR LETRA PRETA
 st.markdown("""
     <style>
+    /* 1. Remove a coroa e menus */
+    #viewerBadge {display: none !important;}
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    #viewerBadge {display: none !important;}
-    .stApp { margin-top: -80px; }
+    
+    /* 2. Remove o azul e define fundo branco */
+    .stApp { 
+        margin-top: -80px; 
+        background-color: #FFFFFF !important; 
+    }
+
+    /* 3. Letras Pretas e legíveis */
+    h1, h2, h3, p, label, .stMarkdown, .stTextInput, .stSelectbox {
+        color: #000000 !important;
+    }
+    
+    /* 4. Texto digitado em preto */
+    input {
+        color: #000000 !important;
+        background-color: #F0F2F6 !important;
+    }
+    
+    /* 5. Botões em Laranja Zion */
+    div.stButton > button {
+        background-color: #FF8C00 !important;
+        color: white !important;
+        font-weight: bold;
+        border-radius: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
+# IDs DE CONEXÃO (MANTIDOS CONFORME SUA IMAGEM)
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
-
-if 'pagina' not in st.session_state: st.session_state.pagina = "home"
-if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
-if 'navio' not in st.session_state: st.session_state.navio = ""
-if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
-
-USUARIOS = {
-    "NAVIO 01": {"nome": "João", "senha": "123"},
-    "AROEIRA": {"nome": "Marcos", "senha": "789"},
-    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
-}
-
-# =================================================================
-# BLOCO 2: CONEXÕES E ESTILO
-# =================================================================
-def carregar_dados_do_notion():
-    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-    try:
-        response = requests.post(url, headers=headers)
-        if response.status_code == 200:
-            results = response.json().get("results", [])
-            dados = []
-            for page in results:
-                p = page.get("properties", {})
-                dados.append({
-                    "ITEM": p.get("ITEM", {}).get("title", [{}])[0].get("plain_text", ""),
-                    "DESCRIÇÃO": p.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "TIPO": p.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
-                    "CONFIRMA": 0
-                })
-            df = pd.DataFrame(dados)
-            df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
-            return df.sort_values(by='ITEM').reset_index(drop=True)
-        return st.session_state.df_lista
-    except: return st.session_state.df_lista
-
-def aplicar_estilo_azul():
-    st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
-
 # =================================================================
 # BLOCO 4: NAVEGAÇÃO
 # =================================================================
