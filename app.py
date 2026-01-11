@@ -3,39 +3,50 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-# --- 1. CONFIGURAÇÕES DE CONEXÃO (IDs DAS TABELAS) ---
-# ID da Tabela onde ficam os ITENS DE ESTOQUE (Rancho)
+# --- 1. CONFIGURAÇÕES TÉCNICAS (IDs DAS TABELAS) ---
+# Tabelas que você criou no Notion
 ID_RANCHO_ESTOQUE = "8bc3303498114065969562723652697b" 
-
-# ID da sua nova Tabela de HISTÓRICO DE PEDIDOS
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-# Token de Integração do Notion
-headers = {
-    "Authorization": "Bearer " + st.secrets["notion_token"],
-    "Content-Type": "application/json",
-    "Notion-Version": "2022-06-28"
-}
+# PROTEÇÃO DE TOKEN: Tenta ler o token; se falhar, mostra aviso amigável
+try:
+    NOTION_TOKEN = st.secrets["notion_token"]
+    headers = {
+        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+except Exception:
+    st.error("🚨 ERRO DE CONFIGURAÇÃO: O Token do Notion não foi encontrado nos 'Secrets'.")
+    st.stop()
 
-# --- 2. INICIALIZAÇÃO DO SISTEMA ---
+# --- 2. CONTROLE DE NAVEGAÇÃO ---
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "login"
 
-# --- BLOCO 1: TELA DE LOGIN ---
+# --- BLOCO 1: LOGIN (Simplificado para o exemplo) ---
 if st.session_state.pagina == "login":
-    st.markdown("<h1 style='text-align: center; color: white;'>🚢 Zion Rancho - Login</h1>", unsafe_allow_html=True)
-    # (Seu código de login aqui... ao validar, mude para st.session_state.pagina = "menu")
+    st.title("🚢 Zion Rancho - Login")
+    user = st.text_input("Usuário")
+    navio = st.selectbox("Selecione o Navio", ["AROEIRA", "IMERYS", "PAMA"])
+    if st.button("ENTRAR"):
+        st.session_state.cozinheiro = user
+        st.session_state.navio = navio
+        st.session_state.pagina = "menu"
+        st.rerun()
 
-# --- BLOCO 2: MENU PRINCIPAL (PAINEL) ---
+# --- BLOCO 2: MENU PRINCIPAL ---
 elif st.session_state.pagina == "menu":
-    st.markdown(f"<h1 style='color: white;'>🚢 Painel - {st.session_state.navio}</h1>", unsafe_allow_html=True)
-    
+    st.markdown(f"## 🚢 Painel: {st.session_state.navio}")
+    st.info(f"Bem-vindo, {st.session_state.cozinheiro}")
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True):
             st.session_state.pagina = "conferencia"
             st.rerun()
         
+        # O botão que faltava no seu painel
         if st.button("📜 VER HISTÓRICO", use_container_width=True):
             st.session_state.pagina = "historico"
             st.rerun()
@@ -44,41 +55,26 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍🍳 DECLARAÇÃO", use_container_width=True):
             st.session_state.pagina = "declaracao"
             st.rerun()
-
-    st.markdown("---")
-    if st.button("⬅️ SAIR", use_container_width=True):
-        st.session_state.pagina = "login"
-        st.rerun()
-
-# --- BLOCO 6: TELA DE CONFERÊNCIA (ESTOQUE) ---
-elif st.session_state.pagina == "conferencia":
-    st.title(f"📦 Estoque: {st.session_state.navio}")
     
-    # Busca os dados usando o ID_RANCHO_ESTOQUE definido no topo
-    if 'df_estoque' not in st.session_state or st.session_state.df_estoque.empty:
-        try:
-            url_query = f"https://api.notion.com/v1/databases/{ID_RANCHO_ESTOQUE}/query"
-            res = requests.post(url_query, headers=headers)
-            # (Sua lógica de conversão de JSON para DataFrame aqui)
-        except Exception as e:
-            st.error(f"Erro ao carregar banco de rancho: {e}")
+    st.divider()
+    if st.button("⬅️ SAIR"):
+        st.session_state.pagina = "login"; st.rerun()
 
-    # Exibição da Tabela
-    if 'df_estoque' in st.session_state:
-        df_edit = st.session_state.df_estoque[st.session_state.df_estoque['NAVIO'] == st.session_state.navio].copy()
-        st.data_editor(df_edit, hide_index=True, use_container_width=True, key="editor_rancho")
-        
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"; st.rerun()
+# --- BLOCO 6: CONFERÊNCIA DE ESTOQUE ---
+elif st.session_state.pagina == "conferencia":
+    st.title(f"📦 Conferência - {st.session_state.navio}")
+    # Aqui entra sua lógica de carregar o estoque do Notion...
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"; st.rerun()
 
-# --- BLOCO 8: MÓDULO DE HISTÓRICO (INDIVIDUALIZADO) ---
+# --- BLOCO 8: MÓDULO DE HISTÓRICO (O QUE ESTAVA DANDO ERRO) ---
 elif st.session_state.pagina == "historico":
-    st.markdown("<h1 style='text-align: center; color: white;'>📜 Histórico de Pedidos</h1>", unsafe_allow_html=True)
+    st.markdown("### 📜 Histórico de Pedidos Zion")
     
     try:
         url_hist = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
         
-        # Filtro: Admin vê tudo, Cozinheiro vê apenas seu navio
+        # Filtro: Se for admin vê tudo, se for cozinheiro vê só o seu navio
         if st.session_state.cozinheiro.lower() == "admin":
             query = {"sorts": [{"property": "Data Pedido", "direction": "descending"}]}
         else:
@@ -87,25 +83,29 @@ elif st.session_state.pagina == "historico":
                 "sorts": [{"property": "Data Pedido", "direction": "descending"}]
             }
 
-        res_hist = requests.post(url_hist, headers=headers, json=query)
+        res = requests.post(url_hist, headers=headers, json=query)
         
-        if res_hist.status_code == 200:
-            results = res_hist.json().get("results", [])
-            dados_lista = []
+        if res.status_code == 200:
+            results = res.json().get("results", [])
+            dados_final = []
             for r in results:
                 p = r["properties"]
-                dados_lista.append({
+                dados_final.append({
                     "Data": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "-",
                     "Cozinheiro": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
                     "Navio": p["Navio"]["rich_text"][0]["text"]["content"] if p["Navio"]["rich_text"] else "N/A",
-                    "Validade": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
+                    "Validade": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-"
                 })
-            st.dataframe(pd.DataFrame(dados_lista), use_container_width=True, hide_index=True)
-        else:
-            st.error("Erro ao conectar com o Histórico no Notion.")
             
+            if dados_final:
+                st.dataframe(pd.DataFrame(dados_final), use_container_width=True, hide_index=True)
+            else:
+                st.warning("Nenhum pedido registrado para este navio.")
+        else:
+            st.error(f"Erro na API do Notion: {res.status_code}")
+
     except Exception as e:
-        st.error(f"Falha técnica: {e}")
+        st.error(f"Falha ao carregar histórico: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
