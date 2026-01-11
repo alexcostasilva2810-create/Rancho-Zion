@@ -92,184 +92,155 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ DECLARAÇÃO", use_container_width=True): st.session_state.pagina = "tripulacao"; st.rerun()
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
+# =================================================================
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (CORREÇÃO DE COLUNAS E CENTRALIZAÇÃO)
+# =================================================================
 elif st.session_state.pagina == "lista":
-    # CSS: Fundo de estoque e botões nítidos
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                        url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
-            background-size: cover; background-position: center;
-        }
-        div.stButton > button {
-            background-color: #FF8C00 !important;
-            color: white !important;
-            border: 1px solid #FF8C00 !important;
-            font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
-        }
-        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
-        </style>
-        """, unsafe_allow_html=True)
+    aplicar_estilo_tecnologico()
     
-    st.title("📋 Conferência de Estoque")
+    # Cabeçalho Centralizado com HTML
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <img src="https://raw.githubusercontent.com/seu-repositorio/ZION.jpg" width="80">
+            <h1 style="color: white; margin-top: 10px;">📋 Conferência de Estoque</h1>
+        </div>
+    """, unsafe_allow_html=True)
     
-    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+    st.markdown("---")
 
+    # Botão de Atualização com lógica embutida para evitar NameError
+    if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+        try:
+            response = requests.post(f"https://api.notion.com/v1/databases/{DATABASE_ID}/query", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                itens = []
+                for page in data["results"]:
+                    props = page["properties"]
+                    itens.append({
+                        "ITEM": props["ITEM"]["number"] if props["ITEM"]["number"] else 0,
+                        "DESCRIÇÃO": props["DESCRIÇÃO"]["title"][0]["text"]["content"] if props["DESCRIÇÃO"]["title"] else "",
+                        "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
+                        "UNID MED": props["UNID MED"]["select"]["name"] if props["UNID MED"]["select"] else "",
+                        "PREDEFINIDO": props["PREDEFINIDO"]["number"] if props["PREDEFINIDO"]["number"] else 0,
+                        "CONFIRMA": 0  # Nome padrão para a coluna de preenchimento
+                    })
+                st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
+                st.success("✅ Lista sincronizada com sucesso!")
+                st.rerun()
+            else:
+                st.error(f"Erro na API: {response.status_code}")
+        except Exception as e:
+            st.error(f"Erro ao carregar: {e}")
+
+    # Editor de Dados - Usando 'CONFIRMA' para evitar o KeyError
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
+            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_final"
+        hide_index=True,
+        use_container_width=True,
+        key="editor_estoque_oficial"
     )
 
     st.markdown("---")
-    col_pdf, col_voltar = st.columns(2)
+    c_pdf, c_voltar = st.columns(2)
     
-    with col_pdf:
-        def preparar_celula(conteudo):
-            texto = str(conteudo) if conteudo is not None else ""
-            texto = texto.replace('\u2013', '-').replace('\u2014', '-')
-            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
-
-        try:
-            from datetime import timedelta
-
-            class PDF(FPDF):
-                def footer(self):
-                    self.set_y(-15)
-                    self.set_font('Arial', 'I', 8)
-                    # AJUSTE DE HORÁRIO: UTC-3 (Brasília)
-                    agora_brasilia = datetime.now() - timedelta(hours=3)
-                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
-                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
-
-            # Orientação Retrato (P)
-            pdf = PDF(orientation='P', unit='mm', format='A4')
+    with c_pdf:
+        if st.button("💾 GERAR E SALVAR RELATÓRIO"):
+            fuso_br = pytz.timezone('America/Sao_Paulo')
+            data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
+            
+            pdf = FPDF()
             pdf.add_page()
+            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
             
-            # Logo Centralizada
-            if os.path.exists("ZION.jpg"):
-                pdf.image("ZION.jpg", 95, 8, 20) 
+            pdf.set_font("Arial", "B", 14); pdf.set_y(30)
+            pdf.cell(0, 10, preparar(f"Relatório de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
             
-            # Cabeçalho Centralizado
-            pdf.set_font("Arial", "B", 14)
-            pdf.set_y(30)
-            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.cell(0, 8, preparar(f"Data/Hora: {data_hora} (Brasília)"), ln=True, align="C")
             pdf.ln(5)
-            
-            # Tabela (Larguras ajustadas para Retrato)
+
+            # Cabeçalho da Tabela
+            pdf.set_fill_color(200, 220, 255)
             pdf.set_font("Arial", "B", 8)
-            pdf.set_fill_color(220, 220, 220)
-            larguras = [10, 55, 25, 15, 20, 50, 15] 
-            titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
-            
-            for i, t in enumerate(titulos):
-                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
-            pdf.ln()
+            pdf.cell(15, 8, "COD", 1, 0, "C", True)
+            pdf.cell(90, 8, "DESCRICAO", 1, 0, "L", True)
+            pdf.cell(25, 8, "UNID", 1, 0, "C", True)
+            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True) # Nome idêntico ao DataFrame
 
-            pdf.set_font("Arial", "", 7)
+            # Dados (Loop corrigido)
+            pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
-                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
-                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
-                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
-                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
-                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
+                pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
+                pdf.cell(90, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
+                pdf.cell(25, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
+                pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
 
-            pdf_output = pdf.output(dest='S').encode('latin-1')
-            
-            st.download_button(
-                label="📥 BAIXAR PDF DO ESTOQUE",
-                data=pdf_output,
-                file_name=f"Rancho_{st.session_state.navio}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        except Exception as e:
-            st.error(f"Erro ao preparar PDF: {e}")
+            pdf_out = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📥 BAIXAR PDF DO ESTOQUE", data=pdf_out, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+            st.success("✅ Relatório gerado com sucesso!")
 
-    with col_voltar:
+    with c_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
-            st.rerun()
-# --- BLOCO 8: TELA DE HISTÓRICO ---
-elif st.session_state.pagina == "historico":
-    aplicar_estilo_azul(); st.title("📜 Histórico de Registros")
-    try:
-        url_h = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
-        headers_h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-        payload = {"filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}}}
-        res = requests.post(url_h, headers=headers_h, json=payload)
-        if res.status_code == 200:
-            results = res.json().get("results", [])
-            dados_h = [{"Data": r["properties"]["Data Pedido"]["date"]["start"], "Responsável": r["properties"]["Cozinheiro"]["title"][0]["text"]["content"], "Validade": r["properties"]["Validade"]["date"]["start"]} for r in results if r["properties"]["Cozinheiro"]["title"]]
-            st.dataframe(pd.DataFrame(dados_h), use_container_width=True, hide_index=True)
-        else: st.warning("Sem registros.")
-    except: st.error("Erro ao carregar módulo.")
-    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
+            st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (FORMATO DE DATA BRASILEIRO)
+# BLOCO 7: TELA DE DECLARAÇÃO (CENTRALIZADA E AJUSTADA)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho da Tela
-    st.markdown("<h2>⚓ Declaração de Reabastecimento</h2>", unsafe_allow_html=True)
+    # Cabeçalho Centralizado
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <img src="https://raw.githubusercontent.com/seu-repositorio/ZION.jpg" width="70">
+            <h2 style="color: white; margin-top: 10px;">⚓ Declaração de Reabastecimento</h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
     
-    # Grid de Informações
+    # Campos de Entrada
     col1, col2 = st.columns(2)
     with col1:
-        responsavel = st.text_input("Responsável pelo Registro", value=st.session_state.cozinheiro, disabled=True)
-        # CORREÇÃO: Formato de data ajustado para DD/MM/YYYY
+        st.text_input("Responsável pelo Registro", value=st.session_state.cozinheiro, disabled=True)
         data_ultimo = st.date_input("Data do Último Rancho", format="DD/MM/YYYY")
         origem = st.text_input("Origem", value="Porto Velho")
-    
     with col2:
-        # CORREÇÃO: Formato de data ajustado para DD/MM/YYYY
         data_pedido = st.date_input("Data do Pedido", value=datetime.now(), format="DD/MM/YYYY")
         escolta = st.selectbox("A embarcação possui Escolta?", ["NÃO", "SIM"])
         destino = st.text_input("Destino", value="Novo remanso")
 
-    qtd_tripulantes = st.number_input("Quantidade de Tripulantes a bordo", min_value=1, value=14, step=1)
+    qtd_tripulantes = st.number_input("Quantidade de Tripulantes a bordo", min_value=1, value=14)
 
-    # Lógica de Dias
+    # Cálculo e Mensagem de Validade
     dias = 12 if escolta == "SIM" else 15
     vencimento = data_pedido + timedelta(days=dias)
     
-    # Quadro de Aviso com data em português
     st.markdown(f"""
         <div class="mensagem-validade">
-            📢 Devido à presença de escolta: {escolta}<br>
-            A duração estimada do rancho é de {dias} dias.<br>
+            📢 Escolta: {escolta} | Duração: {dias} dias<br>
             Validade prevista até: {vencimento.strftime('%d/%m/%Y')}
         </div>
     """, unsafe_allow_html=True)
 
-    # Assinatura - Título conforme imagem 1
+    # Assinatura
     st.markdown("### ✍️ Assinatura do Comandante/Encarregado")
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0.3)", stroke_width=2,
-        stroke_color="#000000", background_color="#FFFFFF",
-        height=150, update_streamlit=True, key="canvas_bloco7_final_v2"
-    )
+    canvas_result = st_canvas(fill_color="white", stroke_width=2, stroke_color="black", background_color="white", height=150, key="canvas_declaracao")
+    
+    consideracoes = st.text_area("CONSIDERAÇÕES:", placeholder="Descreva aqui observações importantes...")
 
-    # Campo de Observação (Considerações)
-    consideracoes = st.text_area("CONSIDERAÇÕES:", placeholder="Digite aqui observações importantes...")
-
-    # Botões de Ação
     st.markdown("---")
     b_gerar, b_voltar = st.columns(2)
     
@@ -277,57 +248,42 @@ elif st.session_state.pagina == "tripulacao":
         if st.button("📄 GERAR PDF DA DECLARAÇÃO"):
             if canvas_result.image_data is not None:
                 fuso_br = pytz.timezone('America/Sao_Paulo')
-                agora_br = datetime.now(fuso_br)
-                data_hora_br = agora_br.strftime('%d/%m/%Y %H:%M:%S')
+                data_hora_br = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
 
                 pdf = FPDF(); pdf.add_page()
                 if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 90, 10, 25)
                 
-                pdf.set_font("Arial", "B", 14); pdf.set_y(40)
+                pdf.set_font("Arial", "B", 14); pdf.set_y(45)
                 pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
                 
-                # Texto da Carta com Datas Formatadas DD/MM/YYYY
                 pdf.set_font("Arial", "", 11); pdf.ln(10)
-                texto_corpo = (
-                    f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {qtd_tripulantes} tripulantes. "
-                    f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da "
-                    f"tripulação por um período de {dias} dias náuticos a partir de {data_pedido.strftime('%d/%m/%Y')}. "
-                    f"Este suprimento é planejado para a viagem corrente."
-                )
-                pdf.multi_cell(0, 8, preparar(texto_corpo))
+                corpo = (f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {qtd_tripulantes} tripulantes. "
+                         f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da "
+                         f"tripulação por um período de {dias} dias náuticos a partir de {data_pedido.strftime('%d/%m/%Y')}.")
+                pdf.multi_cell(0, 8, preparar(corpo))
                 
                 pdf.ln(5); pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
-                # Data no PDF corrigida
                 pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo.strftime('%d/%m/%Y')}"), ln=True)
-                
-                if consideracoes:
-                    pdf.ln(5); pdf.set_font("Arial", "B", 11)
-                    pdf.cell(0, 8, "CONSIDERAÇÕES:", ln=True)
-                    pdf.set_font("Arial", "", 11)
-                    pdf.multi_cell(0, 7, preparar(consideracoes))
 
-                # Assinatura e Rodapé
-                img_path = "assinatura_temp.png"
+                if consideracoes:
+                    pdf.ln(5); pdf.cell(0, 8, "CONSIDERAÇÕES:", ln=True)
+                    pdf.set_font("Arial", "", 11); pdf.multi_cell(0, 7, preparar(consideracoes))
+
+                # Assinatura no PDF
+                img_path = "temp_assinatura.png"
                 Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA').save(img_path)
                 pdf.image(img_path, x=75, y=pdf.get_y() + 5, w=50)
                 
-                pdf.set_y(pdf.get_y() + 25)
-                pdf.line(60, pdf.get_y(), 150, pdf.get_y())
-                pdf.set_font("Arial", "", 10)
-                pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+                pdf.set_y(pdf.get_y() + 25); pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+                pdf.set_font("Arial", "", 10); pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+                pdf.set_font("Arial", "I", 7); pdf.cell(0, 5, preparar(f"Gerado em: {data_hora_br} (Brasília)"), ln=True, align="C")
                 
-                pdf.set_font("Arial", "I", 7)
-                pdf.cell(0, 5, preparar(f"Registro oficial gerado em: {data_hora_br} (Brasília)"), ln=True, align="C")
-                
-                st.download_button("📥 BAIXAR DECLARAÇÃO", pdf.output(dest='S').encode('latin-1'), 
-                                 f"Declaracao_{st.session_state.navio}.pdf", "application/pdf")
-                st.success("✅ PDF Gerado com sucesso!")
-            else:
-                st.warning("Assine no campo branco antes de gerar o arquivo.")
-
+                st.download_button("📥 BAIXAR DECLARAÇÃO PDF", pdf.output(dest='S').encode('latin-1'), f"Declaracao_{st.session_state.navio}.pdf", "application/pdf")
+                st.success("✅ PDF da Declaração gerado!")
+    
     with b_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"; st.rerun()
