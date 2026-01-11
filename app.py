@@ -93,32 +93,99 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (RESTAURADO)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (RESTAURAÇÃO DO PDF COM DADOS)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
-    st.title("📋 Conferência de Estoque")
     
-    df_editado = st.data_editor(st.session_state.df_lista, column_config={"ITEM": st.column_config.NumberColumn("CÓD.", disabled=True), "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0)}, hide_index=True, use_container_width=True)
+    # Cabeçalho da Tela com Logo e Título
+    h1, h2 = st.columns([1, 8])
+    with h1: 
+        if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=70)
+    with h2: 
+        st.markdown("<h2>📋 Conferência de Estoque</h2>", unsafe_allow_html=True)
+    
+    st.markdown("---")
 
+    # Editor de Dados - Garantindo a captura da coluna 'SUA QTD'
+    # O df_editado contém os valores atuais que o cozinheiro digitou
+    df_editado = st.data_editor(
+        st.session_state.df_lista, 
+        column_config={
+            "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
+            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
+            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
+            "UNID MED": st.column_config.TextColumn("UNID MED", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True),
+            "SUA QTD": st.column_config.NumberColumn("SUA QTD", min_value=0, required=True)
+        }, 
+        hide_index=True, 
+        use_container_width=True,
+        key="editor_rancho"
+    )
+
+    st.markdown("---")
     col_pdf, col_voltar = st.columns(2)
+    
     with col_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
+            # Fuso Horário de Brasília para o Relatório
             fuso_br = pytz.timezone('America/Sao_Paulo')
-            data_hora = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
+            data_hora_br = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
             
-            pdf = FPDF(); pdf.add_page()
-            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
-            pdf.set_font("Arial", "B", 14); pdf.set_y(30)
-            pdf.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            # (Lógica da tabela omitida aqui para brevidade, mas deve conter seus loops de dados)
-            pdf.set_y(-15); pdf.set_font('Arial', 'I', 8)
-            pdf.cell(0, 10, f'Gerado em: {data_hora}', 0, 0, 'C')
+            pdf = FPDF()
+            pdf.add_page()
             
-            st.download_button("📥 BAIXAR PDF DO ESTOQUE", pdf.output(dest='S').encode('latin-1'), f"Rancho_{st.session_state.navio}.pdf", "application/pdf")
-            st.success("✅ Sua solicitação está gerada! Envie o PDF para o comprador.")
+            # Logo no topo do PDF
+            if os.path.exists("ZION.jpg"): 
+                pdf.image("ZION.jpg", 95, 8, 20)
+            
+            pdf.set_font("Arial", "B", 14)
+            pdf.set_y(30)
+            pdf.cell(0, 10, preparar(f"Relatório de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
+            
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.cell(0, 8, preparar(f"Data/Hora: {data_hora_br}"), ln=True, align="C")
+            pdf.ln(5)
+
+            # Cabeçalho da Tabela no PDF
+            pdf.set_fill_color(200, 220, 255)
+            pdf.set_font("Arial", "B", 8)
+            pdf.cell(15, 8, "COD", 1, 0, "C", True)
+            pdf.cell(80, 8, "DESCRICAO", 1, 0, "L", True)
+            pdf.cell(25, 8, "TIPO", 1, 0, "C", True)
+            pdf.cell(20, 8, "UNID", 1, 0, "C", True)
+            pdf.cell(25, 8, "SUA QTD", 1, 1, "C", True)
+
+            # Preenchimento dos Dados (Onde estava o erro de "em branco")
+            pdf.set_font("Arial", "", 8)
+            for index, row in df_editado.iterrows():
+                # Só inclui no PDF se a quantidade for maior que zero ou se você preferir todos
+                pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
+                pdf.cell(80, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
+                pdf.cell(25, 7, preparar(str(row["TIPO"])), 1, 0, "C")
+                pdf.cell(20, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
+                pdf.cell(25, 7, str(row["SUA QTD"]), 1, 1, "C")
+
+            # Rodapé do PDF
+            pdf.ln(10)
+            pdf.set_font("Arial", "I", 8)
+            pdf.cell(0, 10, preparar("Documento gerado pelo Sistema Zion Rancho."), 0, 0, "C")
+            
+            # Botão de Download real
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            st.download_button(
+                label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
+                data=pdf_output,
+                file_name=f"Rancho_{st.session_state.navio}_{datetime.now().strftime('%d%m%Y')}.pdf",
+                mime="application/pdf"
+            )
+            st.success("✅ Relatório processado com sucesso! Baixe o arquivo acima.")
+
     with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
+        if st.button("⬅️ VOLTAR AO MENU"):
+            st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO (FORMATO DE DATA BRASILEIRO)
