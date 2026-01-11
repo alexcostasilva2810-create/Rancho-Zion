@@ -110,20 +110,19 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ DECLARAÇÃO"): st.session_state.pagina = "tripulacao"; st.rerun()
     if st.button("⬅️ SAIR"): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO 6: TELA DE CONFERÊNCIA DE ESTOQUE (REVISADO) ---
+# --- BLOCO 6: TELA DE CONFERÊNCIA DE ESTOQUE (VERSÃO ESTÁVEL) ---
 elif st.session_state.pagina == "conferencia":
     import pandas as pd
     import requests
-    from datetime import datetime
     
-    # ID da tabela de histórico que você criou
-    ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
+    # ID da sua nova tabela de histórico
+    ID_HIST_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-    # CSS para manter o padrão visual
+    # Estilização para evitar quebras visuais
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
                         url("https://images.unsplash.com/photo-1580508112997-57fd4a852a10?q=80&w=1920");
             background-size: cover;
         }
@@ -134,77 +133,75 @@ elif st.session_state.pagina == "conferencia":
 
     st.title(f"📦 Conferência: {st.session_state.navio}")
 
-    # Verifica se os dados de estoque existem para evitar tela branca
+    # PROTEÇÃO: Só executa se o DataFrame de estoque existir
     if 'df_estoque' in st.session_state and not st.session_state.df_estoque.empty:
-        # Filtra apenas o navio selecionado
-        df_edit = st.session_state.df_estoque[st.session_state.df_estoque['NAVIO'] == st.session_state.navio].copy()
-        
-        # Interface de edição
-        df_conferido = st.data_editor(
-            df_edit,
-            column_config={
-                "CONFIRMA": st.column_config.NumberColumn("Qtd em Estoque", min_value=0),
-                "PREDEFINIDO": st.column_config.NumberColumn("Meta", disabled=True),
-                "ITEM": None, "NAVIO": None 
-            },
-            disabled=["DESCRIÇÃO", "TIPO", "UNID MED"],
-            hide_index=True,
-            use_container_width=True
-        )
-
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("💾 GERAR PDF DE CONFERÊNCIA"):
-                # ... (lógica do PDF permanece a mesma)
-                st.success("PDF Gerado!")
-
-        with col_btn2:
-            if st.button("⬅️ VOLTAR AO MENU"):
-                st.session_state.pagina = "menu"
-                st.rerun()
-
-        # --- SEÇÃO DE HISTÓRICO POR NAVIO (Consulta ao Notion) ---
-        st.markdown("---")
-        st.markdown(f"### ⚓ Últimas Compras: {st.session_state.navio}")
-
         try:
-            url_query = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
+            # Filtra apenas o navio selecionado
+            df_navio_atual = st.session_state.df_estoque[st.session_state.df_estoque['NAVIO'] == st.session_state.navio].copy()
             
-            # Filtro para buscar apenas este navio no seu ID 2e5025de...
-            query_payload = {
-                "filter": {
-                    "property": "Navio",
-                    "rich_text": {"equals": st.session_state.navio}
+            # Editor de Dados
+            df_conferido = st.data_editor(
+                df_navio_atual,
+                column_config={
+                    "CONFIRMA": st.column_config.NumberColumn("Qtd em Estoque", min_value=0),
+                    "PREDEFINIDO": st.column_config.NumberColumn("Meta", disabled=True),
+                    "ITEM": None, "NAVIO": None 
                 },
-                "sorts": [{"property": "Data Pedido", "direction": "descending"}]
-            }
-            
-            # headers deve estar definido no seu código principal (seu Token do Notion)
-            res_hist = requests.post(url_query, headers=headers, json=query_payload)
-            
-            if res_hist.status_code == 200:
-                results = res_hist.json().get("results", [])
-                if results:
-                    lista_hist = []
-                    for r in results:
-                        p = r["properties"]
-                        lista_hist.append({
-                            "Data Pedido": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "---",
-                            "Cozinheiro": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
-                            "Válido Até": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "---",
-                            "Escolta": p["Escolta"]["select"]["name"] if p["Escolta"]["select"] else "NÃO"
-                        })
-                    st.dataframe(pd.DataFrame(lista_hist), use_container_width=True, hide_index=True)
-                else:
-                    st.write("ℹ️ Sem registros anteriores para este navio.")
-            else:
-                st.warning("Aguardando novos registros de histórico...")
-        except:
-            st.write("Sincronizando histórico...") # Evita que o erro quebre a tela
+                disabled=["DESCRIÇÃO", "TIPO", "UNID MED"],
+                hide_index=True,
+                use_container_width=True,
+                key="editor_conferencia"
+            )
 
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 GERAR PDF"):
+                    st.success("Preparando download...")
+            with col2:
+                if st.button("⬅️ VOLTAR"):
+                    st.session_state.pagina = "menu"
+                    st.rerun()
+
+            # --- SEÇÃO DE HISTÓRICO (PROTEGIDA CONTRA TELA BRANCA) ---
+            st.markdown("---")
+            st.markdown(f"### ⚓ Histórico de Pedidos: {st.session_state.navio}")
+
+            # Tentativa de busca no Notion
+            try:
+                url_hist = f"https://api.notion.com/v1/databases/{ID_HIST_NOTION}/query"
+                query_payload = {
+                    "filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}},
+                    "sorts": [{"property": "Data Pedido", "direction": "descending"}]
+                }
+                
+                # O uso de timeout=10 evita que o app fique "pendurado" esperando o Notion
+                res_hist = requests.post(url_hist, headers=headers, json=query_payload, timeout=10)
+                
+                if res_hist.status_code == 200:
+                    results = res_hist.json().get("results", [])
+                    if results:
+                        lista_hist = []
+                        for r in results:
+                            p = r["properties"]
+                            lista_hist.append({
+                                "Data": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "-",
+                                "Responsável": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
+                                "Vencimento": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
+                                "Escolta": p["Escolta"]["select"]["name"] if p["Escolta"]["select"] else "NÃO"
+                            })
+                        st.dataframe(pd.DataFrame(lista_hist), use_container_width=True, hide_index=True)
+                    else:
+                        st.write("ℹ️ Nenhum pedido anterior registrado para este navio.")
+                else:
+                    st.write("⚠️ O histórico está sendo atualizado no banco de dados...")
+            except Exception:
+                st.write("🕒 Sincronizando dados com o Notion...")
+
+        except Exception as e:
+            st.error(f"Erro interno ao carregar a lista: {e}")
     else:
-        st.error("⚠️ Erro: Dados de estoque não encontrados. Por favor, faça o login novamente.")
-        if st.button("Ir para Login"):
+        st.warning("⚠️ Dados não carregados. Por favor, volte ao início.")
+        if st.button("RECARREGAR"):
             st.session_state.pagina = "login"
             st.rerun()
 # --- BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO ---
