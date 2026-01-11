@@ -19,7 +19,7 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    #viewerBadge {display: none;} /* ESTA LINHA REMOVE A COROA VERMELHA */
+    #viewerBadge {display: none !important;}
     .stApp { margin-top: -80px; }
     </style>
     """, unsafe_allow_html=True)
