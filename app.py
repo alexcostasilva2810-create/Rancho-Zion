@@ -80,7 +80,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS E LÓGICA DE ACESSO (COMPLETO)
+# BLOCO 4: TELAS INICIAIS E LOGICA DE ACESSO (COM SENHA)
 # =================================================================
 
 # 1. TELA INICIAL (HOME)
@@ -101,28 +101,32 @@ if st.session_state.pagina == "home":
         st.session_state.pagina = "login"
         st.rerun()
 
-# 2. TELA DE LOGIN (RESGATADA)
+# 2. TELA DE ACESSO (RESTAURADA COM SENHA)
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
-    # Seleção que você já utilizava
+    # Seleção do Navio
     navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
     
-    # Campo para o nome (opcional, conforme seu padrão anterior)
-    nome_usuario = st.text_input("Nome do Responsável", "Marcos")
+    # RESGATE: Campo de Senha em vez de Nome
+    senha_acesso = st.text_input("Digite a Senha de Acesso", type="password")
     
     if st.button("🛒 ENTRAR NO MENU", use_container_width=True):
-        st.session_state.cozinheiro = nome_usuario
-        st.session_state.navio = navio
-        st.session_state.pagina = "menu" # Direciona para o formulário principal
-        st.rerun()
+        # Defina aqui a sua senha (exemplo: '1234')
+        if senha_acesso == "1234":
+            st.session_state.cozinheiro = "Marcos" # Nome padrão ou conforme a senha
+            st.session_state.navio = navio
+            st.session_state.pagina = "menu"
+            st.rerun()
+        else:
+            st.error("Senha incorreta. Tente novamente.")
 
-# 3. TELA DE MENU (CASO ESTEJA NO MESMO BLOCO)
+# 3. TELA DE MENU (DIRECIONAMENTO)
 elif st.session_state.pagina == "menu":
-    st.subheader(f"Bem-vindo, {st.session_state.cozinheiro}!")
-    st.info(f"Navio selecionado: {st.session_state.navio}")
+    st.success(f"Conectado: {st.session_state.navio}")
+    # O restante do seu formulário de PDF e Checklist entra aqui
     
-    if st.button("⬅️ Voltar para Início"):
+    if st.button("⬅️ Sair"):
         st.session_state.pagina = "home"
         st.rerun()
 # =================================================================
