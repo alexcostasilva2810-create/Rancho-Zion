@@ -80,25 +80,28 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (VERSÃO FINAL DE RECUPERAÇÃO)
+# BLOCO 4: LOGICA DE NAVEGACAO (RESET TOTAL)
 # =================================================================
 
-# Garantimos que a página atual seja a inicial
 if st.session_state.pagina == "lar":
-    # Título centralizado
-    st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
+    # 1. Título simples
+    st.header("Aplicativo Zion Rancho")
     
-    # Tentativa de carregar a imagem disponível
-    # Se você excluiu a ZION.jpg, ele passará direto para o 'else'
-    nome_da_imagem = "ZION.jpg" 
-
-    if os.path.exists(nome_da_imagem):
-        st.image(nome_da_imagem, use_container_width=True)
+    # 2. Verificação de imagem sem travar
+    # Se você excluiu ZION.jpg, ele não fará nada aqui
+    if os.path.exists("ZION.jpg"):
+        st.image("ZION.jpg", use_container_width=True)
     elif os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", use_container_width=True)
     else:
-        # Se nenhuma imagem for encontrada, mostramos apenas um aviso para não dar tela azul
-        st.info("Bem-vindo! Clique no botão abaixo para iniciar.")
+        st.info("Aguardando carregamento do sistema...")
+
+    st.write("---") # Linha divisória
+
+    # 3. O Botão (Verifique se não há acentos em 'pagina')
+    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
+        st.session_state.pagina = "Conecte-se"
+        st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     
