@@ -9,7 +9,7 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, ESTILO E IDs (UNIFICADO)
+# BLOCO 1: CONFIGURAÇÕES E VISUAL (SEM COROA E FUNDO BRANCO)
 # =================================================================
 st.set_page_config(
     page_title="Zion Rancho App", 
@@ -44,13 +44,17 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# FUNÇÃO VAZIA PARA EVITAR O ERRO NAMEERROR
+def aplicar_estilo_azul():
+    pass 
+
 # IDs DE CONEXÃO
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-# INICIALIZAÇÃO DE VARIÁVEIS (Corrige o erro de AttributeError)
+# INICIALIZAÇÃO DE VARIÁVEIS
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
@@ -89,8 +93,7 @@ def carregar_dados_do_notion():
                 desc_val = desc_list[0].get("plain_text", "") if desc_list else ""
                 tipo_val = p.get("TIPO", {}).get("select", {}).get("name", "DIVERSOS")
                 unid_val = p.get("UNID MED", {}).get("select", {}).get("name", "un")
-                predef = p.get("PREDEFINIDO", {}).get("number", 0)
-                if predef is None: predef = 0
+                predef = p.get("PREDEFINIDO", {}).get("number", 0) or 0
                 dados.append({
                     "ITEM": item_val, "DESCRIÇÃO": desc_val, "TIPO": tipo_val,
                     "UNID MED": unid_val, "PREDEFINIDO": predef, "CONFIRMA": 0
@@ -98,11 +101,11 @@ def carregar_dados_do_notion():
             df = pd.DataFrame(dados)
             return df.sort_values(by="DESCRIÇÃO").reset_index(drop=True)
         return st.session_state.df_lista
-    except Exception as e:
+    except:
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: FUNÇÕES AUXILIARES
+# BLOCO 3: LOGICA FINAL
 # =================================================================
 def mudar_pagina(nova_pagina):
     st.session_state.pagina = nova_pagina
@@ -110,6 +113,7 @@ def mudar_pagina(nova_pagina):
 
 if st.session_state.df_lista.empty:
     st.session_state.df_lista = carregar_dados_do_notion()
+    
 # =================================================================
 # BLOCO 4: NAVEGAÇÃO
 # =================================================================
