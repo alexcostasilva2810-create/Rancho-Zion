@@ -80,27 +80,23 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (VERSÃO FINAL SEM ERROS)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (RESTAURANDO TELA ORIGINAL)
 # =================================================================
 
 if st.session_state.pagina == "lar":
-    # Centraliza o título
+    # Título do Aplicativo
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Nome do arquivo exatamente como está na sua biblioteca (Vimos no print)
-    nome_da_imagem = "ZION.jpg" 
-
-    # Se o arquivo existir, ele mostra. Se não, ele avisa o que falta.
-    if os.path.exists(nome_da_imagem):
-        st.image(nome_da_imagem, use_container_width=True)
+    # Voltando para a imagem que funcionava
+    # Certifique-se de que o arquivo APPRANCHO.png ainda está na biblioteca
+    if os.path.exists("APPRANCHO.png"):
+        st.image("APPRANCHO.png", use_container_width=True)
     else:
-        st.error(f"Erro: O arquivo '{nome_da_imagem}' nao foi encontrado na biblioteca.")
-        st.write("Arquivos que o sistema está vendo agora:")
-        st.code(os.listdir('.'))
+        st.warning("Imagem APPRANCHO.png não encontrada. Verifique a biblioteca.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão de acesso
+    # Botão padrão de acesso
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
