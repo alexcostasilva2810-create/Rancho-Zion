@@ -221,3 +221,128 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"
             st.rerun()
+
+# --- BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO ---
+elif st.session_state.pagina == "tripulacao":
+    # CSS: Fundo de viagem em alto mar e botões nítidos
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
+            background-size: cover; background-position: center;
+        }
+        div.stButton > button {
+            background-color: #FF8C00 !important;
+            color: white !important;
+            border: 1px solid #FF8C00 !important;
+            font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
+        }
+        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        .stTextInput>div>div>input { background-color: rgba(255, 255, 255, 0.9) !important; }
+        </style>
+        """, unsafe_allow_html=True)
+
+    st.title("👨‍✈️ Declaração de Reabastecimento")
+    
+    # --- LÓGICA DE ALERTAS DE ESCOTA ---
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    
+    if escolta == "SIM":
+        st.warning("⚠️ ATENÇÃO: Com escolta, o rancho deve ser planejado para durar ATÉ 12 DIAS.")
+        prazo_limite = 12
+    else:
+        st.info("ℹ️ NOTA: Sem escolta, o rancho deve ser planejado para durar ATÉ 15 DIAS.")
+        prazo_limite = 15
+
+    with st.form("form_declaracao"):
+        col1, col2 = st.columns(2)
+        with col1:
+            resp = st.text_input("Cozinheiro Responsável", value=st.session_state.cozinheiro, disabled=True)
+            origem = st.text_input("Porto de Origem")
+        with col2:
+            data_atual = datetime.now().strftime("%d/%m/%Y")
+            st.text_input("Data da Emissão", value=data_atual, disabled=True)
+            destino = st.text_input("Porto de Destino")
+        
+        # CAMPO DE ASSINATURA TOUCH SCREEN
+        st.write("Assinatura Digital (Touch Screen):")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)",
+            stroke_width=3,
+            stroke_color="#000000",
+            background_color="#FFFFFF",
+            height=150,
+            drawing_mode="freedraw",
+            key="assinatura_cozinheiro",
+        )
+        
+        salvar = st.form_submit_button("💾 SALVAR E GERAR PDF DA DECLARAÇÃO")
+
+    if salvar:
+        if not origem or not destino:
+            st.error("❌ Por favor, preencha a Origem e o Destino.")
+        elif canvas_result.image_data is None:
+            st.error("❌ Por favor, realize a assinatura no campo acima.")
+        else:
+            try:
+                from datetime import timedelta
+                
+                # Criar PDF Retrato com Rodapé e Cabeçalho
+                class PDF_Decl(FPDF):
+                    def footer(self):
+                        self.set_y(-15)
+                        self.set_font('Arial', 'I', 8)
+                        agora_br = datetime.now() - timedelta(hours=3)
+                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+
+                pdf = PDF_Decl(orientation='P', unit='mm', format='A4')
+                pdf.add_page()
+
+                def preparar(t):
+                    return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+
+                # Cabeçalho Centralizado
+                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
+                pdf.set_font("Arial", "B", 16)
+                pdf.set_y(30)
+                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
+                pdf.ln(10)
+
+                # Conteúdo da Declaração
+                pdf.set_font("Arial", "", 12)
+                texto_decl = (
+                    f"Eu, {st.session_state.cozinheiro}, declaro que o reabastecimento "
+                    f"realizado na data de {data_atual} saindo de {origem} com destino a {destino}, "
+                    f"foi conferido e está em conformidade com as normas da Zion Tecnologia. "
+                    f"Considerando o regime de {'escolta' if escolta == 'SIM' else 'operação normal'}, "
+                    f"o rancho está provisionado para {prazo_limite} dias."
+                )
+                pdf.multi_cell(0, 10, preparar(texto_decl), align="J")
+                
+                # Inserir Assinatura do Canvas no PDF
+                img_assinatura = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img_assinatura.save("temp_assinatura.png")
+                pdf.ln(20)
+                pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
+                pdf.image("temp_assinatura.png", x=75, y=pdf.get_y()-15, w=60)
+                pdf.cell(0, 10, preparar(f"Assinatura do Cozinheiro: {st.session_state.cozinheiro}"), ln=True, align="C")
+
+                pdf_out = pdf.output(dest='S').encode('latin-1')
+                st.download_button(
+                    label="📥 BAIXAR DECLARAÇÃO ASSINADA",
+                    data=pdf_out,
+                    file_name=f"Declaracao_{st.session_state.navio}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                st.success("✅ Declaração gerada com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
