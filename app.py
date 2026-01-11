@@ -121,7 +121,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ VOLTAR AO MENU"): st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (CARTA OFICIAL + SINCRONIA TOTAL)
+# BLOCO 7: TELA DE DECLARAÇÃO (FORMATO DE DATA BRASILEIRO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     aplicar_estilo_tecnologico()
@@ -130,27 +130,27 @@ elif st.session_state.pagina == "tripulacao":
     st.markdown("<h2>⚓ Declaração de Reabastecimento</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Grid de Informações - Ordem exata da imagem de referência
+    # Grid de Informações
     col1, col2 = st.columns(2)
     with col1:
         responsavel = st.text_input("Responsável pelo Registro", value=st.session_state.cozinheiro, disabled=True)
-        # Datas no formato exibido na imagem (YYYY/MM/DD)
-        data_ultimo = st.date_input("Data do Último Rancho", format="YYYY/MM/DD")
+        # CORREÇÃO: Formato de data ajustado para DD/MM/YYYY
+        data_ultimo = st.date_input("Data do Último Rancho", format="DD/MM/YYYY")
         origem = st.text_input("Origem", value="Porto Velho")
     
     with col2:
-        data_pedido = st.date_input("Data do Pedido", value=datetime.now(), format="YYYY/MM/DD")
+        # CORREÇÃO: Formato de data ajustado para DD/MM/YYYY
+        data_pedido = st.date_input("Data do Pedido", value=datetime.now(), format="DD/MM/YYYY")
         escolta = st.selectbox("A embarcação possui Escolta?", ["NÃO", "SIM"])
         destino = st.text_input("Destino", value="Novo remanso")
 
-    # Campo de tripulantes que alimenta o texto automático da carta
     qtd_tripulantes = st.number_input("Quantidade de Tripulantes a bordo", min_value=1, value=14, step=1)
 
-    # Lógica de Dias (12 com Escolta / 15 sem Escolta)
+    # Lógica de Dias
     dias = 12 if escolta == "SIM" else 15
     vencimento = data_pedido + timedelta(days=dias)
     
-    # Quadro de Aviso Dinâmico conforme imagem
+    # Quadro de Aviso com data em português
     st.markdown(f"""
         <div class="mensagem-validade">
             📢 Devido à presença de escolta: {escolta}<br>
@@ -159,16 +159,16 @@ elif st.session_state.pagina == "tripulacao":
         </div>
     """, unsafe_allow_html=True)
 
-    # Área de Assinatura - Cabeçalho idêntico à imagem
+    # Assinatura - Título conforme imagem 1
     st.markdown("### ✍️ Assinatura do Comandante/Encarregado")
     canvas_result = st_canvas(
         fill_color="rgba(255, 255, 255, 0.3)", stroke_width=2,
         stroke_color="#000000", background_color="#FFFFFF",
-        height=150, update_streamlit=True, key="canvas_bloco7_final"
+        height=150, update_streamlit=True, key="canvas_bloco7_final_v2"
     )
 
-    # Campo de Observação (Considerações) - Abaixo da assinatura
-    consideracoes = st.text_area("CONSIDERAÇÕES:", placeholder="Digite aqui observações importantes sobre o pedido...")
+    # Campo de Observação (Considerações)
+    consideracoes = st.text_area("CONSIDERAÇÕES:", placeholder="Digite aqui observações importantes...")
 
     # Botões de Ação
     st.markdown("---")
@@ -177,7 +177,6 @@ elif st.session_state.pagina == "tripulacao":
     with b_gerar:
         if st.button("📄 GERAR PDF DA DECLARAÇÃO"):
             if canvas_result.image_data is not None:
-                # Configuração de Fuso Horário Brasília para o rodapé
                 fuso_br = pytz.timezone('America/Sao_Paulo')
                 agora_br = datetime.now(fuso_br)
                 data_hora_br = agora_br.strftime('%d/%m/%Y %H:%M:%S')
@@ -190,7 +189,7 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
                 
-                # RESTAURAÇÃO DO TEXTO OFICIAL DA CARTA
+                # Texto da Carta com Datas Formatadas DD/MM/YYYY
                 pdf.set_font("Arial", "", 11); pdf.ln(10)
                 texto_corpo = (
                     f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {qtd_tripulantes} tripulantes. "
@@ -202,16 +201,16 @@ elif st.session_state.pagina == "tripulacao":
                 
                 pdf.ln(5); pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                # Data no PDF corrigida
                 pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo.strftime('%d/%m/%Y')}"), ln=True)
                 
-                # Inclusão das Considerações no PDF
                 if consideracoes:
                     pdf.ln(5); pdf.set_font("Arial", "B", 11)
                     pdf.cell(0, 8, "CONSIDERAÇÕES:", ln=True)
                     pdf.set_font("Arial", "", 11)
                     pdf.multi_cell(0, 7, preparar(consideracoes))
 
-                # Assinatura e Rodapé conforme imagem original
+                # Assinatura e Rodapé
                 img_path = "assinatura_temp.png"
                 Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA').save(img_path)
                 pdf.image(img_path, x=75, y=pdf.get_y() + 5, w=50)
@@ -221,20 +220,18 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.set_font("Arial", "", 10)
                 pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
                 
-                # Marca d'água de data/hora oficial no rodapé
                 pdf.set_font("Arial", "I", 7)
                 pdf.cell(0, 5, preparar(f"Registro oficial gerado em: {data_hora_br} (Brasília)"), ln=True, align="C")
                 
                 st.download_button("📥 BAIXAR DECLARAÇÃO", pdf.output(dest='S').encode('latin-1'), 
                                  f"Declaracao_{st.session_state.navio}.pdf", "application/pdf")
-                st.success("✅ Declaração gerada com sucesso!")
+                st.success("✅ PDF Gerado com sucesso!")
             else:
-                st.warning("Por favor, realize a assinatura no campo indicado.")
+                st.warning("Assine no campo branco antes de gerar o arquivo.")
 
     with b_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"; st.rerun()
-
 # =================================================================
 # BLOCO 8: TELA DE HISTÓRICO
 # =================================================================
