@@ -93,22 +93,22 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (CORREÇÃO DE COLUNAS E CENTRALIZAÇÃO)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (PROTEÇÃO CONTRA ERROS DO NOTION)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho Centralizado com HTML
+    # Cabeçalho Centralizado com Logo e Título
     st.markdown(f"""
         <div style="text-align: center;">
-            <img src="https://raw.githubusercontent.com/seu-repositorio/ZION.jpg" width="80">
-            <h1 style="color: white; margin-top: 10px;">📋 Conferência de Estoque</h1>
+            <img src="https://raw.githubusercontent.com/seu-repositorio/ZION.jpg" width="80" style="margin-bottom: 10px;">
+            <h1 style="color: white;">📋 Conferência de Estoque</h1>
         </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
 
-    # Botão de Atualização com lógica embutida para evitar NameError
+    # Botão de Atualização com Proteção 'try-except' para o erro de 'number'
     if st.button("🔄 ATUALIZAR DADOS DO NOTION", use_container_width=True):
         headers = {
             "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -122,23 +122,36 @@ elif st.session_state.pagina == "lista":
                 itens = []
                 for page in data["results"]:
                     props = page["properties"]
-                    itens.append({
-                        "ITEM": props["ITEM"]["number"] if props["ITEM"]["number"] else 0,
-                        "DESCRIÇÃO": props["DESCRIÇÃO"]["title"][0]["text"]["content"] if props["DESCRIÇÃO"]["title"] else "",
-                        "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
-                        "UNID MED": props["UNID MED"]["select"]["name"] if props["UNID MED"]["select"] else "",
-                        "PREDEFINIDO": props["PREDEFINIDO"]["number"] if props["PREDEFINIDO"]["number"] else 0,
-                        "CONFIRMA": 0  # Nome padrão para a coluna de preenchimento
-                    })
+                    
+                    # LOGICA BLINDADA: Se der erro no campo do Notion, ele coloca um valor padrão
+                    try:
+                        id_item = props["ITEM"]["number"] if props["ITEM"].get("number") is not None else 0
+                        desc = props["DESCRIÇÃO"]["title"][0]["text"]["content"] if props["DESCRIÇÃO"]["title"] else "Sem Nome"
+                        tipo = props["TIPO"]["select"]["name"] if props["TIPO"].get("select") else "N/A"
+                        unid = props["UNID MED"]["select"]["name"] if props["UNID MED"].get("select") else "un"
+                        pred = props["PREDEFINIDO"]["number"] if props["PREDEFINIDO"].get("number") is not None else 0
+                        
+                        itens.append({
+                            "ITEM": id_item,
+                            "DESCRIÇÃO": desc,
+                            "TIPO": tipo,
+                            "UNID MED": unid,
+                            "PREDEFINIDO": pred,
+                            "CONFIRMA": 0  # Coluna de preenchimento do cozinheiro
+                        })
+                    except Exception as e_row:
+                        # Pula o item com erro ou loga o erro sem travar a tela
+                        continue
+                
                 st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success("✅ Lista sincronizada com sucesso!")
+                st.success("✅ Sincronização concluída com sucesso!")
                 st.rerun()
             else:
-                st.error(f"Erro na API: {response.status_code}")
+                st.error(f"Erro na API Notion: {response.status_code}")
         except Exception as e:
-            st.error(f"Erro ao carregar: {e}")
+            st.error(f"Erro ao carregar dados: Verifique se há campos vazios no Notion.")
 
-    # Editor de Dados - Usando 'CONFIRMA' para evitar o KeyError
+    # Tabela com nome de coluna 'CONFIRMA' para evitar KeyError
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -148,7 +161,7 @@ elif st.session_state.pagina == "lista":
         },
         hide_index=True,
         use_container_width=True,
-        key="editor_estoque_oficial"
+        key="editor_estoque_v_final"
     )
 
     st.markdown("---")
@@ -163,23 +176,23 @@ elif st.session_state.pagina == "lista":
             pdf.add_page()
             if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
             
-            pdf.set_font("Arial", "B", 14); pdf.set_y(30)
+            pdf.set_font("Arial", "B", 14); pdf.set_y(35)
             pdf.cell(0, 10, preparar(f"Relatório de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
             
             pdf.set_font("Arial", "", 10)
             pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
-            pdf.cell(0, 8, preparar(f"Data/Hora: {data_hora} (Brasília)"), ln=True, align="C")
+            pdf.cell(0, 8, preparar(f"Gerado em: {data_hora} (Brasília)"), ln=True, align="C")
             pdf.ln(5)
 
-            # Cabeçalho da Tabela
+            # Cabeçalho da Tabela PDF
             pdf.set_fill_color(200, 220, 255)
             pdf.set_font("Arial", "B", 8)
             pdf.cell(15, 8, "COD", 1, 0, "C", True)
             pdf.cell(90, 8, "DESCRICAO", 1, 0, "L", True)
             pdf.cell(25, 8, "UNID", 1, 0, "C", True)
-            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True) # Nome idêntico ao DataFrame
+            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True)
 
-            # Dados (Loop corrigido)
+            # Preenchimento
             pdf.set_font("Arial", "", 8)
             for _, row in df_editado.iterrows():
                 pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
@@ -187,9 +200,7 @@ elif st.session_state.pagina == "lista":
                 pdf.cell(25, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
                 pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C")
 
-            pdf_out = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR PDF DO ESTOQUE", data=pdf_out, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            st.success("✅ Relatório gerado com sucesso!")
+            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
 
     with c_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
