@@ -80,24 +80,26 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL CORRIGIDA)
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA INICIAL DEFINITIVA)
 # =================================================================
 
 if st.session_state.pagina == "lar":
+    # 1. Título centralizado
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # AJUSTADO: Nome exato conforme seu print de propriedades
-    nome_da_imagem = "ZION.jpg" 
+    # 2. Caminho da Imagem (Exatamente como está na sua biblioteca)
+    # IMPORTANTE: Se o navegador traduzir para 'SION.jpg', corrija para 'ZION.jpg'
+    imagem_robot = "ZION.jpg" 
 
-    if os.path.exists(nome_da_imagem):
-        st.image(nome_da_imagem, use_container_width=True)
+    if os.path.exists(imagem_robot):
+        st.image(imagem_robot, use_container_width=True)
     else:
-        # Se ainda assim não carregar, ele vai te mostrar o erro exato
-        st.error(f"Erro: O arquivo '{nome_da_imagem}' não foi encontrado na biblioteca do Streamlit.")
-        st.write("Verifique se você fez o 'Upload' deste arquivo para a pasta do projeto.")
+        # Caso ocorra algum erro de carregamento, ele avisa aqui
+        st.error(f"Arquivo '{imagem_robot}' não encontrado. Verifique se o nome está correto.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # 3. Botão de Acesso (Ficará logo abaixo da imagem)
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "Conecte-se"
         st.rerun()
