@@ -11,12 +11,16 @@ import requests
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E ESTADO DA SESSÃO
 # =================================================================
+st.set_page_config(page_title="Zion Rancho App", layout="wide")
+
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
     st.session_state.cozinheiro = ""
 if 'navio' not in st.session_state:
     st.session_state.navio = ""
+if 'pdf_disponivel' not in st.session_state:
+    st.session_state.pdf_disponivel = None
 
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 
@@ -30,7 +34,7 @@ USUARIOS = {
 }
 
 # =================================================================
-# BLOCO 2: CONEXÃO COM NOTION (ORDEM CORRETA)
+# BLOCO 2: CONEXÃO COM NOTION
 # =================================================================
 def carregar_dados_do_notion():
     NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
@@ -54,7 +58,6 @@ def carregar_dados_do_notion():
                     "CONFIRMA": 0
                 })
             df = pd.DataFrame(dados_notion)
-            # Ordenação numérica para garantir sequência 1, 2, 3...
             df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
             return df.sort_values(by='ITEM').reset_index(drop=True)
         return st.session_state.df_lista
@@ -80,59 +83,78 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS E LOGICA DE ACESSO (VALIDAÇÃO POR NAVIO)
+# BLOCO 4: LÓGICA DE TELAS
 # =================================================================
 
-# 1. TELA INICIAL (HOME)
+# --- TELA HOME ---
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
-    
-    # Busca a imagem do robô ou a antiga
-    if os.path.exists("ZION.jpg"):
-        st.image("ZION.jpg", use_container_width=True)
-    elif os.path.exists("APPRANCHO.png"):
-        st.image("APPRANCHO.png", use_container_width=True)
+    if os.path.exists("ZION.jpg"): st.image("ZION.jpg", use_container_width=True)
+    elif os.path.exists("APPRANCHO.png"): st.image("APPRANCHO.png", use_container_width=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
+    if st.button("🚀 INICIAR ACESSO"):
         st.session_state.pagina = "login"
         st.rerun()
 
-# 2. TELA DE ACESSO (VALIDAÇÃO DINÂMICA)
+# --- TELA LOGIN ---
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
+    navio_sel = st.selectbox("Selecione o seu Navio", list(USUARIOS.keys()))
+    senha_dig = st.text_input("Digite a Senha", type="password")
     
-    # Seleção do Navio
-    navio_selecionado = st.selectbox("Selecione o seu Navio", list(USUARIOS.keys()))
-    
-    # Campo de Senha
-    senha_digitada = st.text_input("Digite a Senha de Acesso", type="password")
-    
-    if st.button("🛒 ENTRAR NO MENU", use_container_width=True):
-        # RESGATE: Busca os dados corretos no dicionário USUARIOS
-        dados_usuario = USUARIOS.get(navio_selecionado)
-        
-        if dados_usuario and senha_digitada == dados_usuario["senha"]:
-            st.session_state.cozinheiro = dados_usuario["nome"]
-            st.session_state.navio = navio_selecionado
+    if st.button("🛒 ENTRAR NO MENU"):
+        dados = USUARIOS.get(navio_sel)
+        if dados and senha_dig == dados["senha"]:
+            st.session_state.cozinheiro = dados["nome"]
+            st.session_state.navio = navio_sel
             st.session_state.pagina = "menu"
-            st.success(f"Bem-vindo, {dados_usuario['nome']}!")
             st.rerun()
         else:
-            st.error("❌ Senha incorreta para este navio. Tente novamente.")
+            st.error("❌ Senha incorreta!")
 
-# 3. TELA DE MENU
+# --- TELA MENU (O SUBMENU QUE FALTAVA) ---
 elif st.session_state.pagina == "menu":
-    st.success(f"Conectado: {st.session_state.navio} - Resp: {st.session_state.cozinheiro}")
+    st.title(f"🚢 Painel - {st.session_state.navio}")
+    st.write(f"Bem-vindo, **{st.session_state.cozinheiro}**")
     
-    if st.button("⬅️ Sair"):
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📋 TABELA DE RANCHO (NOTION)"):
+            st.session_state.pagina = "lista"
+            st.rerun()
+    with col2:
+        if st.button("👨‍✈️ DECLARAÇÃO / TRIPULAÇÃO"):
+            st.session_state.pagina = "tripulacao"
+            st.rerun()
+    
+    st.markdown("---")
+    if st.button("⬅️ SAIR"):
         st.session_state.pagina = "home"
         st.rerun()
-# =================================================================
-# BLOCO 5: TELA DE TRIPULAÇÃO (VERSÃO AJUSTADA E PROFISSIONAL)
-# =================================================================
 
+# --- TELA LISTA (NOTION) ---
+elif st.session_state.pagina == "lista":
+    st.title(f"📋 Tabela de Rancho - {st.session_state.navio}")
+    
+    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
+        with st.spinner("Sincronizando..."):
+            st.session_state.df_lista = carregar_dados_do_notion()
+            st.rerun()
+
+    df_editado = st.data_editor(
+        st.session_state.df_lista,
+        column_config={
+            "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
+        },
+        hide_index=True, use_container_width=True
+    )
+
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"
+        st.rerun()
+
+# --- TELA TRIPULAÇÃO (DECLARAÇÃO) ---
 elif st.session_state.pagina == "tripulacao":
     st.title("👨‍✈️ Declaração de Reabastecimento")
     
@@ -140,126 +162,47 @@ elif st.session_state.pagina == "tripulacao":
         try:
             response = requests.get('https://ipapi.co/json/', timeout=3)
             dados = response.json()
-            cidade = dados.get('city', 'Cidade desconhecida')
-            estado = dados.get('region', 'Estado desconhecido')
-            if dados.get('country') != 'BR':
-                return f"{cidade} (Conexão via Satélite)"
-            return f"{cidade}/{estado}"
-        except:
-            return "Localização não identificada"
+            return f"{dados.get('city', 'Cidade')}/{dados.get('region', 'Estado')}"
+        except: return "Localização não identificada"
 
-    if 'pdf_disponivel' not in st.session_state:
-        st.session_state.pdf_disponivel = None
-
-    with st.form("form_tripulacao", clear_on_submit=False):
+    with st.form("form_tripulacao"):
         col1, col2 = st.columns(2)
         with col1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
             st.text_input("Empurrador", value=st.session_state.navio, disabled=True)
-            data_ult_br = datetime.now().strftime("%d/%m/%Y")
-            st.text_input("Data do Último Rancho", value=data_ult_br)
-        
+            st.text_input("Data do Último Rancho", value=datetime.now().strftime("%d/%m/%Y"))
         with col2:
-            data_hoje_br = datetime.now().strftime("%d/%m/%Y")
-            data_input_br = st.text_input("Data de Início", value=data_hoje_br)
+            st.text_input("Data de Início", value=datetime.now().strftime("%d/%m/%Y"))
             origem = st.text_input("Origem", placeholder="Ex: Belém/PA")
             destino = st.text_input("Destino", placeholder="Ex: Santarém/PA")
 
-        st.markdown("---")
-        # Campo de Observação livre de retângulos no PDF
-        consideracoes = st.text_area("Observações (Materiais de limpeza, água ou pessoal extra):", height=80)
-
-        st.subheader("✍️ Assinatura (Use o dedo na tela)")
-        canvas_result = st_canvas(
-            stroke_width=3, stroke_color="#000000", background_color="#eeeeee",
-            height=110, drawing_mode="freedraw", key="canvas_v_ajustada"
-        )
-
-        btn_gerar = st.form_submit_button("💾 SALVAR E GERAR DOCUMENTO", use_container_width=True)
+        consideracoes = st.text_area("Observações:", height=80)
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#eee", height=110, drawing_mode="freedraw", key="canvas")
+        
+        btn_gerar = st.form_submit_button("💾 GERAR DOCUMENTO")
 
     if btn_gerar:
-        if not origem or not destino:
-            st.error("⚠️ Por favor, preencha a Origem e o Destino!")
-        elif canvas_result.image_data is None:
-            st.error("⚠️ Por favor, realize a assinatura!")
+        if not origem or not destino or canvas_result.image_data is None:
+            st.error("⚠️ Preencha tudo e assine!")
         else:
-            local_real = obter_localizacao_simples()
-            
-            def blindar(t):
-                return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode('ascii')
-
             try:
                 pdf = FPDF()
                 pdf.add_page()
-                pdf.set_auto_page_break(auto=True, margin=15)
-                
-                # Cabeçalho: Logo e Título com espaçamento fixo para não sobrepor
-                if os.path.exists("APPRANCHO.png"):
-                    pdf.image("APPRANCHO.png", 10, 10, 32)
-                
                 pdf.set_font("Arial", "B", 14)
-                pdf.set_xy(45, 22)
-                pdf.cell(0, 10, blindar(f"DECLARAÇÃO DE RANCHO - {st.session_state.navio}"), 0, 1, "L")
+                pdf.cell(0, 10, f"DECLARACAO DE RANCHO - {st.session_state.navio}", 0, 1, "C")
                 
-                pdf.ln(18) 
-                pdf.set_font("Arial", "", 12)
-                
-                # Texto com ortografia corrigida
-                corpo = (f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                         f"nutricionais da tripulação por um período de 15 dias náuticos, a partir de {data_input_br}. "
-                         f"O último suprimento foi recebido em {data_ult_br}.")
-                pdf.multi_cell(0, 8, blindar(corpo))
-                
-                pdf.ln(4)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 8, blindar(f"Origem: {origem}"), 0, 1) # Preferência por 'Origem'
-                pdf.cell(0, 8, blindar(f"Destino: {destino}"), 0, 1) # Preferência por 'Destino'
-                
-                if consideracoes:
-                    pdf.ln(4)
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.cell(0, 8, "OBSERVAÇÕES:", 0, 1)
-                    pdf.set_font("Arial", "", 11)
-                    # Texto livre sem retângulo
-                    pdf.multi_cell(0, 7, blindar(consideracoes), 0, "L")
-
-                # Assinatura Digital
+                # Assinatura
                 img_data = canvas_result.image_data.astype('uint8')
                 Image.fromarray(img_data, 'RGBA').save("assinatura_temp.png")
+                pdf.image("assinatura_temp.png", x=75, y=150, w=55)
                 
-                # Controle de posição para manter na mesma página
-                if pdf.get_y() > 220:
-                    pdf.add_page()
-                
-                pdf.image("assinatura_temp.png", x=75, y=pdf.get_y()+5, w=55)
-                pdf.ln(25)
-                pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 10, blindar(f"Responsável: {st.session_state.cozinheiro}"), 0, 1, "C")
-
-                # Rodapé de Segurança em Português e na mesma página
-                pdf.set_y(-25)
-                pdf.set_font("Arial", "I", 8)
-                pdf.set_text_color(100, 100, 100)
-                data_registro = datetime.now().strftime("%d/%m/%Y às %H:%M")
-                pdf.multi_cell(0, 5, blindar(f"Registro Digital realizado em {data_registro}\nLocal da Assinatura: {local_real}"), 0, "C")
-
                 st.session_state.pdf_disponivel = pdf.output(dest='S').encode('latin-1')
-                st.success("✅ Declaração gerada com sucesso!")
-
-            except Exception as e:
-                st.error(f"Erro ao processar PDF: {e}")
+                st.success("✅ Gerado!")
+            except Exception as e: st.error(f"Erro: {e}")
 
     if st.session_state.pdf_disponivel:
-        st.download_button(
-            label="📥 BAIXAR DECLARAÇÃO PDF",
-            data=st.session_state.pdf_disponivel,
-            file_name=f"Declaracao_{st.session_state.navio}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        st.download_button("📥 BAIXAR PDF", data=st.session_state.pdf_disponivel, file_name="Declaracao.pdf", mime="application/pdf")
 
-    st.markdown("---")
-    if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
-        st.session_state.pdf_disponivel = None
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
