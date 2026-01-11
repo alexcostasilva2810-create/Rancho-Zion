@@ -80,51 +80,51 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: TELAS INICIAIS E LOGICA DE ACESSO (COM SENHA)
+# BLOCO 4: TELAS INICIAIS E LOGICA DE ACESSO (VALIDAÇÃO POR NAVIO)
 # =================================================================
 
 # 1. TELA INICIAL (HOME)
 if st.session_state.pagina == "home":
     st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    # Busca a imagem do robô que está na sua biblioteca
-    nome_imagem = "ZION.jpg" 
-    if os.path.exists(nome_imagem):
-        st.image(nome_imagem, use_container_width=True)
+    # Busca a imagem do robô ou a antiga
+    if os.path.exists("ZION.jpg"):
+        st.image("ZION.jpg", use_container_width=True)
     elif os.path.exists("APPRANCHO.png"):
         st.image("APPRANCHO.png", use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botão que leva para a tela de Login
     if st.button("🚀 INICIAR ACESSO", use_container_width=True):
         st.session_state.pagina = "login"
         st.rerun()
 
-# 2. TELA DE ACESSO (RESTAURADA COM SENHA)
+# 2. TELA DE ACESSO (VALIDAÇÃO DINÂMICA)
 elif st.session_state.pagina == "login":
     st.title("🔐 Acesso do Cozinheiro")
     
     # Seleção do Navio
-    navio = st.selectbox("Selecione o seu Navio", ["AROEIRA", "NAVIO 01", "NAVIO 03"])
+    navio_selecionado = st.selectbox("Selecione o seu Navio", list(USUARIOS.keys()))
     
-    # RESGATE: Campo de Senha em vez de Nome
-    senha_acesso = st.text_input("Digite a Senha de Acesso", type="password")
+    # Campo de Senha
+    senha_digitada = st.text_input("Digite a Senha de Acesso", type="password")
     
     if st.button("🛒 ENTRAR NO MENU", use_container_width=True):
-        # Defina aqui a sua senha (exemplo: '1234')
-        if senha_acesso == "1234":
-            st.session_state.cozinheiro = "Marcos" # Nome padrão ou conforme a senha
-            st.session_state.navio = navio
+        # RESGATE: Busca os dados corretos no dicionário USUARIOS
+        dados_usuario = USUARIOS.get(navio_selecionado)
+        
+        if dados_usuario and senha_digitada == dados_usuario["senha"]:
+            st.session_state.cozinheiro = dados_usuario["nome"]
+            st.session_state.navio = navio_selecionado
             st.session_state.pagina = "menu"
+            st.success(f"Bem-vindo, {dados_usuario['nome']}!")
             st.rerun()
         else:
-            st.error("Senha incorreta. Tente novamente.")
+            st.error("❌ Senha incorreta para este navio. Tente novamente.")
 
-# 3. TELA DE MENU (DIRECIONAMENTO)
+# 3. TELA DE MENU
 elif st.session_state.pagina == "menu":
-    st.success(f"Conectado: {st.session_state.navio}")
-    # O restante do seu formulário de PDF e Checklist entra aqui
+    st.success(f"Conectado: {st.session_state.navio} - Resp: {st.session_state.cozinheiro}")
     
     if st.button("⬅️ Sair"):
         st.session_state.pagina = "home"
