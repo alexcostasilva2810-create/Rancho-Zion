@@ -80,142 +80,28 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO
+# BLOCO 4: LÓGICA DE NAVEGAÇÃO (TELA DE BOAS-VINDAS)
 # =================================================================
 
-if st.session_state.pagina == "home":
-    st.markdown("<h1 style='text-align: center;'>Zion Rancho App</h1>", unsafe_allow_html=True)
-    if os.path.exists("ZION.jpg"):
-        st.image("APPRANCHO.png", use_container_width=True)
-    if st.button("INICIAR ACESSO"):
-        st.session_state.pagina = "login"
-        st.rerun()
-
-elif st.session_state.pagina == "login":
-    st.title("🔐 Acesso")
-    navio_sel = st.selectbox("Embarcação", [""] + list(USUARIOS.keys()))
-    senha = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
-        if navio_sel in USUARIOS and USUARIOS[navio_sel]["senha"] == senha:
-            st.session_state.cozinheiro = USUARIOS[navio_sel]["nome"]
-            st.session_state.navio = navio_sel
-            st.session_state.pagina = "menu"
-            st.rerun()
-
-elif st.session_state.pagina == "menu":
-    st.title(f"Olá, {st.session_state.cozinheiro}!")
-    if st.button("🛒 LISTA DE RANCHO"):
-        st.session_state.pagina = "lista"
-        st.rerun()
-    if st.button("👨‍✈️ TRIPULAÇÃO"):
-        st.session_state.pagina = "tripulacao"
-        st.rerun()
-    if st.button("🚪 SAIR DO SISTEMA"):
-        st.session_state.pagina = "home"
-        st.rerun()
-
-elif st.session_state.pagina == "lista":
-    st.title(f"📋 Rancho - {st.session_state.navio}")
+if st.session_state.pagina == "lar":
+    # Centraliza o título no topo
+    st.markdown("<h1 style='text-align: center;'>Aplicativo Zion Rancho</h1>", unsafe_allow_html=True)
     
-    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        st.session_state.df_lista = carregar_dados_do_notion()
+    # Verifica se a imagem do robô existe e a exibe
+    if os.path.exists("logo_robot.jpg"):
+        st.image("logo_robot.jpg", use_container_width=True)
+    else:
+        # Caso a imagem falte, ele avisa mas não trava o app
+        st.error("Arquivo 'logo_robot.jpg' não encontrado na biblioteca.")
+        if os.path.exists("APPRANCHO.png"):
+            st.image("APPRANCHO.png", width=200)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Botão de Acesso - Ocupa a largura total para facilitar no celular
+    if st.button("🚀 INICIAR ACESSO", use_container_width=True):
+        st.session_state.pagina = "Conecte-se"
         st.rerun()
-
-    df_editado = st.data_editor(
-        st.session_state.df_lista,
-        column_config={
-            "ITEM": st.column_config.TextColumn("ITEM", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
-            "UNID MED": st.column_config.TextColumn("UNID.", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("ESTOQUE", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0),
-        },
-        hide_index=True, use_container_width=True
-    )
-
-    st.markdown("---")
-    
-    # PDF PROFISSIONAL COM DATA, HORA E LOGO
-    if st.button("📄 GERAR PDF"):
-        def blindar_texto(texto):
-            txt = str(texto) if texto else ""
-            return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
-
-        agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-        class PDF(FPDF):
-            def header(self):
-                if os.path.exists("APPRANCHO.png"): 
-                    self.image("APPRANCHO.png", 10, 8, 20)
-                self.set_font("Arial", "B", 12)
-                self.set_xy(35, 12)
-                # Cabeçalho atualizado: Navio e Responsável
-                self.cell(0, 10, blindar_texto(f"Checklist de Rancho - {st.session_state.navio} - Responsavel: {st.session_state.cozinheiro}"), 0, 1)
-                self.ln(10)
-                # Cabeçalho da Tabela
-                self.set_font("Arial", "B", 8)
-                self.set_fill_color(0, 102, 204) # Azul Zion
-                self.set_text_color(255, 255, 255)
-                self.cell(12, 10, "ITEM", 1, 0, "C", True)
-                self.cell(70, 10, "DESCRICAO", 1, 0, "C", True)
-                self.cell(45, 10, "TIPO", 1, 0, "C", True)
-                self.cell(15, 10, "UNID", 1, 0, "C", True)
-                self.cell(18, 10, "ESTOQUE", 1, 0, "C", True)
-                self.cell(30, 10, "CONF.", 1, 1, "C", True)
-                self.set_text_color(0, 0, 0)
-
-            def footer(self):
-                self.set_y(-15)
-                self.set_font("Arial", "I", 7)
-                self.set_text_color(128, 128, 128)
-                # Rodapé com Data e Hora
-                texto_rodape = f"Gerado em: {agora} | Zion Rancho App | Pagina {self.page_no()}"
-                self.cell(0, 10, blindar_texto(texto_rodape), 0, 0, "C")
-
-        try:
-            pdf = PDF(orientation='P', unit='mm', format='A4')
-            pdf.set_auto_page_break(auto=True, margin=20)
-            pdf.add_page()
-            pdf.set_font("Arial", "", 8)
-
-            for _, row in df_editado.iterrows():
-                t_desc = blindar_texto(row["DESCRIÇÃO"])
-                t_tipo = blindar_texto(row["TIPO"])
-                alt_l = 6
-                # Cálculo de altura para evitar quebras de página desalinhadas
-                l_desc = (pdf.get_string_width(t_desc) / 70) + 1
-                l_tipo = (pdf.get_string_width(t_tipo) / 45) + 1
-                h = max(int(l_desc), int(l_tipo)) * alt_l
-                
-                if pdf.get_y() + h > 270: pdf.add_page()
-
-                x, y = pdf.get_x(), pdf.get_y()
-                pdf.cell(12, h, str(int(row["ITEM"])), 1, 0, "C")
-                pdf.multi_cell(70, alt_l, t_desc, 1, "L")
-                pdf.set_xy(x + 82, y)
-                pdf.multi_cell(45, alt_l, t_tipo, 1, "C")
-                pdf.set_xy(x + 127, y)
-                pdf.cell(15, h, blindar_texto(row["UNID MED"]), 1, 0, "C")
-                pdf.cell(18, h, str(row["PREDEFINIDO"]), 1, 0, "C")
-                pdf.cell(30, h, str(row["CONFIRMA"]), 1, 1, "C")
-
-            pdf_bytes = pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            st.success("✅ Sua demanda esta pronta favor mandar no grupo de WhatsApp de rancho!")
-        except Exception as e:
-            st.error(f"Erro ao gerar PDF: {e}")
-
-    # --- BOTÕES DE NAVEGAÇÃO ---
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
-            st.rerun()
-    with col2:
-        if st.button("🚪 SAIR DO SISTEMA"):
-            st.session_state.pagina = "home"
-            st.rerun()
 
 # =================================================================
 # BLOCO 5: TELA DE TRIPULAÇÃO (VERSÃO AJUSTADA E PROFISSIONAL)
