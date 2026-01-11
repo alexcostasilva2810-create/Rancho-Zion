@@ -299,4 +299,3 @@ elif st.session_state.pagina == "tripulacao":
     if st.session_state.pdf_disponivel:
         st.download_button("📥 BAIXAR PDF ASSINADO", data=st.session_state.pdf_disponivel, 
                            file_name="Declaracao.pdf", mime="application/pdf")
-
