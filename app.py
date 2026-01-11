@@ -224,7 +224,10 @@ elif st.session_state.pagina == "lista":
 
 # --- BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO ---
 elif st.session_state.pagina == "tripulacao":
-    # Estilo visual com fundo de viagem em alto mar
+    # Importação necessária para o cálculo de datas (Resolve o NameError da imagem 3de4ec.png)
+    from datetime import datetime, timedelta
+    
+    # CSS: Fundo de viagem em alto mar e botões nítidos
     st.markdown("""
         <style>
         .stApp {
@@ -254,40 +257,41 @@ elif st.session_state.pagina == "tripulacao":
     
     col_datas1, col_datas2 = st.columns(2)
     with col_datas1:
-        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
+        # Data de recebimento com formato visual em português
+        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
     
-    # Cálculo automático da validade do rancho
+    # Cálculo automático (Agora com timedelta importado)
     data_validade = data_recebimento + timedelta(days=dias_duracao)
     
     with col_datas2:
         st.markdown(f"### 📅 Validade do Rancho")
         cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
+        # Exibição da data calculada em Português
         st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
                     f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
                     f"</div>", unsafe_allow_html=True)
 
-    with st.form("form_declaracao_completa"):
+    with st.form("form_declaracao_final"):
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state.cozinheiro = st.text_input("Cozinheiro Responsável", value="Catiano")
-            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16) # Campo solicitado
+            resp_nome = st.text_input("Cozinheiro Responsável", value="Catiano")
+            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         
         with col2:
-            data_ultimo_rancho = st.date_input("Data do último rancho recebido:") # Campo solicitado
+            # Data do último rancho formatada
+            data_ultimo_rancho = st.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
-            # A data de início no texto do PDF será a data de recebimento informada acima
         
-        # Campo para necessidades fora da lista
-        necessidades_extras = st.text_area("Necessidades que NÃO estão na lista de rancho (Ex: Material de limpeza, reparos):", 
-            placeholder="Descreva aqui o que mais você precisa (vassouras, rodos, galões de água extras, etc...)")
+        necessidades_extras = st.text_area("Necessidades que NÃO estão na lista de rancho:", 
+            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro. Sendo 2 vassoura e rodo para o pessoal de máquina, 02 rodo e 02 vassoura para o pessoal de máquina. O restante do material vai ser para cozinha. Vai ter pessoal da manutenção das barcaças e escolta armada.")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=3, stroke_color="#000000",
             background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="assinatura_final_dec",
+            height=120, drawing_mode="freedraw", key="ass_decl_v2",
         )
         
         enviar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
@@ -297,20 +301,25 @@ elif st.session_state.pagina == "tripulacao":
             st.error("❌ Por favor, realize a assinatura antes de gerar o PDF.")
         else:
             try:
-                class PDF_Completo(FPDF):
+                import unicodedata
+                from fpdf import FPDF
+                from PIL import Image
+
+                class PDF_Final(FPDF):
                     def footer(self):
                         self.set_y(-15)
                         self.set_font('Arial', 'I', 8)
+                        # Horário de Brasília (UTC-3)
                         agora_br = datetime.now() - timedelta(hours=3)
                         self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
 
-                pdf = PDF_Completo(orientation='P', unit='mm', format='A4')
+                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
                 pdf.add_page()
 
                 def preparar(t):
                     return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
 
-                # Cabeçalho Centralizado
+                # Cabeçalho Centralizado com Logo
                 if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
                 pdf.set_font("Arial", "B", 16)
                 pdf.set_y(30)
@@ -319,46 +328,40 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
                 pdf.ln(10)
 
-                # Texto Principal com campos restaurados
-                pdf.set_font("Arial", "", 11)
-                texto_doc = (
+                # Texto do documento em Português
+                pdf.set_font("Arial", "", 12)
+                texto_corpo = (
                     f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
                     f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
-                    f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}, "
-                    f"com validade calculada até {data_validade.strftime('%d/%m/%Y')}. "
-                    f"O último suprimento foi recebido em {data_ultimo_rancho.strftime('%d/%m/%Y')}."
+                    f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
+                    f"Este suprimento é planejado para a viagem corrente."
                 )
-                pdf.multi_cell(0, 8, preparar(texto_doc), align="J")
+                pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
                 pdf.ln(5)
 
-                # Informações de Trajeto
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                pdf.cell(0, 8, preparar(f"Último Rancho Recebido em: {data_ultimo_rancho.strftime('%d/%m/%Y')}"), ln=True)
                 pdf.ln(5)
 
-                # Necessidades Extras (Campo dinâmico restaurado)
                 if necessidades_extras:
                     pdf.set_font("Arial", "B", 11)
-                    pdf.cell(0, 8, preparar("NECESSIDADES EXTRAS (FORA DA LISTA):"), ln=True)
+                    pdf.cell(0, 8, preparar("CONSIDERAÇÕES / NECESSIDADES EXTRAS:"), ln=True)
                     pdf.set_font("Arial", "", 10)
                     pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
-                    pdf.ln(5)
                 
-                # Espaço para Assinatura
+                # Assinatura
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("temp_ass_final.png")
-                pdf.ln(10)
+                img_ass.save("temp_ass.png")
+                pdf.ln(15)
                 pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
-                pdf.image("temp_ass_final.png", x=75, y=pdf.get_y()-15, w=60)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 8, preparar(f"Assinatura do Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
+                pdf.cell(0, 10, preparar(f"Responsável: {resp_nome}"), ln=True, align="C")
 
-                pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO COMPLETA (PDF)", data=pdf_bytes, 
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf.output(dest='S').encode('latin-1'), 
                                    file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
             except Exception as e:
-                st.error(f"Erro ao processar documento: {e}")
+                st.error(f"Erro ao gerar PDF: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"
-        st.rerun()
+        st.session_state.pagina = "menu"; st.rerun()
