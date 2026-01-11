@@ -367,3 +367,75 @@ elif st.session_state.pagina == "tripulacao":
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
+
+# --- BLOCO 8: MÓDULO DE AUDITORIA E HISTÓRICO ---
+elif st.session_state.pagina == "historico":
+    from datetime import datetime
+    
+    # CSS para manter o padrão visual de alto mar
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
+            background-size: cover;
+        }
+        .titulo-centralizado {
+            text-align: center; color: white; text-shadow: 2px 2px 4px black;
+            font-size: 2.2rem; font-weight: bold; margin-bottom: 30px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div class='titulo-centralizado'>📜 Auditoria e Histórico de Rancho</div>", unsafe_allow_html=True)
+    
+    # Busca os dados no seu novo Banco de Dados do Notion
+    try:
+        url_query = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
+        res = requests.post(url_query, headers=headers)
+        
+        if res.status_code == 200:
+            dados_notion = res.json().get("results", [])
+            lista_pedidos = []
+            
+            for p in dados_notion:
+                prop = p["properties"]
+                lista_pedidos.append({
+                    "Cozinheiro": prop["Cozinheiro"]["title"][0]["text"]["content"] if prop["Cozinheiro"]["title"] else "N/A",
+                    "Navio": prop["Navio"]["rich_text"][0]["text"]["content"] if prop["Navio"]["rich_text"] else "N/A",
+                    "Data Pedido": prop["Data Pedido"]["date"]["start"] if prop["Data Pedido"]["date"] else None,
+                    "Validade": prop["Validade"]["date"]["start"] if prop["Validade"]["date"] else None,
+                    "Lotação": prop["Lotação"]["number"] if prop["Lotação"]["number"] else 0,
+                    "Escolta": prop["Escolta"]["select"]["name"] if prop["Escolta"]["select"] else "NÃO",
+                    "Observações": prop["Observações"]["rich_text"][0]["text"]["content"] if prop["Observações"]["rich_text"] else ""
+                })
+            
+            df_hist = pd.DataFrame(lista_pedidos)
+
+            # LÓGICA DE FILTRO: Usuário comum vs Administrador
+            if st.session_state.cozinheiro.lower() == "admin":
+                st.info("💡 Modo Administrador: Você tem visão total de todos os cozinheiros.")
+                usuarios_unicos = sorted(df_hist["Cozinheiro"].unique().tolist())
+                filtro = st.selectbox("🔍 Pesquisar por Cozinheiro Responsável:", ["TODOS OS COZINHEIROS"] + usuarios_unicos)
+                
+                if filtro != "TODOS OS COZINHEIROS":
+                    df_hist = df_hist[df_hist["Cozinheiro"] == filtro]
+            else:
+                # O cozinheiro logado só vê o histórico dele
+                df_hist = df_hist[df_hist["Cozinheiro"] == st.session_state.cozinheiro]
+
+            # Exibição da Tabela de Auditoria
+            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+            
+            # Resumo de controle para você
+            if not df_hist.empty:
+                st.write(f"📊 **Total de registros encontrados:** {len(df_hist)}")
+        else:
+            st.error(f"Erro na conexão com o Notion: {res.status_code}")
+            
+    except Exception as e:
+        st.error(f"Falha ao carregar o módulo: {e}")
+
+    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL"):
+        st.session_state.pagina = "menu"
+        st.rerun()
