@@ -93,12 +93,11 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (RESTAURAÇÃO DO PDF COM DADOS)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (COM BOTÃO ATUALIZAR NOTION)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    # Cabeçalho da Tela com Logo e Título
     h1, h2 = st.columns([1, 8])
     with h1: 
         if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=70)
@@ -107,8 +106,33 @@ elif st.session_state.pagina == "lista":
     
     st.markdown("---")
 
-    # Editor de Dados - Garantindo a captura da coluna 'SUA QTD'
-    # O df_editado contém os valores atuais que o cozinheiro digitou
+    # --- BOTÃO DE ATUALIZAÇÃO (RESTAURADO) ---
+    if st.button("🔄 ATUALIZAR LISTA DO NOTION", use_container_width=True):
+        headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
+        try:
+            response = requests.post(f"https://api.notion.com/v1/databases/{DATABASE_ID}/query", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                itens = []
+                for page in data["results"]:
+                    props = page["properties"]
+                    itens.append({
+                        "ITEM": props["ITEM"]["number"] if props["ITEM"]["number"] else 0,
+                        "DESCRIÇÃO": props["DESCRIÇÃO"]["title"][0]["text"]["content"] if props["DESCRIÇÃO"]["title"] else "",
+                        "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
+                        "UNID MED": props["UNID MED"]["select"]["name"] if props["UNID MED"]["select"] else "",
+                        "PREDEFINIDO": props["PREDEFINIDO"]["number"] if props["PREDEFINIDO"]["number"] else 0,
+                        "SUA QTD": 0
+                    })
+                st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
+                st.success("✅ Lista atualizada com sucesso!")
+                st.rerun()
+            else:
+                st.error(f"Erro ao conectar com Notion: {response.status_code}")
+        except Exception as e:
+            st.error(f"Erro na atualização: {e}")
+
+    # Editor de Dados
     df_editado = st.data_editor(
         st.session_state.df_lista, 
         column_config={
@@ -117,11 +141,11 @@ elif st.session_state.pagina == "lista":
             "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
             "UNID MED": st.column_config.TextColumn("UNID MED", disabled=True),
             "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True),
-            "SUA QTD": st.column_config.NumberColumn("SUA QTD", min_value=0, required=True)
+            "SUA QTD": st.column_config.NumberColumn("SUA QTD", min_value=0)
         }, 
         hide_index=True, 
         use_container_width=True,
-        key="editor_rancho"
+        key="editor_rancho_v4"
     )
 
     st.markdown("---")
@@ -129,64 +153,45 @@ elif st.session_state.pagina == "lista":
     
     with col_pdf:
         if st.button("💾 GERAR E SALVAR RELATÓRIO"):
-            # Fuso Horário de Brasília para o Relatório
             fuso_br = pytz.timezone('America/Sao_Paulo')
             data_hora_br = datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M:%S')
             
             pdf = FPDF()
             pdf.add_page()
+            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
             
-            # Logo no topo do PDF
-            if os.path.exists("ZION.jpg"): 
-                pdf.image("ZION.jpg", 95, 8, 20)
-            
-            pdf.set_font("Arial", "B", 14)
-            pdf.set_y(30)
+            pdf.set_font("Arial", "B", 14); pdf.set_y(30)
             pdf.cell(0, 10, preparar(f"Relatório de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
-            
             pdf.set_font("Arial", "", 10)
             pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
             pdf.cell(0, 8, preparar(f"Data/Hora: {data_hora_br}"), ln=True, align="C")
             pdf.ln(5)
 
-            # Cabeçalho da Tabela no PDF
+            # Cabeçalho da Tabela PDF
             pdf.set_fill_color(200, 220, 255)
             pdf.set_font("Arial", "B", 8)
             pdf.cell(15, 8, "COD", 1, 0, "C", True)
-            pdf.cell(80, 8, "DESCRICAO", 1, 0, "L", True)
-            pdf.cell(25, 8, "TIPO", 1, 0, "C", True)
-            pdf.cell(20, 8, "UNID", 1, 0, "C", True)
+            pdf.cell(85, 8, "DESCRICAO", 1, 0, "L", True)
+            pdf.cell(30, 8, "TIPO", 1, 0, "C", True)
+            pdf.cell(25, 8, "UNID", 1, 0, "C", True)
             pdf.cell(25, 8, "SUA QTD", 1, 1, "C", True)
 
-            # Preenchimento dos Dados (Onde estava o erro de "em branco")
+            # Dados da Tabela
             pdf.set_font("Arial", "", 8)
             for index, row in df_editado.iterrows():
-                # Só inclui no PDF se a quantidade for maior que zero ou se você preferir todos
                 pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
-                pdf.cell(80, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
-                pdf.cell(25, 7, preparar(str(row["TIPO"])), 1, 0, "C")
-                pdf.cell(20, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
+                pdf.cell(85, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
+                pdf.cell(30, 7, preparar(str(row["TIPO"])), 1, 0, "C")
+                pdf.cell(25, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
                 pdf.cell(25, 7, str(row["SUA QTD"]), 1, 1, "C")
 
-            # Rodapé do PDF
-            pdf.ln(10)
-            pdf.set_font("Arial", "I", 8)
-            pdf.cell(0, 10, preparar("Documento gerado pelo Sistema Zion Rancho."), 0, 0, "C")
-            
-            # Botão de Download real
-            pdf_output = pdf.output(dest='S').encode('latin-1')
-            st.download_button(
-                label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
-                data=pdf_output,
-                file_name=f"Rancho_{st.session_state.navio}_{datetime.now().strftime('%d%m%Y')}.pdf",
-                mime="application/pdf"
-            )
-            st.success("✅ Relatório processado com sucesso! Baixe o arquivo acima.")
+            pdf_out = pdf.output(dest='S').encode('latin-1')
+            st.download_button("📥 CLIQUE PARA BAIXAR PDF", data=pdf_out, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
+            st.success("✅ Relatório pronto para download!")
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"; st.rerun()
-
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO (FORMATO DE DATA BRASILEIRO)
 # =================================================================
