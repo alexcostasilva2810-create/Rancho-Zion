@@ -93,20 +93,22 @@ elif st.session_state.pagina == "menu":
         if st.button("⬅️ SAIR", use_container_width=True): st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: CONFERÊNCIA DE ESTOQUE (COM BOTÃO ATUALIZAR NOTION)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE (CORREÇÃO DE ERRO E CENTRALIZAÇÃO)
 # =================================================================
 elif st.session_state.pagina == "lista":
     aplicar_estilo_tecnologico()
     
-    h1, h2 = st.columns([1, 8])
-    with h1: 
-        if os.path.exists("ZION.jpg"): st.image("ZION.jpg", width=70)
-    with h2: 
-        st.markdown("<h2>📋 Conferência de Estoque</h2>", unsafe_allow_html=True)
+    # Cabeçalho Centralizado conforme solicitado
+    st.markdown("""
+        <div style='text-align: center; margin-bottom: 20px;'>
+            <img src='https://raw.githubusercontent.com/seu-repositorio/ZION.jpg' width='70' style='display: block; margin: 0 auto 10px;'>
+            <h2 style='color: white;'>📋 Conferência de Estoque</h2>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
 
-    # --- BOTÃO DE ATUALIZAÇÃO (RESTAURADO) ---
+    # Botão de Atualização do Notion
     if st.button("🔄 ATUALIZAR LISTA DO NOTION", use_container_width=True):
         headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
         try:
@@ -122,30 +124,24 @@ elif st.session_state.pagina == "lista":
                         "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
                         "UNID MED": props["UNID MED"]["select"]["name"] if props["UNID MED"]["select"] else "",
                         "PREDEFINIDO": props["PREDEFINIDO"]["number"] if props["PREDEFINIDO"]["number"] else 0,
-                        "SUA QTD": 0
+                        "CONFIRMA": 0 # Nome da coluna deve ser igual ao configurado abaixo
                     })
                 st.session_state.df_lista = pd.DataFrame(itens).sort_values(by="ITEM")
-                st.success("✅ Lista atualizada com sucesso!")
+                st.success("✅ Lista atualizada!")
                 st.rerun()
-            else:
-                st.error(f"Erro ao conectar com Notion: {response.status_code}")
         except Exception as e:
-            st.error(f"Erro na atualização: {e}")
+            st.error(f"Erro: {e}")
 
-    # Editor de Dados
+    # Editor de Dados - IMPORTANTE: Nome da coluna é 'CONFIRMA' para bater com a imagem
     df_editado = st.data_editor(
         st.session_state.df_lista, 
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "DESCRIÇÃO": st.column_config.TextColumn("DESCRIÇÃO", disabled=True),
-            "TIPO": st.column_config.TextColumn("TIPO", disabled=True),
-            "UNID MED": st.column_config.TextColumn("UNID MED", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True),
-            "SUA QTD": st.column_config.NumberColumn("SUA QTD", min_value=0)
+            "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0)
         }, 
         hide_index=True, 
         use_container_width=True,
-        key="editor_rancho_v4"
+        key="editor_estoque_v5"
     )
 
     st.markdown("---")
@@ -161,9 +157,9 @@ elif st.session_state.pagina == "lista":
             if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
             
             pdf.set_font("Arial", "B", 14); pdf.set_y(30)
-            pdf.cell(0, 10, preparar(f"Relatório de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
+            pdf.cell(0, 10, preparar(f"Relatorio de Reabastecimento: {st.session_state.navio}"), ln=True, align="C")
             pdf.set_font("Arial", "", 10)
-            pdf.cell(0, 8, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.cell(0, 8, preparar(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
             pdf.cell(0, 8, preparar(f"Data/Hora: {data_hora_br}"), ln=True, align="C")
             pdf.ln(5)
 
@@ -171,23 +167,21 @@ elif st.session_state.pagina == "lista":
             pdf.set_fill_color(200, 220, 255)
             pdf.set_font("Arial", "B", 8)
             pdf.cell(15, 8, "COD", 1, 0, "C", True)
-            pdf.cell(85, 8, "DESCRICAO", 1, 0, "L", True)
-            pdf.cell(30, 8, "TIPO", 1, 0, "C", True)
+            pdf.cell(100, 8, "DESCRICAO", 1, 0, "L", True)
             pdf.cell(25, 8, "UNID", 1, 0, "C", True)
-            pdf.cell(25, 8, "SUA QTD", 1, 1, "C", True)
+            pdf.cell(30, 8, "CONFIRMA", 1, 1, "C", True) # Corrigido para CONFIRMA
 
-            # Dados da Tabela
+            # Dados da Tabela - Corrigindo o KeyError
             pdf.set_font("Arial", "", 8)
             for index, row in df_editado.iterrows():
                 pdf.cell(15, 7, str(row["ITEM"]), 1, 0, "C")
-                pdf.cell(85, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
-                pdf.cell(30, 7, preparar(str(row["TIPO"])), 1, 0, "C")
+                pdf.cell(100, 7, preparar(str(row["DESCRIÇÃO"])), 1, 0, "L")
                 pdf.cell(25, 7, preparar(str(row["UNID MED"])), 1, 0, "C")
-                pdf.cell(25, 7, str(row["SUA QTD"]), 1, 1, "C")
+                pdf.cell(30, 7, str(row["CONFIRMA"]), 1, 1, "C") # Aqui o erro foi resolvido
 
             pdf_out = pdf.output(dest='S').encode('latin-1')
             st.download_button("📥 CLIQUE PARA BAIXAR PDF", data=pdf_out, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf")
-            st.success("✅ Relatório pronto para download!")
+            st.success("✅ Relatorio pronto!")
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
