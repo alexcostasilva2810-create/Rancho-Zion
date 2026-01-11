@@ -100,36 +100,6 @@ elif st.session_state.pagina == "login":
             st.session_state.pagina = "menu"; st.rerun()
         else: st.error("❌ Senha incorreta!")
 
-# --- MENU PRINCIPAL ATUALIZADO ---
-elif st.session_state.pagina == "menu":
-    # Estilização do Painel conforme sua imagem
-    st.markdown(f"""
-        <h1 style='color: white;'>🚢 Painel - {st.session_state.navio}</h1>
-        <p style='color: white;'>Bem-vindo, <b>{st.session_state.cozinheiro}</b></p>
-    """, unsafe_allow_html=True)
-
-    # Organização dos botões em colunas para scannability
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("📋 TABELA DE RANCHO", use_container_width=True):
-            st.session_state.pagina = "conferencia"
-            st.rerun()
-        
-        # NOVO BOTÃO: Leva ao Bloco 8 que você solicitou
-        if st.button("📜 VER HISTÓRICO", use_container_width=True):
-            st.session_state.pagina = "historico"
-            st.rerun()
-
-    with col2:
-        if st.button("👨‍🍳 DECLARAÇÃO", use_container_width=True):
-            st.session_state.pagina = "declaracao"
-            st.rerun()
-
-    st.markdown("---")
-    if st.button("⬅️ SAIR", use_container_width=True):
-        st.session_state.pagina = "login"
-        st.rerun()
 
 # --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
@@ -391,130 +361,56 @@ elif st.session_state.pagina == "tripulacao":
 
 # --- BLOCO 8: MÓDULO DE AUDITORIA E HISTÓRICO ---
 elif st.session_state.pagina == "historico":
-    from datetime import datetime
-    
-    # CSS para manter o padrão visual de alto mar
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
-            background-size: cover;
-        }
-        .titulo-centralizado {
-            text-align: center; color: white; text-shadow: 2px 2px 4px black;
-            font-size: 2.2rem; font-weight: bold; margin-bottom: 30px;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<div class='titulo-centralizado'>📜 Auditoria e Histórico de Rancho</div>", unsafe_allow_html=True)
-    
-    # Busca os dados no seu novo Banco de Dados do Notion
-    try:
-        url_query = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
-        res = requests.post(url_query, headers=headers)
-        
-        if res.status_code == 200:
-            dados_notion = res.json().get("results", [])
-            lista_pedidos = []
-            
-            for p in dados_notion:
-                prop = p["properties"]
-                lista_pedidos.append({
-                    "Cozinheiro": prop["Cozinheiro"]["title"][0]["text"]["content"] if prop["Cozinheiro"]["title"] else "N/A",
-                    "Navio": prop["Navio"]["rich_text"][0]["text"]["content"] if prop["Navio"]["rich_text"] else "N/A",
-                    "Data Pedido": prop["Data Pedido"]["date"]["start"] if prop["Data Pedido"]["date"] else None,
-                    "Validade": prop["Validade"]["date"]["start"] if prop["Validade"]["date"] else None,
-                    "Lotação": prop["Lotação"]["number"] if prop["Lotação"]["number"] else 0,
-                    "Escolta": prop["Escolta"]["select"]["name"] if prop["Escolta"]["select"] else "NÃO",
-                    "Observações": prop["Observações"]["rich_text"][0]["text"]["content"] if prop["Observações"]["rich_text"] else ""
-                })
-            
-            df_hist = pd.DataFrame(lista_pedidos)
-
-            # LÓGICA DE FILTRO: Usuário comum vs Administrador
-            if st.session_state.cozinheiro.lower() == "admin":
-                st.info("💡 Modo Administrador: Você tem visão total de todos os cozinheiros.")
-                usuarios_unicos = sorted(df_hist["Cozinheiro"].unique().tolist())
-                filtro = st.selectbox("🔍 Pesquisar por Cozinheiro Responsável:", ["TODOS OS COZINHEIROS"] + usuarios_unicos)
-                
-                if filtro != "TODOS OS COZINHEIROS":
-                    df_hist = df_hist[df_hist["Cozinheiro"] == filtro]
-            else:
-                # O cozinheiro logado só vê o histórico dele
-                df_hist = df_hist[df_hist["Cozinheiro"] == st.session_state.cozinheiro]
-
-            # Exibição da Tabela de Auditoria
-            st.dataframe(df_hist, use_container_width=True, hide_index=True)
-            
-            # Resumo de controle para você
-            if not df_hist.empty:
-                st.write(f"📊 **Total de registros encontrados:** {len(df_hist)}")
-        else:
-            st.error(f"Erro na conexão com o Notion: {res.status_code}")
-            
-    except Exception as e:
-        st.error(f"Falha ao carregar o módulo: {e}")
-
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL"):
-        st.session_state.pagina = "menu"
-        st.rerun()
-
-# --- BLOCO 8: MÓDULO DE AUDITORIA E HISTÓRICO ---
-elif st.session_state.pagina == "historico":
     import pandas as pd
     import requests
-    
-    ID_HIST_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-    st.markdown("<h1 style='text-align: center; color: white;'>📜 Histórico de Pedidos</h1>", unsafe_allow_html=True)
-    st.info(f"Visualizando registros para o navio: **{st.session_state.navio}**")
+    st.markdown("<h1 style='text-align: center; color: white;'>📜 Auditoria e Histórico</h1>", unsafe_allow_html=True)
+    
+    # Recupera o ID que definimos no menu
+    ID_DOC = st.session_state.id_historico 
 
     try:
-        url_hist = f"https://api.notion.com/v1/databases/{ID_HIST_NOTION}/query"
+        url = f"https://api.notion.com/v1/databases/{ID_DOC}/query"
         
-        # Filtro: Se for admin vê tudo, se for cozinheiro vê apenas os pedidos do navio dele
+        # Filtro de segurança: Cozinheiro só vê o navio atual, Admin vê tudo
         if st.session_state.cozinheiro.lower() == "admin":
-            query_payload = {"sorts": [{"property": "Data Pedido", "direction": "descending"}]}
+            payload = {"sorts": [{"property": "Data Pedido", "direction": "descending"}]}
         else:
-            query_payload = {
+            payload = {
                 "filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}},
                 "sorts": [{"property": "Data Pedido", "direction": "descending"}]
             }
-        
-        res = requests.post(url_hist, headers=headers, json=query_payload)
+
+        res = requests.post(url, headers=headers, json=payload)
         
         if res.status_code == 200:
-            results = res.json().get("results", [])
-            if results:
-                lista = []
-                for r in results:
-                    p = r["properties"]
-                    lista.append({
-                        "Data": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "-",
-                        "Cozinheiro": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
-                        "Navio": p["Navio"]["rich_text"][0]["text"]["content"] if p["Navio"]["rich_text"] else "N/A",
-                        "Válido Até": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
-                        "Escolta": p["Escolta"]["select"]["name"] if p["Escolta"]["select"] else "NÃO"
-                    })
-                
-                df_final = pd.DataFrame(lista)
-                
-                # Filtro adicional para o Admin pesquisar qualquer cozinheiro
-                if st.session_state.cozinheiro.lower() == "admin":
-                    user_select = st.selectbox("Filtrar por Cozinheiro (Admin):", ["TODOS"] + sorted(df_final["Cozinheiro"].unique().tolist()))
-                    if user_select != "TODOS":
-                        df_final = df_final[df_final["Cozinheiro"] == user_select]
-
-                st.dataframe(df_final, use_container_width=True, hide_index=True)
-            else:
-                st.warning("Nenhum histórico encontrado para esta embarcação.")
-        else:
-            st.error("Erro ao conectar com o banco de dados do Notion.")
+            dados = res.json().get("results", [])
+            tab_final = []
+            for item in dados:
+                p = item["properties"]
+                tab_final.append({
+                    "Data": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "-",
+                    "Cozinheiro": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
+                    "Navio": p["Navio"]["rich_text"][0]["text"]["content"] if p["Navio"]["rich_text"] else "N/A",
+                    "Validade": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-"
+                })
             
+            df = pd.DataFrame(tab_final)
+            
+            # Se você for Admin, aparece o filtro de pesquisa por cozinheiro
+            if st.session_state.cozinheiro.lower() == "admin" and not df.empty:
+                lista_users = sorted(df["Cozinheiro"].unique().tolist())
+                busca = st.selectbox("Pesquisar Cozinheiro:", ["TODOS"] + lista_users)
+                if busca != "TODOS":
+                    df = df[df["Cozinheiro"] == busca]
+
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.error(f"Erro de conexão com o Notion: {res.status_code}")
+
     except Exception as e:
-        st.error(f"Erro ao carregar módulo: {e}")
+        st.error(f"Erro ao carregar os dados: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"; st.rerun()
+        st.session_state.pagina = "menu"
+        st.rerun()
