@@ -18,48 +18,40 @@ st.set_page_config(
 )
 
 
-# ==========================================
-# BLOCO DE ESTILO, LOGO E INICIALIZAÇÃO
-# ==========================================
 st.markdown("""
     <style>
-    /* Forçar fundo branco e remover robô gigante */
+    /* Forçar fundo branco e remover robô */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
-    /* Limpar menus do Streamlit */
+    /* Limpar menus e topo */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Forçar textos em preto */
-    .stMarkdown, p, label, h1, h2, h3 {
-        color: black !important;
+    /* Centralizar a logo perfeitamente */
+    [data-testid="stImage"] {
+        display: flex;
+        justify-content: center;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# EXIBIR LOGO CENTRALIZADA
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    st.image("ZION.jpg", width=150)
+# Logo centralizada e pequena
+st.image("ZION.jpg", width=150)
 
-st.markdown("<h3 style='text-align: center; color: black;'>Zion Tecnologia</h3>", unsafe_allow_html=True)
-
-# FUNÇÃO OBRIGATÓRIA
+# Função que o seu código chama na linha 63
 def aplicar_estilo_azul():
     pass
 
-# INICIALIZAÇÃO DO ESTADO (CORREÇÃO DO ERRO ATRIBUTTE ERROR)
+# Inicialização da memória (CORRIGE O ERRO QUE SUMIU COM O BOTÃO)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
 if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"
-# ==========================================
-elif st.session_state.pagina == "menu":
+    st.session_state.pagina = "home"elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
