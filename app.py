@@ -18,71 +18,28 @@ st.set_page_config(
 )
 
 # ESTILO DEFINITIVO PARA LIMPAR A INTERFACE
-# ESTILO DEFINITIVO PARA LIMPAR A INTERFACE E CENTRALIZAR A LOGO
+# BLOCO DE ESTILO E LOGO CENTRALIZADA (COPIE DAQUI PARA BAIXO)
 st.markdown("""
     <style>
-    /* 1. Forçar fundo branco em toda a página e remover imagens de fundo */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
-
-    /* 2. Forçar letras pretas em botões, campos e textos */
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="input"] > div,
-    button {
-        background-color: white !important;
-        color: black !important;
-        border: 1px solid #ccc !important;
-    }
-
-    .stMarkdown, p, label, span, h1, h2, h3 {
-        color: black !important;
-    }
-
-    /* 3. Remover menus e cabeçalhos do Streamlit (Remover a Coroa) */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-
-    /* 4. Ajuste de topo para a página não ficar com buraco branco */
-    .block-container {
-        padding-top: 2rem !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# EXIBIR LOGO ZION CENTRALIZADA E PEQUENA
 col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
     st.image("ZION.jpg", width=150)
 
-# FRASE DE BOAS-VINDAS ABAIXO DA LOGO
 st.markdown("<h3 style='text-align: center; color: black;'>Zion Tecnologia</h3>", unsafe_allow_html=True)
-    pass 
 
-# IDs DE CONEXÃO E TOKENS
-COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
-NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
-DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
-ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
-
-# INICIALIZAÇÃO DO ESTADO (EVITA ATTRIBUTEERROR)
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"
-if 'cozinheiro' not in st.session_state:
-    st.session_state.cozinheiro = ""
-if 'navio' not in st.session_state:
-    st.session_state.navio = ""
-if 'df_lista' not in st.session_state:
-    st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
-
-USUARIOS = {
-    "ENCARREGADO01": {"nome": "CATIANO", "senha": "12345"},
-    "AROEIRA": {"nome": "Marcos", "senha": "789"},
-    "ENCARREGADO02": {"nome": "ERITON", "senha": "456"},
-    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
-}
+def aplicar_estilo_azul():
+    pass
+# FIM DO BLOCO
 
 # =================================================================
 # BLOCO 2: CONEXÃO COM O NOTION (CARREGAMENTO DE DADOS)
