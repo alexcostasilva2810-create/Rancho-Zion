@@ -128,16 +128,14 @@ elif st.session_state.pagina == "menu":
     if st.button("⬅️ SAIR", key="m5"): st.session_state.pagina = "home"; st.rerun()
 
 # --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
-elif st.session_state.pagina == "lista":
-# Estilo visual e fundo
+# Configuração visual para não cortar a tabela
     st.markdown("""<style>
-        .stApp { background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920"); background-size: cover; }
+        .stApp { background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920"); background-size: cover; }
         .pdf-frame { border: 2px solid white; border-radius: 10px; background: white; }
     </style>""", unsafe_allow_html=True)
 
     st.markdown("<h1 style='text-align: center; color: white;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
 
-    # Botões de navegação e busca total
     c1, c2 = st.columns([1, 3])
     with c1:
         if st.button("⬅️ VOLTAR"):
@@ -147,14 +145,13 @@ elif st.session_state.pagina == "lista":
             st.session_state.df_lista = carregar_dados_do_notion()
             st.rerun()
 
-    col_pdf, col_tabela = st.columns([1, 1.3])
+    col_pdf, col_tabela = st.columns([1, 1.2])
 
     with col_pdf:
         st.markdown("<h4 style='color: white;'>📄 Documento Original</h4>", unsafe_allow_html=True)
         if os.path.exists("Rancho_JACARANDA.pdf"):
             with open("Rancho_JACARANDA.pdf", "rb") as f:
                 b64 = base64.b64encode(f.read()).decode('utf-8')
-            # Altura ajustada para 800 para acompanhar a tabela longa
             st.markdown(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="800" class="pdf-frame"></iframe>', unsafe_allow_html=True)
 
     with col_tabela:
@@ -162,22 +159,21 @@ elif st.session_state.pagina == "lista":
         if 'df_lista' not in st.session_state or st.session_state.df_lista.empty:
             st.session_state.df_lista = carregar_dados_do_notion()
 
-        # O segredo para ver os 88 itens: height=800
+        # Altura de 800 para mostrar todos os itens do PDF (Carne Moída até o Gás)
         st.data_editor(
             st.session_state.df_lista,
             column_config={
                 "ITEM": st.column_config.TextColumn("COD", disabled=True),
-                "CONFIRMA": st.column_config.NumberColumn("REC.", min_value=0),
+                "DESCRIÇÃO": st.column_config.TextColumn("PRODUTO", disabled=True),
                 "PREDEFINIDO": st.column_config.NumberColumn("SOLIC.", disabled=True),
-                "DESCRIÇÃO": st.column_config.TextColumn("PRODUTO", disabled=True)
+                "CONFIRMA": st.column_config.NumberColumn("REC.", min_value=0)
             },
             hide_index=True,
             use_container_width=True,
             height=800 
         )
-        if st.button("💾 SALVAR TUDO", use_container_width=True):
-            st.success("Conferência completa salva!")
-
+        if st.button("💾 FINALIZAR E SALVAR"):
+            st.success("Conferência completa salva com sucesso!")
 # --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
     st.markdown("""
