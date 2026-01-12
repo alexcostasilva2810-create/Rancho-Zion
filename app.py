@@ -1,6 +1,3 @@
-tudo certo até com a tela de histórico 
-
-
 import streamlit as st
 import pandas as pd
 from streamlit_drawable_canvas import st_canvas
