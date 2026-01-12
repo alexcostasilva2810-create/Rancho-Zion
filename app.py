@@ -1,3 +1,6 @@
+tudo certo até com a tela de histórico 
+
+
 import streamlit as st
 import pandas as pd
 from streamlit_drawable_canvas import st_canvas
@@ -9,60 +12,80 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E ESTILO RADICAL (REMOÇÃO DE LOGOS)
+# BLOCO 1: CONFIGURAÇÕES E IDs
 # =================================================================
-st.set_page_config(
-    page_title="Zion Rancho App", 
-    layout="wide", 
-    page_icon="ZION.jpg" # Define o Robô como ícone do App
-)
+st.set_page_config(page_title="Zion Rancho App", layout="wide")
 
+COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
+NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
+DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
+ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-st.markdown("""
-    <style>
-    /* 1. Fundo branco e sem robô gigante */
-    .stApp {
-        background-color: white !important;
-        background-image: none !important;
-    }
-    
-    /* 2. Centralizar a logo Zion perfeitamente */
-    [data-testid="stImage"] {
-        display: flex;
-        justify-content: center;
-    }
+if 'pagina' not in st.session_state: st.session_state.pagina = "home"
+if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
+if 'navio' not in st.session_state: st.session_state.navio = ""
+if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
-    /* 3. Limpar menus e topo vermelho */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
+USUARIOS = {
+    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
+}
 
-# EXIBIR LOGO PEQUENA E CENTRALIZADA
-st.image("ZION.jpg", width=150)
+# =================================================================
+# BLOCO 2: CONEXÕES E ESTILO
+# =================================================================
+def carregar_dados_do_notion():
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+    try:
+        response = requests.post(url, headers=headers)
+        if response.status_code == 200:
+            results = response.json().get("results", [])
+            dados = []
+            for page in results:
+                p = page.get("properties", {})
+                dados.append({
+                    "ITEM": p.get("ITEM", {}).get("title", [{}])[0].get("plain_text", ""),
+                    "DESCRIÇÃO": p.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "TIPO": p.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
+                    "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
+                    "CONFIRMA": 0
+                })
+            df = pd.DataFrame(dados)
+            df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
+            return df.sort_values(by='ITEM').reset_index(drop=True)
+        return st.session_state.df_lista
+    except: return st.session_state.df_lista
 
-# FUNÇÃO PARA O SISTEMA NÃO TRAVAR
 def aplicar_estilo_azul():
-    pass
+    st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
-# REATIVAR O BOTÃO DE ACESSO E AS MENSAGENS DE LOGIN
-if 'df_lista' not in st.session_state:
-    import pandas as pd
-    st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
+# =================================================================
+# BLOCO 4: NAVEGAÇÃO
+# =================================================================
 
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"
+if st.session_state.pagina == "home":
+    aplicar_estilo_azul()
+    st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
+    if os.path.exists("ZION.jpg"): st.image("ZION.jpg", use_container_width=True)
+    if st.button("🚀 ACESSAR SISTEMA"): st.session_state.pagina = "login"; st.rerun()
+
+elif st.session_state.pagina == "login":
+    aplicar_estilo_azul(); st.title("🔐 Login")
+    navio_sel = st.selectbox("Navio", list(USUARIOS.keys()))
+    senha_dig = st.text_input("Senha", type="password")
+    if st.button("ENTRAR"):
+        dados = USUARIOS.get(navio_sel)
+        if dados and senha_dig == dados["senha"]:
+            st.session_state.cozinheiro = dados["nome"]; st.session_state.navio = navio_sel
+            st.session_state.pagina = "menu"; st.rerun()
+        else: st.error("❌ Senha incorreta!")
 
 elif st.session_state.pagina == "menu":
-    st.session_state.pagina = "home"
-
-elif st.session_state.pagina == "menu":# GARANTIR QUE A PÁGINA DE LOGIN SEJA A PRIMEIRA A APARECER
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"
-
-# CONTINUIDADE DA LÓGICA DE LOGIN (LINHA 59 CORRIGIDA)
-elif st.session_state.pagina == "menu":
+    aplicar_estilo_azul()
+    st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True): st.session_state.pagina = "lista"; st.rerun()
