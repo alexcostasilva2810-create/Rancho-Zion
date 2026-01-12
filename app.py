@@ -220,7 +220,7 @@ elif st.session_state.pagina == "tripulacao":
 
     if st.button("⬅️ VOLTAR AO MENU", key="v_t"):
         st.session_state.pagina = "menu"
-        st.rerun()        
+        st.rerun()
 # --- HISTÓRICO (AGORA ATIVO) ---
 elif st.session_state.pagina == "historico":
     st.markdown("<style>.stApp { background-color: #FF8C00; }</style>", unsafe_allow_html=True)
