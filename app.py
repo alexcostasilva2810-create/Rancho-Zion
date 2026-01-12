@@ -95,7 +95,7 @@ if 'df_lista' not in st.session_state:
 USUARIOS = {
     "ENCARREGADO": {"nome": "CATIANO", "senha": "12345"},
     "AROEIRA": {"nome": "Marcos", "senha": "789"},
-    "ENCARREGADO": {"nome": "ERITON", "senha": "456"}
+    "ENCARREGADO": {"nome": "ERITON", "senha": "456"},
     "NAVIO 03": {"nome": "Carlos", "senha": "456"}
 }
 
