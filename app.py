@@ -112,7 +112,7 @@ elif st.session_state.pagina == "lista":
 
     if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM DATA/HORA NO RODAPÉ) ---
+# --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
     st.markdown("""
         <style>
@@ -130,8 +130,8 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center; color: white; text-shadow: 3px 3px 6px black;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
 
-    # Configuração de Escolta e Alerta
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="escolta_v4")
+    # Configuração de Escolta e Alerta de Validade
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="escolta_v5")
     dias_duracao = 12 if escolta == "SIM" else 15
     
     col_v1, col_v2 = st.columns([1, 1.5])
@@ -146,7 +146,7 @@ elif st.session_state.pagina == "tripulacao":
             </div>
             """, unsafe_allow_html=True)
 
-    with st.form("form_declaracao_final_v2"):
+    with st.form("form_declaracao_final_v3"):
         c1, c2 = st.columns(2)
         with c1:
             lotacao = st.number_input("Número de Tripulantes:", min_value=1, value=16)
@@ -157,7 +157,7 @@ elif st.session_state.pagina == "tripulacao":
         
         necessidades = st.text_area("Necessidades Extras:", value="No rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=150, key="sign_v4")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=150, key="sign_v5")
         btn_gravar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
 
     if btn_gravar:
@@ -173,11 +173,10 @@ elif st.session_state.pagina == "tripulacao":
             requests.post("https://api.notion.com/v1/pages", headers=h_notion, json=body)
         except: pass
 
-        # GERAÇÃO DO PDF COM DATA/HORA NO RODAPÉ
+        # GERAÇÃO DO PDF
         class PDF(FPDF):
             def header(self):
-                if os.path.exists("ZION.jpg"): 
-                    self.image("ZION.jpg", 90, 8, 30)
+                if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 90, 8, 30)
                 self.ln(35)
                 self.set_font("Arial", "B", 16)
                 self.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
@@ -186,7 +185,6 @@ elif st.session_state.pagina == "tripulacao":
                 self.ln(5)
 
             def footer(self):
-                # Registro de Data e Hora no rodapé (Restauração solicitada)
                 self.set_y(-15)
                 self.set_font("Arial", "I", 8)
                 data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -195,7 +193,6 @@ elif st.session_state.pagina == "tripulacao":
         pdf = PDF()
         pdf.add_page()
         pdf.set_font("Arial", "", 11)
-        
         texto_legal = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador e de {lotacao} tripulantes. "
                        f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
                        f"por um periodo de {dias_duracao} dias nauticos a partir de {dt_recebimento.strftime('%d/%m/%Y')}. ")
@@ -209,7 +206,6 @@ elif st.session_state.pagina == "tripulacao":
         pdf.set_font("Arial", "", 10)
         pdf.multi_cell(0, 6, necessidades)
         
-        # Área de Assinatura
         if canvas_result.image_data is not None:
             img = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
             img.save("temp_sign.png")
@@ -220,6 +216,13 @@ elif st.session_state.pagina == "tripulacao":
         pdf.cell(0, 0, "________________________________________________", ln=True, align="C")
         pdf.ln(5)
         pdf.cell(0, 8, f"{st.session_state.cozinheiro.upper()}", ln=True, align="C")
+
+        # --- NOVO AJUSTE: ALERTA VERDE APÓS SALVAR ---
+        st.markdown(f"""
+            <div style='background-color:#00D100; padding:20px; border-radius:10px; color: black; font-weight: bold; text-align:center; border: 2px solid black; margin-bottom: 15px;'>
+                ✅ REGISTRO SALVO! AGORA BAIXE O PDF ABAIXO E ENVIE AO COMPRADOR IMEDIATAMENTE.
+            </div>
+            """, unsafe_allow_html=True)
 
         st.download_button(
             label="📥 BAIXAR DECLARAÇÃO PDF OFICIAL",
