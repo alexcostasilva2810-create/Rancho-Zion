@@ -223,7 +223,6 @@ elif st.session_state.pagina == "historico":
 elif st.session_state.pagina == "tripulacao":
     from datetime import datetime, timedelta
     
-    # CSS: Fundo de alto mar e centralização do cabeçalho
     st.markdown("""
         <style>
         .stApp {
@@ -231,28 +230,80 @@ elif st.session_state.pagina == "tripulacao":
                         url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
             background-size: cover; background-position: center;
         }
-        /* Centraliza o Título e o Ícone */
         .titulo-centralizado {
-            text-align: center;
-            color: white;
-            text-shadow: 2px 2px 4px black;
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 20px;
+            text-align: center; color: white; text-shadow: 2px 2px 4px black;
+            font-size: 2.5rem; font-weight: bold; margin-bottom: 20px;
         }
         div.stButton > button {
-            background-color: #FF8C00 !important;
-            color: white !important;
-            border: 1px solid #FF8C00 !important;
-            font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
+            background-color: #FF8C00 !important; color: white !important;
+            font-weight: bold !important; text-shadow: 1px 1px 2px black !important;
         }
         h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
-            background-color: rgba(255, 255, 255, 0.9) !important; 
-        }
         </style>
         """, unsafe_allow_html=True)
+
+    st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
+    
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta == "SIM" else 15
+    
+    col_datas1, col_datas2 = st.columns(2)
+    with col_datas1:
+        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
+    
+    data_validade = data_recebimento + timedelta(days=dias_duracao)
+    
+    with col_datas2:
+        st.markdown(f"### 📅 Validade do Rancho")
+        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
+        st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
+                    f"Válido por {dias_duracao} dias até: {data_validade.strftime('%d/%m/%Y')}</div>", unsafe_allow_html=True)
+
+    with st.form("form_declaracao_final"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
+            lotacao = st.number_input("Número de tripulantes:", min_value=1, value=16)
+            origem = st.text_input("Porto de Origem", value="Porto Velho")
+        with col2:
+            data_ultimo_rancho = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
+            destino = st.text_input("Porto de Destino", value="Novo remanso")
+        
+        necessidades_extras = st.text_area("Considerações / Necessidades Extras:")
+        
+        st.write("Assinatura Digital:")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="ass_oficial")
+        
+        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+
+    if enviar:
+        if canvas_result.image_data is not None:
+            # 1. GRAVAR NO NOTION (HISTÓRICO)
+            headers_h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+            payload_h = {
+                "parent": {"database_id": ID_HISTORICO_NOTION},
+                "properties": {
+                    "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
+                    "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
+                    "Data Pedido": {"date": {"start": data_recebimento.strftime("%Y-%m-%d")}},
+                    "Validade": {"date": {"start": data_validade.strftime("%Y-%m-%d")}}
+                }
+            }
+            res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_h, json=payload_h)
+            
+            # 2. GERAR PDF
+            pdf = FPDF()
+            pdf.add_page()
+            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 90, 10, 30)
+            pdf.set_font("Arial", "B", 16); pdf.set_y(45)
+            pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
+            pdf.set_font("Arial", "", 12)
+            pdf.ln(10)
+            corpo = f"Embarcacao: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nLotacao: {lotacao} pessoas\nValidade: {data_validade.strftime('%d/%m/%Y')}"
+            pdf.multi_cell(0, 10, corpo)
+            
+            st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="Declaracao.pdf")
+            if res_n.status_code == 200: st.success("✅ Registrado no Histórico!")
 
     # Cabeçalho Centralizado com Ícone de Âncora
     st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
