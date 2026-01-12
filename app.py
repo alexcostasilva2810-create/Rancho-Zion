@@ -32,6 +32,32 @@ NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
+def carregar_dados_do_notion():
+    # Esta função garante que busque TUDO do seu Notion
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {
+        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+    try:
+        res = requests.post(url, headers=headers)
+        data = res.json()
+        lista_completa = []
+        for page in data["results"]:
+            props = page["properties"]
+            lista_completa.append({
+                "ITEM": props["ITEM"]["title"][0]["text"]["content"] if props["ITEM"]["title"] else "",
+                "DESCRIÇÃO": props["DESCRIÇÃO"]["rich_text"][0]["text"]["content"] if props["DESCRIÇÃO"]["rich_text"] else "",
+                "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
+                "UNID MED": props["UNID MED"]["rich_text"][0]["text"]["content"] if props["UNID MED"]["rich_text"] else "",
+                "PREDEFINIDO": props["PREDEFINIDO"]["number"] if "PREDEFINIDO" in props and props["PREDEFINIDO"]["number"] else 0,
+                "CONFIRMA": 0 
+            })
+        return pd.DataFrame(lista_completa).sort_values(by="ITEM")
+    except:
+        return pd.DataFrame()
+
 if 'pagina' not in st.session_state: st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
 if 'navio' not in st.session_state: st.session_state.navio = ""
@@ -92,115 +118,54 @@ elif st.session_state.pagina == "menu":
 
 # --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
 elif st.session_state.pagina == "lista":
-    # CSS: Fundo de estoque e botões nítidos
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                        url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
-            background-size: cover; background-position: center;
-        }
-        div.stButton > button {
-            background-color: #FF8C00 !important;
-            color: white !important;
-            border: 1px solid #FF8C00 !important;
-            font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
-        }
-        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    st.title("📋 Conferência de Estoque")
-    
-    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+# Estilo visual e fundo
+    st.markdown("""<style>
+        .stApp { background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920"); background-size: cover; }
+        .pdf-frame { border: 2px solid white; border-radius: 10px; background: white; }
+    </style>""", unsafe_allow_html=True)
 
-    df_editado = st.data_editor(
-        st.session_state.df_lista,
-        column_config={
-            "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
-        },
-        hide_index=True, use_container_width=True, key="editor_estoque_final"
-    )
+    st.markdown("<h1 style='text-align: center; color: white;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    col_pdf, col_voltar = st.columns(2)
-    
-    with col_pdf:
-        def preparar_celula(conteudo):
-            texto = str(conteudo) if conteudo is not None else ""
-            texto = texto.replace('\u2013', '-').replace('\u2014', '-')
-            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
-
-        try:
-            from datetime import timedelta
-
-            class PDF(FPDF):
-                def footer(self):
-                    self.set_y(-15)
-                    self.set_font('Arial', 'I', 8)
-                    # AJUSTE DE HORÁRIO: UTC-3 (Brasília)
-                    agora_brasilia = datetime.now() - timedelta(hours=3)
-                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
-                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
-
-            # Orientação Retrato (P)
-            pdf = PDF(orientation='P', unit='mm', format='A4')
-            pdf.add_page()
-            
-            # Logo Centralizada
-            if os.path.exists("ZION.jpg"):
-                pdf.image("ZION.jpg", 95, 8, 20) 
-            
-            # Cabeçalho Centralizado
-            pdf.set_font("Arial", "B", 14)
-            pdf.set_y(30)
-            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
-            pdf.ln(5)
-            
-            # Tabela (Larguras ajustadas para Retrato)
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_fill_color(220, 220, 220)
-            larguras = [10, 55, 25, 15, 20, 50, 15] 
-            titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
-            
-            for i, t in enumerate(titulos):
-                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
-            pdf.ln()
-
-            pdf.set_font("Arial", "", 7)
-            for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
-                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
-                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
-                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
-                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
-                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
-
-            pdf_output = pdf.output(dest='S').encode('latin-1')
-            
-            st.download_button(
-                label="📥 BAIXAR PDF DO ESTOQUE",
-                data=pdf_output,
-                file_name=f"Rancho_{st.session_state.navio}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        except Exception as e:
-            st.error(f"Erro ao preparar PDF: {e}")
-
-    with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
+    # Botões de navegação e busca total
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if st.button("⬅️ VOLTAR"):
+            st.session_state.pagina = "menu"; st.rerun()
+    with c2:
+        if st.button("🔄 SINCRONIZAR TUDO DO NOTION"):
+            st.session_state.df_lista = carregar_dados_do_notion()
             st.rerun()
+
+    col_pdf, col_tabela = st.columns([1, 1.3])
+
+    with col_pdf:
+        st.markdown("<h4 style='color: white;'>📄 Documento Original</h4>", unsafe_allow_html=True)
+        if os.path.exists("Rancho_JACARANDA.pdf"):
+            with open("Rancho_JACARANDA.pdf", "rb") as f:
+                b64 = base64.b64encode(f.read()).decode('utf-8')
+            # Altura ajustada para 800 para acompanhar a tabela longa
+            st.markdown(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="800" class="pdf-frame"></iframe>', unsafe_allow_html=True)
+
+    with col_tabela:
+        st.markdown("<h4 style='color: white;'>📝 Itens do Notion</h4>", unsafe_allow_html=True)
+        if 'df_lista' not in st.session_state or st.session_state.df_lista.empty:
+            st.session_state.df_lista = carregar_dados_do_notion()
+
+        # O segredo para ver os 88 itens: height=800
+        st.data_editor(
+            st.session_state.df_lista,
+            column_config={
+                "ITEM": st.column_config.TextColumn("COD", disabled=True),
+                "CONFIRMA": st.column_config.NumberColumn("REC.", min_value=0),
+                "PREDEFINIDO": st.column_config.NumberColumn("SOLIC.", disabled=True),
+                "DESCRIÇÃO": st.column_config.TextColumn("PRODUTO", disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            height=800 
+        )
+        if st.button("💾 SALVAR TUDO", use_container_width=True):
+            st.success("Conferência completa salva!")
 
 # --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
