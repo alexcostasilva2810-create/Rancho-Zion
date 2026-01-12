@@ -72,6 +72,11 @@ button {
     </style>
     """, unsafe_allow_html=True)
 
+# EXIBIR LOGO CENTRALIZADA E COM TAMANHO CONTROLADO
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    st.image("ZION.jpg", width=200)
+    
 # FUNÇÃO PARA EVITAR ERRO DE TRANSIÇÃO (NAMEERROR)
 def aplicar_estilo_azul():
     pass 
