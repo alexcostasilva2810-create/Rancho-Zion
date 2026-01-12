@@ -60,51 +60,60 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELA HOME (INICIAL) - AJUSTADO
+# BLOCO 3: TELA HOME (INICIAL) - AJUSTE OFFSHORE E LOGO
 # =================================================================
 if st.session_state.pagina == "home":
-    # CSS para fundo offshore e centralização rigorosa
+    # CSS para fundo Offshore Petrolífero e alinhamento de títulos
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
-                        url("https://images.unsplash.com/photo-1516939884453-8d6394e339a4?q=80&w=1920");
+            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
+                        url("https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920");
             background-size: cover;
             background-position: center;
+            background-attachment: fixed;
         }
-        /* Centraliza o título e imagem */
         .main-container {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             text-align: center;
+            margin-top: -50px;
         }
         .titulo-zion {
             color: white !important;
-            font-size: 45px !important;
-            font-weight: bold !important;
-            text-shadow: 3px 3px 10px rgba(0,0,0,1);
-            margin-bottom: -10px !important; /* Aproxima o nome da imagem */
+            font-size: 50px !important;
+            font-weight: 800 !important;
+            text-shadow: 4px 4px 15px rgba(0,0,0,0.9);
+            margin-bottom: -15px !important; /* Aproxima o nome da logo */
+            font-family: 'Helvetica', sans-serif;
         }
-        /* Estilo do botão reduzido */
+        /* Ajuste do botão */
         div.stButton > button {
-            width: 220px !important;
-            margin: 0 auto;
+            width: 200px !important;
+            height: 45px !important;
             background-color: #FF8C00 !important;
             color: white !important;
-            border-radius: 8px !important;
+            border-radius: 25px !important;
             font-weight: bold !important;
+            border: none !important;
+            transition: 0.3s;
+        }
+        div.stButton > button:hover {
+            background-color: #e67e00 !important;
+            transform: scale(1.05);
         }
         </style>
         """, unsafe_allow_html=True)
 
-    # Início da estrutura centralizada
+    # Container principal para centralização
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    # Nome centralizado acima da logo
+    # Nome centralizado exatamente sobre a imagem
     st.markdown("<h1 class='titulo-zion'>Zion Tecnologia</h1>", unsafe_allow_html=True)
     
-    # Colunas para garantir que a sua imagem (ZION.jpg) fique no centro e pequena
+    # Colunas para centralizar a sua logo ZION.jpg
     col1, col2, col3 = st.columns([1, 0.6, 1])
     with col2:
         if os.path.exists("ZION.jpg"): 
@@ -113,9 +122,9 @@ if st.session_state.pagina == "home":
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Botão de acesso centralizado e curto
-    col_btn1, col_btn2, col_btn3 = st.columns([1.3, 1, 1.3])
+    col_btn1, col_btn2, col_btn3 = st.columns([1.4, 1, 1.4])
     with col_btn2:
-        if st.button("🚀 ACESSAR SISTEMA"): 
+        if st.button("🚀 ACESSAR"): 
             st.session_state.pagina = "login"
             st.rerun()
             
