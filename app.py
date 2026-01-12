@@ -17,7 +17,7 @@ st.set_page_config(
     page_icon="ZION.jpg" # Define o Robô como ícone do App
 )
 
-# ESTILO DEFINITIVO PARA LIMPAR A INTERFACE
+
 # BLOCO DE ESTILO E LOGO CENTRALIZADA (COPIE DAQUI PARA BAIXO)
 st.markdown("""
     <style>
@@ -40,49 +40,6 @@ st.markdown("<h3 style='text-align: center; color: black;'>Zion Tecnologia</h3>"
 def aplicar_estilo_azul():
     pass
 # FIM DO BLOCO
-
-# =================================================================
-# BLOCO 2: CONEXÃO COM O NOTION (CARREGAMENTO DE DADOS)
-# =================================================================
-def carregar_dados_do_notion():
-    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}", 
-        "Content-Type": "application/json", 
-        "Notion-Version": "2022-06-28"
-    }
-    try:
-        response = requests.post(url, headers=headers)
-        if response.status_code == 200:
-            results = response.json().get("results", [])
-            dados = []
-            for page in results:
-                p = page.get("properties", {})
-                item_list = p.get("ITEM", {}).get("title", [])
-                item_val = item_list[0].get("plain_text", "") if item_list else ""
-                desc_list = p.get("DESCRIÇÃO", {}).get("rich_text", [])
-                desc_val = desc_list[0].get("plain_text", "") if desc_list else ""
-                tipo_val = p.get("TIPO", {}).get("select", {}).get("name", "DIVERSOS")
-                unid_val = p.get("UNID MED", {}).get("select", {}).get("name", "un")
-                predef = p.get("PREDEFINIDO", {}).get("number", 0) or 0
-                
-                dados.append({
-                    "ITEM": item_val, "DESCRIÇÃO": desc_val, "TIPO": tipo_val,
-                    "UNID MED": unid_val, "PREDEFINIDO": predef, "CONFIRMA": 0
-                })
-            df = pd.DataFrame(dados)
-            return df.sort_values(by="DESCRIÇÃO").reset_index(drop=True)
-        return st.session_state.df_lista
-    except:
-        return st.session_state.df_lista
-
-# =================================================================
-# BLOCO 3: FUNÇÕES DE NAVEGAÇÃO
-# =================================================================
-def mudar_pagina(nova_pagina):
-    st.session_state.pagina = nova_pagina
-    st.rerun()
-
 # CARREGA OS DADOS AUTOMATICAMENTE NA PRIMEIRA VEZ
 if st.session_state.df_lista.empty:
     st.session_state.df_lista = carregar_dados_do_notion()
