@@ -65,8 +65,16 @@ def aplicar_estilo_azul():
 if st.session_state.pagina == "home":
     aplicar_estilo_azul()
     st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
-    if os.path.exists("ZION.jpg"): st.image("ZION.jpg", use_container_width=True)
-    if st.button("🚀 ACESSAR SISTEMA"): 
+    
+    # Organização para centralizar e diminuir a imagem
+    col_img1, col_img2, col_img3 = st.columns([1, 1, 1])
+    with col_img2:
+        if os.path.exists("ZION.jpg"): 
+            # Ajustado para 200px para ficar menor e centralizado
+            st.image("ZION.jpg", width=200) 
+    
+    st.markdown("<br>", unsafe_allow_html=True) # Espaçamento
+    if st.button("🚀 ACESSAR SISTEMA", use_container_width=True): 
         st.session_state.pagina = "login"
         st.rerun()
 
@@ -76,24 +84,34 @@ if st.session_state.pagina == "home":
 elif st.session_state.pagina == "login":
     aplicar_estilo_azul()
     st.title("🔐 Login")
-    navio_sel = st.selectbox("Navio", list(USUARIOS.keys()))
-    senha_dig = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
+    navio_sel = st.selectbox("Selecione sua Embarcação", list(USUARIOS.keys()))
+    senha_dig = st.text_input("Senha de Acesso", type="password")
+    
+    if st.button("ENTRAR", use_container_width=True):
         dados = USUARIOS.get(navio_sel)
         if dados and senha_dig == dados["senha"]:
             st.session_state.cozinheiro = dados["nome"]
             st.session_state.navio = navio_sel
+            # Criamos a mensagem de boas-vindas aqui para ser usada no menu
+            st.session_state.mensagem_boas_vindas = f"Seja bem vindo ao Zion {dados['nome']}, vamos fazer o seu pedido."
             st.session_state.pagina = "menu"
             st.rerun()
         else: 
-            st.error("❌ Senha incorreta!")
+            st.error("❌ Senha incorreta! Tente novamente.")
 
 # =================================================================
-# BLOCO 5: TELA DE MENU PRINCIPAL
+# BLOCO 5: TELA DE MENU PRINCIPAL (COM SAUDAÇÃO)
 # =================================================================
 elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
+    
+    # Mensagem de Boas-vindas Personalizada
+    if 'mensagem_boas_vindas' in st.session_state:
+        st.success(st.session_state.mensagem_boas_vindas)
+    
     st.title(f"🚢 Painel - {st.session_state.navio}")
+    st.markdown("---")
+    
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True): 
@@ -106,10 +124,11 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ DECLARAÇÃO", use_container_width=True): 
             st.session_state.pagina = "tripulacao"
             st.rerun()
-    if st.button("⬅️ SAIR"): 
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("⬅️ LOGOUT (SAIR)"): 
         st.session_state.pagina = "home"
         st.rerun()
-
 # =================================================================
 # BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE)
 # =================================================================
