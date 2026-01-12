@@ -75,83 +75,117 @@ elif st.session_state.pagina == "menu":
             if st.button("👑 PAINEL ADM", use_container_width=True, key="m4"): st.session_state.pagina = "admin"; st.rerun()
     if st.button("⬅️ SAIR", key="m5"): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO: TELA DE CONFERÊNCIA DE ESTOQUE (RESTAURAÇÃO ORIGINAL) ---
-elif st.session_state.pagina == "conferencia":
-    # CSS para garantir que o layout ocupe a tela toda e o fundo apareça
+# --- BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE) ---
+elif st.session_state.pagina == "lista":
+    # CSS: Fundo de estoque e botões nítidos
     st.markdown("""
         <style>
-        .stApp { 
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
-            url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920"); 
-            background-size: cover; 
-            background-attachment: fixed;
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
+            background-size: cover; background-position: center;
         }
-        .pdf-viewer { border: 2px solid white; border-radius: 10px; background-color: white; }
+        div.stButton > button {
+            background-color: #FF8C00 !important;
+            color: white !important;
+            border: 1px solid #FF8C00 !important;
+            font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
+        }
+        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
         </style>
         """, unsafe_allow_html=True)
+    
+    st.title("📋 Conferência de Estoque")
+    
+    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
+        st.session_state.df_lista = carregar_dados_do_notion()
+        st.rerun()
 
-    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px black;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
+    df_editado = st.data_editor(
+        st.session_state.df_lista,
+        column_config={
+            "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
+        },
+        hide_index=True, use_container_width=True, key="editor_estoque_final"
+    )
 
-    # Navegação Superior
-    col_nav1, col_nav2 = st.columns([1, 4])
-    with col_nav1:
-        if st.button("⬅️ VOLTAR"):
+    st.markdown("---")
+    col_pdf, col_voltar = st.columns(2)
+    
+    with col_pdf:
+        def preparar_celula(conteudo):
+            texto = str(conteudo) if conteudo is not None else ""
+            texto = texto.replace('\u2013', '-').replace('\u2014', '-')
+            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
+
+        try:
+            from datetime import timedelta
+
+            class PDF(FPDF):
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    # AJUSTE DE HORÁRIO: UTC-3 (Brasília)
+                    agora_brasilia = datetime.now() - timedelta(hours=3)
+                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
+                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+
+            # Orientação Retrato (P)
+            pdf = PDF(orientation='P', unit='mm', format='A4')
+            pdf.add_page()
+            
+            # Logo Centralizada
+            if os.path.exists("ZION.jpg"):
+                pdf.image("ZION.jpg", 95, 8, 20) 
+            
+            # Cabeçalho Centralizado
+            pdf.set_font("Arial", "B", 14)
+            pdf.set_y(30)
+            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
+            
+            pdf.set_font("Arial", "", 11)
+            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+            pdf.ln(5)
+            
+            # Tabela (Larguras ajustadas para Retrato)
+            pdf.set_font("Arial", "B", 8)
+            pdf.set_fill_color(220, 220, 220)
+            larguras = [10, 55, 25, 15, 20, 50, 15] 
+            titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
+            
+            for i, t in enumerate(titulos):
+                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
+            pdf.ln()
+
+            pdf.set_font("Arial", "", 7)
+            for _, row in df_editado.iterrows():
+                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
+                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
+                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
+                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
+                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
+                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
+                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
+
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            
+            st.download_button(
+                label="📥 BAIXAR PDF DO ESTOQUE",
+                data=pdf_output,
+                file_name=f"Rancho_{st.session_state.navio}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Erro ao preparar PDF: {e}")
+
+    with col_voltar:
+        if st.button("⬅️ VOLTAR AO MENU"):
             st.session_state.pagina = "menu"
             st.rerun()
-    with col_nav2:
-        st.button("🔄 ATUALIZAR DADOS")
-
-    # Layout de duas colunas (PDF e Tabela)
-    col_pdf, col_tbl = st.columns([1.2, 1])
-
-    with col_pdf:
-        st.markdown("<h4 style='color: white;'>📄 Documento de Referência</h4>", unsafe_allow_html=True)
-        pdf_file = "Rancho_JACARANDA.pdf"
-        
-        if os.path.exists(pdf_file):
-            with open(pdf_file, "rb") as f:
-                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            
-            # Código para embutir o PDF de forma segura
-            pdf_display = f'''
-                <iframe src="data:application/pdf;base64,{base64_pdf}" 
-                width="100%" height="800" type="application/pdf" class="pdf-viewer">
-                </iframe>
-            '''
-            st.markdown(pdf_display, unsafe_allow_html=True)
-        else:
-            st.warning(f"Aguardando arquivo {pdf_file}...")
-
-    with col_tbl:
-        st.markdown("<h4 style='color: white;'>✅ Confirmar Itens</h4>", unsafe_allow_html=True)
-        
-        # Dados extraídos do Rancho_JACARANDA.pdf para conferência
-        itens_rancho = [
-            {"ITEM": "1", "DESCRIÇÃO": "Carne Moida", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 12, "CONFIRMA": 4},
-            {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 10, "CONFIRMA": 10},
-            {"ITEM": "8", "DESCRIÇÃO": "Mocoto", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 2, "CONFIRMA": 2},
-            {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID": "pacotes", "PREDEF": 3, "CONFIRMA": 3},
-            {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID": "Maco", "PREDEF": 1, "CONFIRMA": 8},
-            {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID": "kg", "PREDEF": 2, "CONFIRMA": 2},
-            {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID": "Kg", "PREDEF": 5, "CONFIRMA": 3},
-            {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID": "Lata", "PREDEF": 1, "CONFIRMA": 2},
-            {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID": "PCT", "PREDEF": 2, "CONFIRMA": 2}
-        ] [cite: 1]
-
-        # Tabela editável
-        st.data_editor(
-            itens_rancho,
-            column_config={
-                "CONFIRMA": st.column_config.NumberColumn("QTD RECEBIDA", min_value=0),
-                "PREDEF": st.column_config.NumberColumn("SOLICITADO", disabled=True),
-                "ITEM": st.column_config.TextColumn("COD", disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True
-        )
-
-        if st.button("💾 SALVAR CONFERÊNCIA", use_container_width=True):
-            st.success("Conferência registrada com sucesso!")
 
 # --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
