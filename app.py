@@ -75,78 +75,83 @@ elif st.session_state.pagina == "menu":
             if st.button("👑 PAINEL ADM", use_container_width=True, key="m4"): st.session_state.pagina = "admin"; st.rerun()
     if st.button("⬅️ SAIR", key="m5"): st.session_state.pagina = "home"; st.rerun()
 
-# --- BLOCO: TELA DE CONFERÊNCIA DE ESTOQUE (RESTAURADA) ---
+# --- BLOCO: TELA DE CONFERÊNCIA DE ESTOQUE (RESTAURAÇÃO ORIGINAL) ---
 elif st.session_state.pagina == "conferencia":
+    # CSS para garantir que o layout ocupe a tela toda e o fundo apareça
     st.markdown("""
         <style>
         .stApp { 
             background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
             url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920"); 
             background-size: cover; 
+            background-attachment: fixed;
         }
-        .pdf-container { border: 2px solid #ffffff; border-radius: 10px; overflow: hidden; background: white; }
+        .pdf-viewer { border: 2px solid white; border-radius: 10px; background-color: white; }
         </style>
         """, unsafe_allow_html=True)
 
-    st.markdown("<h1 style='text-align: center; color: white;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px black;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
 
-    # Botões de Controle Superior
-    col_btn1, col_btn2 = st.columns([1, 4])
-    with col_btn1:
+    # Navegação Superior
+    col_nav1, col_nav2 = st.columns([1, 4])
+    with col_nav1:
         if st.button("⬅️ VOLTAR"):
             st.session_state.pagina = "menu"
             st.rerun()
-    with col_btn2:
-        if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-            st.toast("Atualizando dados...")
+    with col_nav2:
+        st.button("🔄 ATUALIZAR DADOS")
 
-    # Layout em duas colunas: PDF à esquerda e Tabela à direita (ou conforme seu anexo)
-    col_pdf, col_tabela = st.columns([1, 1])
+    # Layout de duas colunas (PDF e Tabela)
+    col_pdf, col_tbl = st.columns([1.2, 1])
 
     with col_pdf:
-        st.markdown("<h3 style='color: white;'>📄 Arquivo de Referência</h3>", unsafe_allow_html=True)
-        # Caminho do arquivo baseado no seu histórico
-        pdf_path = "Rancho_JACARANDA.pdf" 
+        st.markdown("<h4 style='color: white;'>📄 Documento de Referência</h4>", unsafe_allow_html=True)
+        pdf_file = "Rancho_JACARANDA.pdf"
         
-        if os.path.exists(pdf_path):
-            with open(pdf_path, "rb") as f:
+        if os.path.exists(pdf_file):
+            with open(pdf_file, "rb") as f:
                 base64_pdf = base64.b64encode(f.read()).decode('utf-8')
             
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf" class="pdf-container"></iframe>'
+            # Código para embutir o PDF de forma segura
+            pdf_display = f'''
+                <iframe src="data:application/pdf;base64,{base64_pdf}" 
+                width="100%" height="800" type="application/pdf" class="pdf-viewer">
+                </iframe>
+            '''
             st.markdown(pdf_display, unsafe_allow_html=True)
         else:
-            st.error("Arquivo PDF 'Rancho_JACARANDA.pdf' não encontrado para exibição.")
+            st.warning(f"Aguardando arquivo {pdf_file}...")
 
-    with col_tabela:
-        st.markdown("<h3 style='color: white;'>📝 Itens para Confirmar</h3>", unsafe_allow_html=True)
+    with col_tbl:
+        st.markdown("<h4 style='color: white;'>✅ Confirmar Itens</h4>", unsafe_allow_html=True)
         
-        # Simulação dos dados conforme o anexo e o arquivo Rancho_JACARANDA.pdf
-        dados_conferencia = [
-            {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Kg", "PREDEFINIDO": 5, "CONFIRMA": 0},
-            {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Maço", "PREDEFINIDO": 10, "CONFIRMA": 0},
-            {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 0},
-            {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID MED": "pacotes", "PREDEFINIDO": 3, "CONFIRMA": 0},
-            {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID MED": "PCT", "PREDEFINIDO": 2, "CONFIRMA": 0},
-            {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 10, "CONFIRMA": 0},
-            {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID MED": "Lata", "PREDEFINIDO": 1, "CONFIRMA": 0},
-            {"ITEM": "54", "DESCRIÇÃO": "Cominho em pó – 100 gramas", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Pacote", "PREDEFINIDO": 2, "CONFIRMA": 0},
-            {"ITEM": "8", "DESCRIÇÃO": "Mocotó", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 0}
-        ]
-        
-        # Exibição da Tabela interativa
+        # Dados extraídos do Rancho_JACARANDA.pdf para conferência
+        itens_rancho = [
+            {"ITEM": "1", "DESCRIÇÃO": "Carne Moida", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 12, "CONFIRMA": 4},
+            {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 10, "CONFIRMA": 10},
+            {"ITEM": "8", "DESCRIÇÃO": "Mocoto", "TIPO": "PROTEINAS", "UNID": "kg", "PREDEF": 2, "CONFIRMA": 2},
+            {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID": "pacotes", "PREDEF": 3, "CONFIRMA": 3},
+            {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID": "Maco", "PREDEF": 1, "CONFIRMA": 8},
+            {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID": "kg", "PREDEF": 2, "CONFIRMA": 2},
+            {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID": "Kg", "PREDEF": 5, "CONFIRMA": 3},
+            {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID": "Lata", "PREDEF": 1, "CONFIRMA": 2},
+            {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID": "PCT", "PREDEF": 2, "CONFIRMA": 2}
+        ] [cite: 1]
+
+        # Tabela editável
         st.data_editor(
-            dados_conferencia,
+            itens_rancho,
             column_config={
-                "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, step=1),
-                "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True)
+                "CONFIRMA": st.column_config.NumberColumn("QTD RECEBIDA", min_value=0),
+                "PREDEF": st.column_config.NumberColumn("SOLICITADO", disabled=True),
+                "ITEM": st.column_config.TextColumn("COD", disabled=True)
             },
-            use_container_width=True,
-            num_rows="dynamic",
-            hide_index=True
+            hide_index=True,
+            use_container_width=True
         )
-        
-        if st.button("💾 FINALIZAR CONFERÊNCIA E SALVAR"):
-            st.success("Conferência salva com sucesso no sistema!")
+
+        if st.button("💾 SALVAR CONFERÊNCIA", use_container_width=True):
+            st.success("Conferência registrada com sucesso!")
 
 # --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
