@@ -130,26 +130,68 @@ if st.session_state.pagina == "home":
             
     st.markdown("</div>", unsafe_allow_html=True)
 # =================================================================
-# BLOCO 4: TELA DE LOGIN
+# BLOCO 4: TELA DE LOGIN (COM FUNDO OFFSHORE E BOTÃO VOLTAR)
 # =================================================================
 elif st.session_state.pagina == "login":
-    aplicar_estilo_azul()
-    st.title("🔐 Login")
-    navio_sel = st.selectbox("Selecione sua Embarcação", list(USUARIOS.keys()))
-    senha_dig = st.text_input("Senha de Acesso", type="password")
-    
-    if st.button("ENTRAR", use_container_width=True):
-        dados = USUARIOS.get(navio_sel)
-        if dados and senha_dig == dados["senha"]:
-            st.session_state.cozinheiro = dados["nome"]
-            st.session_state.navio = navio_sel
-            # Criamos a mensagem de boas-vindas aqui para ser usada no menu
-            st.session_state.mensagem_boas_vindas = f"Seja bem vindo ao Zion {dados['nome']}, vamos fazer o seu pedido."
-            st.session_state.pagina = "menu"
-            st.rerun()
-        else: 
-            st.error("❌ Senha incorreta! Tente novamente.")
+    # CSS: Mesma imagem de fundo da Home (Offshore Petrolífera)
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url("https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .login-box {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1, h2, label {
+            color: white !important;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        /* Ajuste dos botões da tela de login */
+        div.stButton > button {
+            width: 100% !important;
+            border-radius: 10px !important;
+            font-weight: bold !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
+    st.markdown("<h1 style='text-align: center;'>🔐 Acesso Restrito</h1>", unsafe_allow_html=True)
+    
+    # Centralização do formulário de login
+    col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+    
+    with col_l2:
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+        navio_sel = st.selectbox("Selecione sua Embarcação", list(USUARIOS.keys()))
+        senha_dig = st.text_input("Senha de Acesso", type="password")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Botão Entrar
+        if st.button("🚀 ENTRAR"):
+            dados = USUARIOS.get(navio_sel)
+            if dados and senha_dig == dados["senha"]:
+                st.session_state.cozinheiro = dados["nome"]
+                st.session_state.navio = navio_sel
+                st.session_state.mensagem_boas_vindas = f"Seja bem vindo ao Zion {dados['nome']}, vamos fazer o seu pedido."
+                st.session_state.pagina = "menu"
+                st.rerun()
+            else:
+                st.error("❌ Senha incorreta!")
+        
+        # Botão Voltar
+        if st.button("⬅️ VOLTAR AO INÍCIO"):
+            st.session_state.pagina = "home"
+            st.rerun()
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 # =================================================================
 # BLOCO 5: TELA DE MENU PRINCIPAL (COM SAUDAÇÃO)
 # =================================================================
