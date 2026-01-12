@@ -18,6 +18,7 @@ st.set_page_config(
 )
 
 
+# --- RESTAURAÇÃO DO SISTEMA E CENTRALIZAÇÃO DA LOGO ---
 st.markdown("""
     <style>
     /* 1. Fundo branco e sem robô gigante */
@@ -26,13 +27,13 @@ st.markdown("""
         background-image: none !important;
     }
     
-    /* 2. Centralizar a logo Zion */
+    /* 2. Centralizar a logo Zion perfeitamente */
     [data-testid="stImage"] {
         display: flex;
         justify-content: center;
     }
 
-    /* 3. Limpar menus e topo */
+    /* 3. Limpar menus e topo vermelho */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
@@ -42,11 +43,11 @@ st.markdown("""
 # EXIBIR LOGO PEQUENA E CENTRALIZADA
 st.image("ZION.jpg", width=150)
 
-# FUNÇÃO OBRIGATÓRIA PARA O SISTEMA NÃO TRAVAR
+# FUNÇÃO OBRIGATÓRIA PARA O SISTEMA
 def aplicar_estilo_azul():
     pass
 
-# INICIALIZAR MEMÓRIA (TRAZ O BOTÃO DE ACESSO DE VOLTA)
+# INICIALIZAR BANCO DE DADOS (ISSO FAZ O BOTÃO DE ACESSO VOLTAR)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
@@ -56,7 +57,6 @@ if 'pagina' not in st.session_state:
 
 # CONTINUIDADE DA LÓGICA (LINHA 59 CORRIGIDA)
 elif st.session_state.pagina == "menu":
-    st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📋 TABELA DE RANCHO", use_container_width=True): st.session_state.pagina = "lista"; st.rerun()
