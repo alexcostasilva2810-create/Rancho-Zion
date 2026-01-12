@@ -112,93 +112,106 @@ elif st.session_state.pagina == "lista":
 
     if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- DECLARAÇÃO (ESTILO OFFSHORE REFINADO & CORREÇÃO DE ERRO) ---
+# --- BLOCO 3: TELA DE DECLARAÇÃO E REGISTRO (RESTAURADA) ---
 elif st.session_state.pagina == "tripulacao":
-    st.markdown("""<style>
+    # CSS Restaurado do seu código original (Anexo 2)
+    st.markdown("""
+        <style>
         .stApp { 
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://images.unsplash.com/photo-1516939884455-1445c8652f83?q=80&w=1920"); 
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+            url("https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?q=80&w=1920"); 
             background-size: cover; 
             background-position: center;
         }
-        /* Letras de Comando (Labels) - Grandes e Negrito */
+        /* Letras de Comando Maiores conforme solicitado */
         label p { 
-            font-size: 1.3rem !important; 
+            font-size: 1.4rem !important; 
             color: white !important; 
-            font-weight: 800 !important;
-            text-shadow: 2px 2px 4px #000;
+            font-weight: bold !important;
+            text-shadow: 2px 2px 4px black;
         }
         /* Campos Brancos com Letras Pretas */
         .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input { 
             color: black !important; 
             background-color: white !important; 
-            font-size: 1.1rem !important;
-            border-radius: 8px !important;
+            font-weight: bold !important;
         }
-    </style>""", unsafe_allow_html=True)
+        </style>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 3px 3px 6px black;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+
+    # Lógica de Escolta e Advertência Dinâmica
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta == "SIM" else 15
     
-    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 3px 3px 6px #000;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    col_v1, col_v2 = st.columns([1, 1.5])
+    with col_v1:
+        dt_recebimento = st.date_input("Data prevista para o rancho:", datetime.now())
     
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="rad_e")
-    dias = 12 if escolta == "SIM" else 15
-    
-    col_a, col_b = st.columns([1, 1.5])
-    with col_a:
-        dt_prev = st.date_input("Data prevista para receber:", datetime.now(), key="d_p")
-    with col_b:
-        dt_val = dt_prev + timedelta(days=dias)
-        # Advertência Dinâmica (Verde ou Vermelho com Letras Pretas)
-        bg_adv = "#FF3131" if escolta == "SIM" else "#00D100" 
+    with col_v2:
+        dt_validade = dt_recebimento + timedelta(days=dias_duracao)
+        # Cor dinâmica: Vermelho para Escolta (Atenção), Verde para Normal
+        cor_alerta = "#FF3131" if escolta == "SIM" else "#00D100"
         st.markdown(f"""
-            <div style='background-color:{bg_adv}; padding:20px; border-radius:15px; color:black; font-weight:900; text-align:center; border: 3px solid black; font-size: 1.3rem;'>
-                ⚠️ ATENÇÃO: Rancho durará até {dt_val.strftime('%d/%m/%Y')}
+            <div style='background-color:{cor_alerta}; padding:18px; border-radius:12px; color:black; font-weight:900; text-align:center; border: 2px solid black; font-size: 1.2rem;'>
+                ATENÇÃO: Com {dias_duracao} dias, seu rancho durará até {dt_validade.strftime('%d/%m/%Y')}
             </div>
             """, unsafe_allow_html=True)
 
-    # FORMULÁRIO DE DADOS
-    with st.form("f_declaracao_zion"):
+    # Formulário de Registro (Baseado no seu algoritmo pronto)
+    with st.form("form_declaracao_oficial", clear_on_submit=False):
         c1, c2 = st.columns(2)
         with c1:
-            st.number_input("Número de Tripulantes:", min_value=1, value=16, key="lot")
-            st.text_input("Porto de Origem:", value="Porto Velho", key="orig")
+            lotacao = st.number_input("Número de Tripulantes:", min_value=1, value=16)
+            origem = st.text_input("Porto de Origem:", value="Porto Velho")
         with c2:
-            st.date_input("Data do último rancho:", datetime.now(), key="dt_u")
-            st.text_input("Porto de Destino:", value="Novo Remanso", key="dest")
+            dt_ultimo = st.date_input("Data do último rancho:", datetime.now())
+            destino = st.text_input("Porto de Destino:", value="Novo Remanso")
         
-        st.text_area("Necessidades Extras:", key="ext")
-        st.write("Assinatura do Responsável:")
-        canvas = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=120, key="canv")
+        necessidades = st.text_area("Necessidades Extras:", placeholder="Descreva aqui...")
         
-        # Botão que apenas PROCESSA e SALVA
-        btn_processar = st.form_submit_button("✅ SALVAR NO HISTÓRICO E PREPARAR PDF")
+        st.write("Assinatura Digital:")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=120, key="assinatura")
+        
+        # Botão de Ação do Form
+        btn_gravar = st.form_submit_button("💾 REGISTRAR NO HISTÓRICO E GERAR PDF")
 
-    # AÇÃO FORA DO FORMULÁRIO (Para evitar o erro da imagem)
-    if btn_processar:
-        # 1. Enviar ao Notion
-        try:
-            h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-            body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
+    # PROCESSAMENTO PÓS-SUBMIT (Fora do form para evitar erro de PDF)
+    if btn_gravar:
+        # 1. Envio para o Notion (Seu algoritmo original)
+        payload = {
+            "parent": {"database_id": ID_HISTORICO_NOTION},
+            "properties": {
                 "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
                 "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
-                "Data Pedido": {"date": {"start": dt_prev.strftime("%Y-%m-%d")}},
-                "Validade": {"date": {"start": dt_val.strftime("%Y-%m-%d")}}
-            }}
-            requests.post("https://api.notion.com/v1/pages", headers=h, json=body)
-            st.success("✅ Histórico Gravado!")
-        except:
-            st.error("Erro ao conectar com o banco de dados.")
+                "Data Pedido": {"date": {"start": dt_recebimento.strftime("%Y-%m-%d")}},
+                "Validade": {"date": {"start": dt_validade.strftime("%Y-%m-%d")}}
+            }
+        }
+        
+        try:
+            h_notion = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+            res = requests.post("https://api.notion.com/v1/pages", headers=h_notion, json=payload)
+            if res.status_code == 200:
+                st.success("✅ Histórico Gravado com Sucesso!")
+            else:
+                st.error(f"Erro ao gravar histórico: {res.status_code}")
+        except Exception as e:
+            st.error(f"Erro de conexão: {e}")
 
-        # 2. Gerar PDF para Download
+        # 2. Geração do PDF (Layout que você já usava)
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", "B", 16)
         pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
         pdf.ln(10)
         pdf.set_font("Arial", "", 12)
-        pdf.multi_cell(0, 10, f"Navio: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nPrevisao: {dt_prev}\nValidade: {dt_val}")
+        pdf.multi_cell(0, 10, f"Navio: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nPrevisao: {dt_recebimento}\nValidade: {dt_validade}")
         
-        # BOTÃO DE DOWNLOAD (Agora fora do form para não dar erro)
+        # O botão de download aparece aqui, fora do st.form
         st.download_button(
-            label="📥 BAIXAR PDF GERADO",
+            label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
             data=pdf.output(dest='S').encode('latin-1'),
             file_name=f"Declaracao_{st.session_state.navio}.pdf",
             mime="application/pdf",
@@ -207,8 +220,7 @@ elif st.session_state.pagina == "tripulacao":
 
     if st.button("⬅️ VOLTAR AO MENU", key="v_t"):
         st.session_state.pagina = "menu"
-        st.rerun()
-        
+        st.rerun()        
 # --- HISTÓRICO (AGORA ATIVO) ---
 elif st.session_state.pagina == "historico":
     st.markdown("<style>.stApp { background-color: #FF8C00; }</style>", unsafe_allow_html=True)
