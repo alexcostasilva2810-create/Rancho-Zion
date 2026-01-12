@@ -50,10 +50,7 @@ def carregar_dados_do_notion():
                     "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
                     "CONFIRMA": 0
 st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
-    
-    # CENTRALIZAR E DIMINUIR A IMAGEM
-    if os.path.exists("ZION.jpg"):
-        col1, col2, col3 = st.columns([1, 2, 1])
+
         with col2:
             st.image("ZION.jpg", width=200)
 
