@@ -9,70 +9,78 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E ESTILO "LIMPA TUDO"
+# BLOCO 1: CONFIGURAÇÕES E ESTILO RADICAL (REMOÇÃO DE LOGOS)
 # =================================================================
 st.set_page_config(
     page_title="Zion Rancho App", 
     layout="wide", 
-    page_icon="ZION.jpg" # O Robô será o ícone na tela do celular
+    page_icon="ZION.jpg" # Define o Robô como ícone do App
 )
 
-# ESTILO PARA REMOVER COROA, LOGO E DEIXAR LETRA PRETA
+# ESTILO DEFINITIVO PARA LIMPAR A INTERFACE
 st.markdown("""
     <style>
-    /* 1. Remove a coroa e a logo do Streamlit no canto inferior */
-    #viewerBadge, .stDeployButton, footer, img[alt="Streamlit logo"] {
+    /* 1. REMOÇÃO AGRESSIVA DA COROA E LOGO STREAMLIT */
+    #viewerBadge, 
+    .stDeployButton, 
+    footer, 
+    img[alt="Streamlit logo"], 
+    div[data-testid="stStatusWidget"],
+    .viewerBadge_container__1QSob,
+    .st-emotion-cache-zq5wms.e1nzilvr4,
+    [data-testid="stDecoration"] {
         display: none !important;
         visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
     
-    /* 2. Remove menus superiores */
+    /* 2. REMOVE MENUS E CABEÇALHOS */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* 3. Fundo Branco e Ajuste de Topo */
+    /* 3. FUNDO BRANCO E AJUSTE DE TOPO */
     .stApp { 
         margin-top: -80px; 
         background-color: #FFFFFF !important; 
     }
 
-    /* 4. Letras Pretas em tudo (Labels e Textos) */
-    h1, h2, h3, p, label, .stMarkdown, [data-testid="stMarkdownContainer"] p {
+    /* 4. FORÇA LETRAS PRETAS EM TODOS OS CAMPOS E TEXTOS */
+    h1, h2, h3, p, label, span, .stMarkdown, [data-testid="stMarkdownContainer"] p {
         color: #000000 !important;
     }
 
-    /* 5. Letras Pretas dentro dos campos de digitação */
-    input, textarea, [data-baseweb="input"] {
+    /* 5. TEXTO DIGITADO (INPUT) SEMPRE PRETO - CRUCIAL PARA CELULARES */
+    input, textarea, [data-baseweb="input"], [data-baseweb="select"] {
         color: #000000 !important;
         -webkit-text-fill-color: #000000 !important;
-    }
-    
-    /* 6. Cor de fundo dos campos para destaque */
-    [data-baseweb="input"] {
         background-color: #F0F2F6 !important;
     }
-
-    /* 7. Botões Laranja Zion */
+    
+    /* 6. BOTÕES PERSONALIZADOS ZION */
     div.stButton > button {
         background-color: #FF8C00 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 10px;
+        border: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# FUNÇÃO VAZIA PARA EVITAR ERRO DE NOME
+# FUNÇÃO PARA EVITAR ERRO DE TRANSIÇÃO (NAMEERROR)
 def aplicar_estilo_azul():
     pass 
 
-# IDs DE CONEXÃO
+# IDs DE CONEXÃO E TOKENS
 COLUNAS_PADRAO = ["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"]
 NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-# INICIALIZAÇÃO DE VARIÁVEIS DE ESTADO
+# INICIALIZAÇÃO DO ESTADO (EVITA ATTRIBUTEERROR)
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
@@ -89,7 +97,7 @@ USUARIOS = {
 }
 
 # =================================================================
-# BLOCO 2: CONEXÃO COM O NOTION
+# BLOCO 2: CONEXÃO COM O NOTION (CARREGAMENTO DE DADOS)
 # =================================================================
 def carregar_dados_do_notion():
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
@@ -112,6 +120,7 @@ def carregar_dados_do_notion():
                 tipo_val = p.get("TIPO", {}).get("select", {}).get("name", "DIVERSOS")
                 unid_val = p.get("UNID MED", {}).get("select", {}).get("name", "un")
                 predef = p.get("PREDEFINIDO", {}).get("number", 0) or 0
+                
                 dados.append({
                     "ITEM": item_val, "DESCRIÇÃO": desc_val, "TIPO": tipo_val,
                     "UNID MED": unid_val, "PREDEFINIDO": predef, "CONFIRMA": 0
@@ -123,12 +132,13 @@ def carregar_dados_do_notion():
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: FUNÇÕES AUXILIARES
+# BLOCO 3: FUNÇÕES DE NAVEGAÇÃO
 # =================================================================
 def mudar_pagina(nova_pagina):
     st.session_state.pagina = nova_pagina
     st.rerun()
 
+# CARREGA OS DADOS AUTOMATICAMENTE NA PRIMEIRA VEZ
 if st.session_state.df_lista.empty:
     st.session_state.df_lista = carregar_dados_do_notion()
     
