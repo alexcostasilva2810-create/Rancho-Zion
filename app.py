@@ -223,7 +223,6 @@ elif st.session_state.pagina == "historico":
 elif st.session_state.pagina == "tripulacao":
     from datetime import datetime, timedelta
     
-    # Estilo Visual
     st.markdown("""
         <style>
         .stApp {
@@ -241,37 +240,40 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
     
-    # Radio com Key única para evitar o erro DuplicateElementId
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="radio_escolta_zion")
+    # Radio com Key única para não duplicar
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="escolta_unica_zion")
     dias_duracao = 12 if escolta == "SIM" else 15
     
     col_datas1, col_datas2 = st.columns(2)
     with col_datas1:
-        data_recebimento = st.date_input("Data prevista para receber:", datetime.now(), key="dt_receb_zion")
+        data_recebimento = st.date_input("Data prevista para receber:", datetime.now(), key="data_receb_unica")
     
     data_validade = data_recebimento + timedelta(days=dias_duracao)
     
     with col_datas2:
         st.markdown(f"### 📅 Validade")
-        st.info(f"Válido até: {data_validade.strftime('%d/%m/%Y')}")
+        st.success(f"Válido por {dias_duracao} dias até: {data_validade.strftime('%d/%m/%Y')}")
 
-    # Formulário de envio
-    with st.form("form_registro_historico", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
+    # FORMULÁRIO DE REGISTRO
+    with st.form("form_oficial_zion", clear_on_submit=False):
+        c1, c2 = st.columns(2)
+        with c1:
             st.text_input("Responsável", value=st.session_state.cozinheiro, disabled=True)
-            lotacao = st.number_input("Número de tripulantes:", min_value=1, value=16, key="n_trip_zion")
-        with col2:
-            origem = st.text_input("Porto de Origem", value="Porto Velho", key="porto_orig_zion")
-            destino = st.text_input("Porto de Destino", value="Novo Remanso", key="porto_dest_zion")
+            lotacao = st.number_input("Número de tripulantes:", min_value=1, value=16, key="lot_unica")
+            origem = st.text_input("Porto de Origem", value="Porto Velho", key="orig_unica")
+        with c2:
+            data_ultimo = st.date_input("Data do último rancho:", datetime.now(), key="ult_rancho_unica")
+            destino = st.text_input("Porto de Destino", value="Novo Remanso", key="dest_unica")
+        
+        extras = st.text_area("Considerações / Necessidades Extras:", key="txt_extra_unico")
         
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="canvas_assinatura")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="assinatura_unica")
         
-        botao_salvar = st.form_submit_button("💾 REGISTRAR E GERAR PDF")
+        btn_gravar = st.form_submit_button("💾 REGISTRAR NO HISTÓRICO E GERAR PDF")
 
-    if botao_salvar:
-        # 1. Enviar para o Notion
+    if btn_gravar:
+        # ENVIO PARA O NOTION (Para a tabela não ficar em branco)
         headers_notion = {
             "Authorization": f"Bearer {NOTION_TOKEN}",
             "Content-Type": "application/json",
@@ -288,19 +290,18 @@ elif st.session_state.pagina == "tripulacao":
         }
         
         try:
-            resposta = requests.post("https://api.notion.com/v1/pages", headers=headers_notion, json=payload_historico)
-            if resposta.status_code == 200:
-                st.success("✅ Lançamento registrado no histórico!")
-                # Lógica de PDF aqui...
+            res = requests.post("https://api.notion.com/v1/pages", headers=headers_notion, json=payload_historico)
+            if res.status_code == 200:
+                st.balloons()
+                st.success("✅ Histórico Gravado com Sucesso!")
             else:
-                st.error(f"Erro ao salvar no Notion: {resposta.status_code}")
+                st.error(f"Erro ao gravar (Código: {res.status_code})")
         except Exception as e:
             st.error(f"Erro de conexão: {e}")
 
-    if st.button("⬅️ VOLTAR AO PAINEL"):
+    if st.button("⬅️ VOLTAR AO MENU", key="btn_voltar_unico"):
         st.session_state.pagina = "menu"
         st.rerun()
-
     # Cabeçalho Centralizado com Ícone de Âncora
     st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
     
