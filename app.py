@@ -18,41 +18,43 @@ st.set_page_config(
 )
 
 
-# --- RESTAURAÇÃO TOTAL DO SISTEMA ---
 st.markdown("""
     <style>
-    /* 1. Fundo branco e sem robô gigante */
+    /* 1. Fundo branco e sem robô */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
     
-    /* 2. Centralizar a logo Zion perfeitamente */
+    /* 2. Centralizar a logo Zion */
     [data-testid="stImage"] {
         display: flex;
         justify-content: center;
     }
 
-    /* 3. Limpar menus e topo vermelho */
+    /* 3. Limpar menus e topo */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# EXIBIR LOGO PEQUENA E CENTRALIZADA
+# EXIBIR LOGO CENTRALIZADA
 st.image("ZION.jpg", width=150)
 
-# FUNÇÃO OBRIGATÓRIA PARA O SISTEMA
+# FUNÇÃO PARA O SISTEMA NÃO TRAVAR
 def aplicar_estilo_azul():
     pass
 
-# INICIALIZAR BANCO DE DADOS (ISSO TRAZ O BOTÃO DE ACESSO DE VOLTA)
+# REATIVAR O BOTÃO DE ACESSO E AS MENSAGENS
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
-# GARANTIR QUE A PÁGINA DE LOGIN SEJA A PRIMEIRA A APARECER
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "home"
+
+elif st.session_state.pagina == "menu":# GARANTIR QUE A PÁGINA DE LOGIN SEJA A PRIMEIRA A APARECER
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
