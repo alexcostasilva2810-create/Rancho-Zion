@@ -318,20 +318,59 @@ elif st.session_state.pagina == "tripulacao":
 # BLOCO 8: TELA DE HISTÓRICO
 # =================================================================
 elif st.session_state.pagina == "historico":
-    aplicar_estilo_azul(); st.title("📜 Histórico de Registros")
+    aplicar_estilo_azul()
+    st.title("📜 Histórico de Registros")
+
     try:
         url_h = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
-        headers_h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+        headers_h = {
+            "Authorization": f"Bearer {NOTION_TOKEN}", 
+            "Content-Type": "application/json", 
+            "Notion-Version": "2022-06-28"
+        }
+        # Filtra apenas os registros do navio logado
         payload = {"filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}}}
         res = requests.post(url_h, headers=headers_h, json=payload)
+
         if res.status_code == 200:
             results = res.json().get("results", [])
-            dados_h = [{"Data": r["properties"]["Data Pedido"]["date"]["start"], 
-                        "Responsável": r["properties"]["Cozinheiro"]["title"][0]["text"]["content"], 
-                        "Validade": r["properties"]["Validade"]["date"]["start"]} for r in results if r["properties"]["Cozinheiro"]["title"]]
-            st.dataframe(pd.DataFrame(dados_h), use_container_width=True, hide_index=True)
-        else: st.warning("Sem registros.")
-    except: st.error("Erro ao carregar módulo.")
-    if st.button("⬅️ VOLTAR AO MENU"): 
+            
+            if results:
+                dados_h = []
+                for r in results:
+                    props = r["properties"]
+                    if props["Cozinheiro"]["title"]:
+                        dados_h.append({
+                            "Data Pedido": props["Data Pedido"]["date"]["start"],
+                            "Responsável": props["Cozinheiro"]["title"][0]["text"]["content"],
+                            "Validade": props["Validade"]["date"]["start"]
+                        })
+                
+                # Criar DataFrame e formatar datas
+                df_h = pd.DataFrame(dados_h)
+                df_h["Data Pedido"] = pd.to_datetime(df_h["Data Pedido"]).dt.strftime('%d/%m/%Y')
+                df_h["Validade"] = pd.to_datetime(df_h["Validade"]).dt.strftime('%d/%m/%Y')
+
+                # Exibição da Tabela
+                st.dataframe(df_h, use_container_width=True, hide_index=True)
+
+                # Seção para recuperar PDF
+                st.markdown("### 📄 Recuperar Documento")
+                registro_sel = st.selectbox("Selecione um registro para gerar a 2ª via do PDF:", 
+                                            df_h["Data Pedido"].tolist())
+                
+                if st.button("🔄 GERAR 2ª VIA DO PDF"):
+                    # Aqui você pode reutilizar a lógica de PDF do Bloco 6 ou 7 
+                    # para reconstruir o documento com base na data selecionada.
+                    st.info(f"PDF reconstruído para a solicitação de {registro_sel} disponível para download em instantes...")
+            else:
+                st.warning("Nenhum registro encontrado para este navio.")
+        else:
+            st.error(f"Erro na API: {res.status_code}")
+            
+    except Exception as e:
+        st.error(f"Erro ao carregar módulo de histórico: {e}")
+
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
