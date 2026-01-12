@@ -328,7 +328,6 @@ elif st.session_state.pagina == "historico":
             "Content-Type": "application/json", 
             "Notion-Version": "2022-06-28"
         }
-        # Filtra apenas os registros do navio logado
         payload = {"filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}}}
         res = requests.post(url_h, headers=headers_h, json=payload)
 
@@ -338,38 +337,66 @@ elif st.session_state.pagina == "historico":
             if results:
                 dados_h = []
                 for r in results:
-                    props = r["properties"]
-                    if props["Cozinheiro"]["title"]:
+                    p = r["properties"]
+                    if p["Cozinheiro"]["title"]:
                         dados_h.append({
-                            "Data Pedido": props["Data Pedido"]["date"]["start"],
-                            "Responsável": props["Cozinheiro"]["title"][0]["text"]["content"],
-                            "Validade": props["Validade"]["date"]["start"]
+                            "Data Pedido": p["Data Pedido"]["date"]["start"],
+                            "Responsável": p["Cozinheiro"]["title"][0]["text"]["content"],
+                            "Validade": p["Validade"]["date"]["start"]
                         })
                 
-                # Criar DataFrame e formatar datas
                 df_h = pd.DataFrame(dados_h)
+                # Formata as datas para o padrão brasileiro
                 df_h["Data Pedido"] = pd.to_datetime(df_h["Data Pedido"]).dt.strftime('%d/%m/%Y')
                 df_h["Validade"] = pd.to_datetime(df_h["Validade"]).dt.strftime('%d/%m/%Y')
 
-                # Exibição da Tabela
                 st.dataframe(df_h, use_container_width=True, hide_index=True)
 
-                # Seção para recuperar PDF
-                st.markdown("### 📄 Recuperar Documento")
-                registro_sel = st.selectbox("Selecione um registro para gerar a 2ª via do PDF:", 
-                                            df_h["Data Pedido"].tolist())
+                st.markdown("---")
+                st.markdown("### 📄 Gerar 2ª Via")
                 
-                if st.button("🔄 GERAR 2ª VIA DO PDF"):
-                    # Aqui você pode reutilizar a lógica de PDF do Bloco 6 ou 7 
-                    # para reconstruir o documento com base na data selecionada.
-                    st.info(f"PDF reconstruído para a solicitação de {registro_sel} disponível para download em instantes...")
+                # Seleção por data formatada
+                lista_datas = df_h["Data Pedido"].unique().tolist()
+                data_sel = st.selectbox("Selecione a data do registro:", lista_datas)
+                
+                # Lógica de reconstrução do PDF (Simplificada para o histórico)
+                def preparar_texto(t):
+                    return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+
+                # Criando o PDF da 2ª Via
+                pdf_hist = FPDF(orientation='P', unit='mm', format='A4')
+                pdf_hist.add_page()
+                
+                if os.path.exists("ZION.jpg"): 
+                    pdf_hist.image("ZION.jpg", 95, 8, 20)
+                
+                pdf_hist.set_font("Arial", "B", 14)
+                pdf_hist.set_y(30)
+                pdf_hist.cell(0, 10, preparar_texto(f"2a VIA - DECLARACAO DE RANCHO"), ln=True, align="C")
+                pdf_hist.set_font("Arial", "", 12)
+                pdf_hist.cell(0, 10, preparar_texto(f"Navio: {st.session_state.navio}"), ln=True, align="C")
+                pdf_hist.cell(0, 10, preparar_texto(f"Data do Registro: {data_sel}"), ln=True, align="C")
+                pdf_hist.ln(10)
+                
+                # Texto padrão de 2ª via
+                corpo = f"Este documento e uma segunda via gerada automaticamente referente ao pedido realizado em {data_sel}."
+                pdf_hist.multi_cell(0, 10, preparar_texto(corpo), align="C")
+                
+                # O botão de download aparece logo abaixo do selectbox
+                st.download_button(
+                    label=f"📥 BAIXAR 2ª VIA ({data_sel})",
+                    data=pdf_hist.output(dest='S').encode('latin-1'),
+                    file_name=f"2via_Rancho_{st.session_state.navio}_{data_sel.replace('/','-')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
             else:
-                st.warning("Nenhum registro encontrado para este navio.")
+                st.warning("Nenhum registro encontrado.")
         else:
-            st.error(f"Erro na API: {res.status_code}")
+            st.error("Erro ao conectar com o Notion.")
             
     except Exception as e:
-        st.error(f"Erro ao carregar módulo de histórico: {e}")
+        st.error(f"Erro: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
