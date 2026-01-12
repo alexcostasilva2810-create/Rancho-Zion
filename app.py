@@ -8,6 +8,21 @@ from PIL import Image
 import os
 import requests
 
+# --- COLE ISSO NO TOPO DO ARQUIVO ---
+def carregar_dados_do_notion():
+    dados = [
+        {"ITEM": "1", "DESCRIÇÃO": "Carne Moida", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 12, "CONFIRMA": 4},
+        {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 10, "CONFIRMA": 10},
+        {"ITEM": "8", "DESCRIÇÃO": "Mocoto", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 2},
+        {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID MED": "pacotes", "PREDEFINIDO": 3, "CONFIRMA": 3},
+        {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Maco", "PREDEFINIDO": 10, "CONFIRMA": 8},
+        {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 2},
+        {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Kg", "PREDEFINIDO": 5, "CONFIRMA": 3},
+        {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID MED": "Lata", "PREDEFINIDO": 1, "CONFIRMA": 2},
+        {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID MED": "PCT", "PREDEFINIDO": 2, "CONFIRMA": 2}
+    ]
+    return pd.DataFrame(dados)
+
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E IDs
 # =================================================================
