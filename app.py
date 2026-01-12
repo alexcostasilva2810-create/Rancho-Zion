@@ -18,53 +18,47 @@ st.set_page_config(
 )
 
 
-# BLOCO DE ESTILO E LOGO CENTRALIZADA (COPIE DAQUI PARA BAIXO)
+# ==========================================
+# BLOCO DE ESTILO, LOGO E INICIALIZAÇÃO
+# ==========================================
 st.markdown("""
     <style>
+    /* Forçar fundo branco e remover robô gigante */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
+    /* Limpar menus do Streamlit */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
+    
+    /* Forçar textos em preto */
+    .stMarkdown, p, label, h1, h2, h3 {
+        color: black !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
+# EXIBIR LOGO CENTRALIZADA
 col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
     st.image("ZION.jpg", width=150)
 
 st.markdown("<h3 style='text-align: center; color: black;'>Zion Tecnologia</h3>", unsafe_allow_html=True)
 
+# FUNÇÃO OBRIGATÓRIA
 def aplicar_estilo_azul():
     pass
-# FIM DO BLOCO
-# CARREGA OS DADOS AUTOMATICAMENTE NA PRIMEIRA VEZ
-if st.session_state.df_lista.empty:
-    st.session_state.df_lista = carregar_dados_do_notion()
-    
-# =================================================================
-# BLOCO 4: NAVEGAÇÃO
-# =================================================================
 
-if st.session_state.pagina == "home":
-    aplicar_estilo_azul()
-    st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
-    if os.path.exists("ZION.jpg"): st.image("ZION.jpg", use_container_width=True)
-    if st.button("🚀 ACESSAR SISTEMA"): st.session_state.pagina = "login"; st.rerun()
+# INICIALIZAÇÃO DO ESTADO (CORREÇÃO DO ERRO ATRIBUTTE ERROR)
+if 'df_lista' not in st.session_state:
+    import pandas as pd
+    st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
-elif st.session_state.pagina == "login":
-    aplicar_estilo_azul(); st.title("🔐 Login")
-    navio_sel = st.selectbox("Navio", list(USUARIOS.keys()))
-    senha_dig = st.text_input("Senha", type="password")
-    if st.button("ENTRAR"):
-        dados = USUARIOS.get(navio_sel)
-        if dados and senha_dig == dados["senha"]:
-            st.session_state.cozinheiro = dados["nome"]; st.session_state.navio = navio_sel
-            st.session_state.pagina = "menu"; st.rerun()
-        else: st.error("❌ Senha incorreta!")
-
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "home"
+# ==========================================
 elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
