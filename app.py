@@ -20,22 +20,24 @@ st.set_page_config(
 # ESTILO DEFINITIVO PARA LIMPAR A INTERFACE
 st.markdown("""
     <style>
-    /* 1. REMOÇÃO AGRESSIVA DA COROA E LOGO STREAMLIT */
-    #viewerBadge, 
-    .stDeployButton, 
-    footer, 
-    img[alt="Streamlit logo"], 
-    div[data-testid="stStatusWidget"],
-    .viewerBadge_container__1QSob,
-    .st-emotion-cache-zq5wms.e1nzilvr4,
-    [data-testid="stDecoration"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
+   /* Forçar fundo branco e letras pretas em todos os botões e campos */
+div[data-baseweb="select"] > div, 
+div[data-baseweb="input"] > div,
+button {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+}
+
+/* Forçar cor do texto em labels e campos de texto */
+.stMarkdown, p, label, span {
+    color: black !important;
+}
+
+/* Garantir que o fundo da página seja sempre branco */
+.stApp {
+    background-color: white !important;
+}
     
     /* 2. REMOVE MENUS E CABEÇALHOS */
     #MainMenu {visibility: hidden;}
