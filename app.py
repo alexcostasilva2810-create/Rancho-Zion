@@ -49,12 +49,18 @@ def carregar_dados_do_notion():
                     "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
                     "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
                     "CONFIRMA": 0
-                })
-            df = pd.DataFrame(dados)
-            df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
-           if os.path.exists("ZION.jpg"):
-        col1, col2, col3 = st.columns([1, 2, 1]) # Cria 3 colunas para centralizar
+st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
+    
+    # CENTRALIZAR E DIMINUIR A IMAGEM
+    if os.path.exists("ZION.jpg"):
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
+            st.image("ZION.jpg", width=200)
+
+    # BOTÃO DE INICIAR SESSÃO
+    if st.button("🚀 ACESSAR SISTEMA"):
+        st.session_state.pagina = "login"
+        st.rerun()
             st.image("ZION.jpg", width=200) # Mude o 200 para o tamanho que desejar
         return st.session_state.df_lista
     except: return st.session_state.df_lista
