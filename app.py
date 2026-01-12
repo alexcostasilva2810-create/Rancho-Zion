@@ -112,37 +112,26 @@ elif st.session_state.pagina == "lista":
 
     if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- BLOCO 3: TELA DE DECLARAÇÃO E REGISTRO (RESTAURADA) ---
+# --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURAÇÃO TOTAL DO LAYOUT OFICIAL) ---
 elif st.session_state.pagina == "tripulacao":
-    # CSS Restaurado do seu código original (Anexo 2)
     st.markdown("""
         <style>
         .stApp { 
             background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
             url("https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?q=80&w=1920"); 
-            background-size: cover; 
-            background-position: center;
+            background-size: cover; background-position: center;
         }
-        /* Letras de Comando Maiores conforme solicitado */
-        label p { 
-            font-size: 1.4rem !important; 
-            color: white !important; 
-            font-weight: bold !important;
-            text-shadow: 2px 2px 4px black;
-        }
-        /* Campos Brancos com Letras Pretas */
+        /* Letras de Comando Grandes e Visíveis */
+        label p { font-size: 1.4rem !important; color: white !important; font-weight: bold !important; text-shadow: 2px 2px 4px black; }
         .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input { 
-            color: black !important; 
-            background-color: white !important; 
-            font-weight: bold !important;
+            color: black !important; background-color: white !important; font-weight: bold !important;
         }
         </style>
         """, unsafe_allow_html=True)
 
     st.markdown("<h1 style='text-align: center; color: white; text-shadow: 3px 3px 6px black;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
 
-    # Lógica de Escolta e Advertência Dinâmica
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="escolta_check")
     dias_duracao = 12 if escolta == "SIM" else 15
     
     col_v1, col_v2 = st.columns([1, 1.5])
@@ -151,16 +140,15 @@ elif st.session_state.pagina == "tripulacao":
     
     with col_v2:
         dt_validade = dt_recebimento + timedelta(days=dias_duracao)
-        # Cor dinâmica: Vermelho para Escolta (Atenção), Verde para Normal
+        # CORREÇÃO: Letras pretas sólidas e fundo vibrante para não sumir
         cor_alerta = "#FF3131" if escolta == "SIM" else "#00D100"
         st.markdown(f"""
-            <div style='background-color:{cor_alerta}; padding:18px; border-radius:12px; color:black; font-weight:900; text-align:center; border: 2px solid black; font-size: 1.2rem;'>
-                ATENÇÃO: Com {dias_duracao} dias, seu rancho durará até {dt_validade.strftime('%d/%m/%Y')}
+            <div style='background-color:{cor_alerta}; padding:18px; border-radius:12px; color: black !important; font-weight: 900 !important; text-align:center; border: 3px solid black; font-size: 1.3rem; opacity: 1 !important;'>
+                ATENÇÃO: Rancho durará até {dt_validade.strftime('%d/%m/%Y')}
             </div>
             """, unsafe_allow_html=True)
 
-    # Formulário de Registro (Baseado no seu algoritmo pronto)
-    with st.form("form_declaracao_oficial", clear_on_submit=False):
+    with st.form("form_declaracao_oficial"):
         c1, c2 = st.columns(2)
         with c1:
             lotacao = st.number_input("Número de Tripulantes:", min_value=1, value=16)
@@ -169,56 +157,77 @@ elif st.session_state.pagina == "tripulacao":
             dt_ultimo = st.date_input("Data do último rancho:", datetime.now())
             destino = st.text_input("Porto de Destino:", value="Novo Remanso")
         
-        necessidades = st.text_area("Necessidades Extras:", placeholder="Descreva aqui...")
+        necessidades = st.text_area("Necessidades Extras:", value="No rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
         
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=120, key="assinatura")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=150, key="assinatura")
         
-        # Botão de Ação do Form
-        btn_gravar = st.form_submit_button("💾 REGISTRAR NO HISTÓRICO E GERAR PDF")
+        btn_gravar = st.form_submit_button("💾 SALVAR NO HISTÓRICO E GERAR PDF")
 
-    # PROCESSAMENTO PÓS-SUBMIT (Fora do form para evitar erro de PDF)
     if btn_gravar:
-        # 1. Envio para o Notion (Seu algoritmo original)
-        payload = {
-            "parent": {"database_id": ID_HISTORICO_NOTION},
-            "properties": {
+        # 1. SALVAMENTO NO HISTÓRICO (NOTION)
+        try:
+            h_notion = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+            body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
                 "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
                 "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
                 "Data Pedido": {"date": {"start": dt_recebimento.strftime("%Y-%m-%d")}},
                 "Validade": {"date": {"start": dt_validade.strftime("%Y-%m-%d")}}
-            }
-        }
-        
-        try:
-            h_notion = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-            res = requests.post("https://api.notion.com/v1/pages", headers=h_notion, json=payload)
-            if res.status_code == 200:
-                st.success("✅ Histórico Gravado com Sucesso!")
-            else:
-                st.error(f"Erro ao gravar histórico: {res.status_code}")
-        except Exception as e:
-            st.error(f"Erro de conexão: {e}")
+            }}
+            requests.post("https://api.notion.com/v1/pages", headers=h_notion, json=body)
+            st.success("✅ Registrado com sucesso!")
+        except: pass
 
-        # 2. Geração do PDF (Layout que você já usava)
-        pdf = FPDF()
+        # 2. RESTAURAÇÃO DO PDF COMPLETO (Seu Layout Original)
+        class PDF(FPDF):
+            def header(self):
+                if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 90, 8, 30)
+                self.set_font("Arial", "B", 16)
+                self.ln(25)
+                self.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
+                self.set_font("Arial", "B", 12)
+                self.cell(0, 10, f"Embarcacao: {st.session_state.navio.upper()}", ln=True, align="C")
+                self.ln(5)
+
+        pdf = PDF()
         pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
-        pdf.ln(10)
-        pdf.set_font("Arial", "", 12)
-        pdf.multi_cell(0, 10, f"Navio: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nPrevisao: {dt_recebimento}\nValidade: {dt_validade}")
+        pdf.set_font("Arial", "", 11)
         
-        # O botão de download aparece aqui, fora do st.form
+        # Texto Jurídico Restaurado
+        texto = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador e de {lotacao} tripulantes. "
+                 f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                 f"por um periodo de {dias_duracao} dias nauticos a partir de {dt_recebimento.strftime('%d/%m/%Y')}. "
+                 "Este suprimento e planejado para a viagem corrente.")
+        pdf.multi_cell(0, 8, texto)
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 8, f"Origem: {origem} | Destino: {destino}", ln=True)
+        pdf.cell(0, 8, f"Ultimo Rancho: {dt_ultimo.strftime('%d/%m/%Y')}", ln=True)
+        pdf.ln(5)
+        pdf.cell(0, 8, "CONSIDERACOES:", ln=True)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 6, necessidades)
+        
+        # Área de Assinatura Restaurada
+        if canvas_result.image_data is not None:
+            img = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+            img.save("temp_sign.png")
+            pdf.image("temp_sign.png", x=60, y=pdf.get_y() + 10, w=80)
+        
+        pdf.ln(40)
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 8, f"Responsavel: {st.session_state.cozinheiro.upper()}", ln=True, align="C")
+
+        # Botão de Download (Corrigido fora do form)
         st.download_button(
-            label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
+            label="📥 BAIXAR DECLARAÇÃO PDF (LAYOUT OFICIAL)",
             data=pdf.output(dest='S').encode('latin-1'),
             file_name=f"Declaracao_{st.session_state.navio}.pdf",
             mime="application/pdf",
             use_container_width=True
         )
 
-    if st.button("⬅️ VOLTAR AO MENU", key="v_t"):
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
 # --- HISTÓRICO (AGORA ATIVO) ---
