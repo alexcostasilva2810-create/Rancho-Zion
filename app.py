@@ -26,7 +26,7 @@ st.markdown("""
         background-image: none !important;
     }
     
-    /* 2. Forçar a logo a ficar no centro */
+    /* 2. Centralizar a logo Zion */
     [data-testid="stImage"] {
         display: flex;
         justify-content: center;
@@ -39,14 +39,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# EXIBIR LOGO PEQUENA E NO MEIO
+# EXIBIR LOGO PEQUENA E CENTRALIZADA
 st.image("ZION.jpg", width=150)
 
 # FUNÇÃO OBRIGATÓRIA PARA O SISTEMA NÃO TRAVAR
 def aplicar_estilo_azul():
     pass
 
-# INICIALIZAR MEMÓRIA (ISSO TRAZ O BOTÃO DE VOLTA)
+# INICIALIZAR MEMÓRIA (TRAZ O BOTÃO DE ACESSO DE VOLTA)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
@@ -54,9 +54,8 @@ if 'df_lista' not in st.session_state:
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
-# CONTINUIDADE DO CÓDIGO (LINHA 59 CORRIGIDA)
+# CONTINUIDADE DA LÓGICA (LINHA 59 CORRIGIDA)
 elif st.session_state.pagina == "menu":
-    aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
     with col1:
