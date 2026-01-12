@@ -112,40 +112,32 @@ elif st.session_state.pagina == "lista":
 
     if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- DECLARAÇÃO (ESTILO OFFSHORE REFINADO) ---
+# --- DECLARAÇÃO (ESTILO OFFSHORE REFINADO & CORREÇÃO DE ERRO) ---
 elif st.session_state.pagina == "tripulacao":
     st.markdown("""<style>
-        /* Fundo Offshore com Filtro para não ofuscar */
         .stApp { 
-            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?q=80&w=1920"); 
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://images.unsplash.com/photo-1516939884455-1445c8652f83?q=80&w=1920"); 
             background-size: cover; 
             background-position: center;
         }
-        /* Letras de Comando (Labels) Maiores e com Sombra */
+        /* Letras de Comando (Labels) - Grandes e Negrito */
         label p { 
-            font-size: 1.2rem !important; 
+            font-size: 1.3rem !important; 
             color: white !important; 
-            font-weight: bold !important;
-            text-shadow: 2px 2px 4px #000000 !important;
-        }
-        /* Título Principal */
-        h1 { 
-            color: white !important; 
-            text-shadow: 3px 3px 6px #000000 !important; 
-            font-size: 3rem !important;
+            font-weight: 800 !important;
+            text-shadow: 2px 2px 4px #000;
         }
         /* Campos Brancos com Letras Pretas */
         .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input { 
             color: black !important; 
             background-color: white !important; 
             font-size: 1.1rem !important;
-            border: 2px solid #FF8C00 !important;
+            border-radius: 8px !important;
         }
     </style>""", unsafe_allow_html=True)
     
-    st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 3px 3px 6px #000;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Seção de Escolta
     escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="rad_e")
     dias = 12 if escolta == "SIM" else 15
     
@@ -154,68 +146,70 @@ elif st.session_state.pagina == "tripulacao":
         dt_prev = st.date_input("Data prevista para receber:", datetime.now(), key="d_p")
     with col_b:
         dt_val = dt_prev + timedelta(days=dias)
-        # Advertência Dinâmica (Verde ou Vermelho)
-        bg_color = "#FF3131" if escolta == "SIM" else "#00D100" 
+        # Advertência Dinâmica (Verde ou Vermelho com Letras Pretas)
+        bg_adv = "#FF3131" if escolta == "SIM" else "#00D100" 
         st.markdown(f"""
-            <div style='background-color:{bg_color}; padding:20px; border-radius:15px; color:black; font-weight:900; text-align:center; border: 3px solid black; font-size: 1.3rem; margin-top: 10px;'>
-                ⚠️ ATENÇÃO: Com {dias} dias, seu rancho durará até {dt_val.strftime('%d/%m/%Y')}
+            <div style='background-color:{bg_adv}; padding:20px; border-radius:15px; color:black; font-weight:900; text-align:center; border: 3px solid black; font-size: 1.3rem;'>
+                ⚠️ ATENÇÃO: Rancho durará até {dt_val.strftime('%d/%m/%Y')}
             </div>
             """, unsafe_allow_html=True)
 
-    st.markdown("---") # Linha divisória
-
-    with st.form("f_dec_final"):
+    # FORMULÁRIO DE DADOS
+    with st.form("f_declaracao_zion"):
         c1, c2 = st.columns(2)
         with c1:
-            st.number_input("Número de Tripulantes a bordo:", min_value=1, value=16, key="lot")
-            st.text_input("Porto de Origem da viagem:", value="Porto Velho", key="orig")
+            st.number_input("Número de Tripulantes:", min_value=1, value=16, key="lot")
+            st.text_input("Porto de Origem:", value="Porto Velho", key="orig")
         with c2:
-            st.date_input("Data do último rancho recebido:", datetime.now(), key="dt_u")
-            st.text_input("Porto de Destino final:", value="Novo Remanso", key="dest")
+            st.date_input("Data do último rancho:", datetime.now(), key="dt_u")
+            st.text_input("Porto de Destino:", value="Novo Remanso", key="dest")
         
-        st.text_area("Necessidades Extras e Observações:", key="ext", placeholder="Ex: Óleos, materiais de limpeza, etc...")
+        st.text_area("Necessidades Extras:", key="ext")
+        st.write("Assinatura do Responsável:")
+        canvas = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=120, key="canv")
         
-        st.markdown("<p style='color:white; font-weight:bold; font-size:1.2rem; text-shadow: 2px 2px 4px #000;'>Assinatura do Responsável:</p>", unsafe_allow_html=True)
-        canvas = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=150, key="canv")
-        
-        # Botão Dupla Ação
-        enviar = st.form_submit_button("💾 SALVAR NO HISTÓRICO E GERAR DOCUMENTO PDF")
-        
-        if enviar:
-            # Envio ao Notion
-            try:
-                h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-                body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
-                    "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
-                    "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
-                    "Data Pedido": {"date": {"start": dt_prev.strftime("%Y-%m-%d")}},
-                    "Validade": {"date": {"start": dt_val.strftime("%Y-%m-%d")}}
-                }}
-                requests.post("https://api.notion.com/v1/pages", headers=h, json=body)
-                st.success("✅ Dados registrados no histórico com sucesso!")
-            except:
-                st.error("Erro ao salvar no banco de dados.")
+        # Botão que apenas PROCESSA e SALVA
+        btn_processar = st.form_submit_button("✅ SALVAR NO HISTÓRICO E PREPARAR PDF")
 
-            # Preparação do PDF para download
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO - ZION", ln=True, align="C")
-            pdf.ln(10)
-            pdf.set_font("Arial", "", 12)
-            pdf.multi_cell(0, 10, f"Navio: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nData Prevista: {dt_prev}\nValidade: {dt_val}")
-            
-            st.download_button(
-                label="📥 CLIQUE AQUI PARA BAIXAR O PDF",
-                data=pdf.output(dest='S').encode('latin-1'),
-                file_name=f"Declaracao_{st.session_state.navio}_{dt_prev}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+    # AÇÃO FORA DO FORMULÁRIO (Para evitar o erro da imagem)
+    if btn_processar:
+        # 1. Enviar ao Notion
+        try:
+            h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+            body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
+                "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
+                "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
+                "Data Pedido": {"date": {"start": dt_prev.strftime("%Y-%m-%d")}},
+                "Validade": {"date": {"start": dt_val.strftime("%Y-%m-%d")}}
+            }}
+            requests.post("https://api.notion.com/v1/pages", headers=h, json=body)
+            st.success("✅ Histórico Gravado!")
+        except:
+            st.error("Erro ao conectar com o banco de dados.")
 
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="v_t"):
+        # 2. Gerar PDF para Download
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
+        pdf.ln(10)
+        pdf.set_font("Arial", "", 12)
+        pdf.multi_cell(0, 10, f"Navio: {st.session_state.navio}\nResponsavel: {st.session_state.cozinheiro}\nPrevisao: {dt_prev}\nValidade: {dt_val}")
+        
+        # BOTÃO DE DOWNLOAD (Agora fora do form para não dar erro)
+        st.download_button(
+            label="📥 BAIXAR PDF GERADO",
+            data=pdf.output(dest='S').encode('latin-1'),
+            file_name=f"Declaracao_{st.session_state.navio}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+    if st.button("⬅️ VOLTAR AO MENU", key="v_t"):
         st.session_state.pagina = "menu"
-        st.rerun()# --- HISTÓRICO (AGORA ATIVO) ---
+        st.rerun()
+        
+# --- HISTÓRICO (AGORA ATIVO) ---
 elif st.session_state.pagina == "historico":
     st.markdown("<style>.stApp { background-color: #FF8C00; }</style>", unsafe_allow_html=True)
     st.title(f"📜 Histórico - {st.session_state.navio}")
