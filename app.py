@@ -9,7 +9,7 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E VISUAL (SEM COROA E FUNDO BRANCO)
+# BLOCO 1: CONFIGURAÇÕES E ESTILO (LETRAS PRETAS NOS CAMPOS)
 # =================================================================
 st.set_page_config(
     page_title="Zion Rancho App", 
@@ -17,24 +17,39 @@ st.set_page_config(
     page_icon="ZION.jpg"
 )
 
-# ESTILO PARA REMOVER COROA, FUNDO AZUL E DEIXAR LETRA PRETA
+# ESTILO REFORÇADO PARA CAMPOS E TEXTOS
 st.markdown("""
     <style>
+    /* 1. Remove a coroa e menus */
     #viewerBadge {display: none !important;}
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
+    
+    /* 2. Fundo do App e Cor de Texto Geral */
     .stApp { 
         margin-top: -80px; 
         background-color: #FFFFFF !important; 
     }
-    h1, h2, h3, p, label, .stMarkdown, .stTextInput, .stSelectbox {
+    
+    /* 3. Força letras pretas em textos e labels */
+    h1, h2, h3, p, label, .stMarkdown, .stSelectbox p {
         color: #000000 !important;
     }
-    input {
+
+    /* 4. AJUSTE DOS CAMPOS DE ENTRADA (LETRAS SEMPRE PRETAS) */
+    input, textarea, [data-baseweb="input"] {
         color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important; /* Essencial para iPhones */
+    }
+    
+    /* 5. Cor de fundo dos campos para contraste */
+    [data-baseweb="input"], [data-baseweb="select"] {
         background-color: #F0F2F6 !important;
+        border-radius: 5px !important;
     }
+
+    /* 6. Botões em Laranja */
     div.stButton > button {
         background-color: #FF8C00 !important;
         color: white !important;
@@ -44,7 +59,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# FUNÇÃO VAZIA PARA EVITAR O ERRO NAMEERROR
+# FUNÇÃO PARA EVITAR ERRO DE TRANSIÇÃO
 def aplicar_estilo_azul():
     pass 
 
@@ -105,7 +120,7 @@ def carregar_dados_do_notion():
         return st.session_state.df_lista
 
 # =================================================================
-# BLOCO 3: LOGICA FINAL
+# BLOCO 3: FUNÇÕES AUXILIARES
 # =================================================================
 def mudar_pagina(nova_pagina):
     st.session_state.pagina = nova_pagina
