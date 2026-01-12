@@ -52,7 +52,10 @@ def carregar_dados_do_notion():
                 })
             df = pd.DataFrame(dados)
             df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
-            return df.sort_values(by='ITEM').reset_index(drop=True)
+           if os.path.exists("ZION.jpg"):
+        col1, col2, col3 = st.columns([1, 2, 1]) # Cria 3 colunas para centralizar
+        with col2:
+            st.image("ZION.jpg", width=200) # Mude o 200 para o tamanho que desejar
         return st.session_state.df_lista
     except: return st.session_state.df_lista
 
