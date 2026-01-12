@@ -49,16 +49,10 @@ def carregar_dados_do_notion():
                     "UNID MED": p.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
                     "PREDEFINIDO": p.get("PREDEFINIDO", {}).get("number", 0),
                     "CONFIRMA": 0
-st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
-
-        with col2:
-            st.image("ZION.jpg", width=200)
-
-    # BOTÃO DE INICIAR SESSÃO
-    if st.button("🚀 ACESSAR SISTEMA"):
-        st.session_state.pagina = "login"
-        st.rerun()
-            st.image("ZION.jpg", width=200) # Mude o 200 para o tamanho que desejar
+                })
+            df = pd.DataFrame(dados)
+            df['ITEM'] = pd.to_numeric(df['ITEM'], errors='coerce')
+            return df.sort_values(by='ITEM').reset_index(drop=True)
         return st.session_state.df_lista
     except: return st.session_state.df_lista
 
