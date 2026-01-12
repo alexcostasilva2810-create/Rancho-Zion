@@ -60,24 +60,65 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELA HOME (INICIAL)
+# BLOCO 3: TELA HOME (INICIAL) COM FUNDO TECNOLÓGICO
 # =================================================================
 if st.session_state.pagina == "home":
-    aplicar_estilo_azul()
-    st.markdown("<h1 style='text-align: center;'>Zion Tecnologia</h1>", unsafe_allow_html=True)
-    
-    # Organização para centralizar e diminuir a imagem
-    col_img1, col_img2, col_img3 = st.columns([1, 1, 1])
-    with col_img2:
-        if os.path.exists("ZION.jpg"): 
-            # Ajustado para 200px para ficar menor e centralizado
-            st.image("ZION.jpg", width=200) 
-    
-    st.markdown("<br>", unsafe_allow_html=True) # Espaçamento
-    if st.button("🚀 ACESSAR SISTEMA", use_container_width=True): 
-        st.session_state.pagina = "login"
-        st.rerun()
+    # CSS Customizado para Fundo Fluvial Tecnológico e Ajustes de Layout
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+                        url("https://images.unsplash.com/photo-1520443240718-fce21901db79?q=80&w=1920");
+            background-size: cover;
+            background-position: center;
+        }
+        .container-home {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .titulo-home {
+            color: white !important;
+            text-shadow: 2px 2px 8px #000000;
+            font-weight: bold !important;
+            margin-bottom: 10px !important;
+        }
+        /* Ajuste do tamanho do botão */
+        div.stButton > button {
+            width: 250px !important;
+            display: block;
+            margin: 0 auto;
+            background-color: #FF8C00 !important;
+            color: white !important;
+            border-radius: 20px !important;
+            font-weight: bold !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
+    # Conteúdo Centralizado
+    st.markdown("<div class='container-home'>", unsafe_allow_html=True)
+    
+    st.markdown("<h1 class='titulo-home'>Zion Tecnologia</h1>", unsafe_allow_html=True)
+    
+    # Imagem centralizada e menor
+    col1, col2, col3 = st.columns([1, 0.8, 1])
+    with col2:
+        if os.path.exists("ZION.jpg"): 
+            st.image("ZION.jpg", use_container_width=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Botão com tamanho reduzido através das colunas
+    col_btn1, col_btn2, col_btn3 = st.columns([1.2, 1, 1.2])
+    with col_btn2:
+        if st.button("🚀 ACESSAR SISTEMA"): 
+            st.session_state.pagina = "login"
+            st.rerun()
+            
+    st.markdown("</div>", unsafe_allow_html=True)
 # =================================================================
 # BLOCO 4: TELA DE LOGIN
 # =================================================================
