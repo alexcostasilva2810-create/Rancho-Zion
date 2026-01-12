@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 
-# --- RESTAURAÇÃO DO SISTEMA E CENTRALIZAÇÃO DA LOGO ---
+# --- RESTAURAÇÃO TOTAL DO SISTEMA ---
 st.markdown("""
     <style>
     /* 1. Fundo branco e sem robô gigante */
@@ -47,15 +47,16 @@ st.image("ZION.jpg", width=150)
 def aplicar_estilo_azul():
     pass
 
-# INICIALIZAR BANCO DE DADOS (ISSO FAZ O BOTÃO DE ACESSO VOLTAR)
+# INICIALIZAR BANCO DE DADOS (ISSO TRAZ O BOTÃO DE ACESSO DE VOLTA)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
+# GARANTIR QUE A PÁGINA DE LOGIN SEJA A PRIMEIRA A APARECER
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
-# CONTINUIDADE DA LÓGICA (LINHA 59 CORRIGIDA)
+# CONTINUIDADE DA LÓGICA DE LOGIN (LINHA 59 CORRIGIDA)
 elif st.session_state.pagina == "menu":
     col1, col2 = st.columns(2)
     with col1:
