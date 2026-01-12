@@ -93,8 +93,9 @@ if 'df_lista' not in st.session_state:
     st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
 USUARIOS = {
-    "NAVIO 01": {"nome": "João", "senha": "123"},
+    "ENCARREGADO": {"nome": "CATIANO", "senha": "12345"},
     "AROEIRA": {"nome": "Marcos", "senha": "789"},
+    "ENCARREGADO": {"nome": "ERITON", "senha": "456"}
     "NAVIO 03": {"nome": "Carlos", "senha": "456"}
 }
 
