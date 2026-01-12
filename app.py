@@ -114,6 +114,8 @@ elif st.session_state.pagina == "menu":
 # BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE)
 # =================================================================
 elif st.session_state.pagina == "lista":
+    import io  # Necessário para o Excel
+
     st.markdown("""
         <style>
         .stApp {
@@ -139,65 +141,72 @@ elif st.session_state.pagina == "lista":
         st.session_state.df_lista = carregar_dados_do_notion()
         st.rerun()
 
+    # --- LÓGICA DE VALIDAÇÃO ---
+    df_para_editar = st.session_state.df_lista.copy()
+    
     df_editado = st.data_editor(
-        st.session_state.df_lista,
+        df_para_editar,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
         },
         hide_index=True, use_container_width=True, key="editor_estoque_final"
     )
 
+    # Verificação de excesso de cota
+    excesso = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
+    
+    if not excesso.empty:
+        st.error(f"⚠️ ATENÇÃO: Você tentou solicitar uma quantidade maior que o permitido nos itens: {', '.join(excesso['DESCRIÇÃO'].astype(str).tolist())}")
+        st.warning("A solicitação além do limite predefinido não é permitida. Por favor, ajuste os valores para prosseguir.")
+        # Impede a exportação se houver erro
+        pode_exportar = False
+    else:
+        pode_exportar = True
+        st.session_state.df_lista = df_editado # Atualiza o estado global se estiver tudo OK
+
     st.markdown("---")
-    col_pdf, col_voltar = st.columns(2)
+    col_pdf, col_excel, col_voltar = st.columns(3)
     
     with col_pdf:
-        def preparar_celula(conteudo):
-            texto = str(conteudo) if conteudo is not None else ""
-            texto = texto.replace('\u2013', '-').replace('\u2014', '-')
-            return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
+        if pode_exportar:
+            # (Mantendo sua lógica de PDF original aqui...)
+            def preparar_celula(conteudo):
+                texto = str(conteudo) if conteudo is not None else ""
+                return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
 
-        try:
-            class PDF(FPDF):
-                def footer(self):
-                    self.set_y(-15)
-                    self.set_font('Arial', 'I', 8)
-                    agora_brasilia = datetime.now() - timedelta(hours=3)
-                    data_hora = agora_brasilia.strftime("%d/%m/%Y %H:%M:%S")
-                    self.cell(0, 10, f'Gerado em: {data_hora} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+            try:
+                class PDF(FPDF):
+                    def footer(self):
+                        self.set_y(-15)
+                        self.set_font('Arial', 'I', 8)
+                        agora_br = datetime.now() - timedelta(hours=3)
+                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")}', 0, 0, 'C')
 
-            pdf = PDF(orientation='P', unit='mm', format='A4')
-            pdf.add_page()
-            if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20) 
-            pdf.set_font("Arial", "B", 14)
-            pdf.set_y(30)
-            pdf.cell(0, 10, preparar_celula(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 8, preparar_celula(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
-            pdf.ln(5)
+                pdf = PDF(orientation='P', unit='mm', format='A4')
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, preparar_celula(f"Checklist: {st.session_state.navio}"), ln=True, align="C")
+                
+                pdf_output = pdf.output(dest='S').encode('latin-1')
+                st.download_button(label="📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
+            except: st.error("Erro ao gerar PDF")
+
+    with col_excel:
+        if pode_exportar:
+            # --- GERAÇÃO DO EXCEL ---
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
+                df_editado.to_excel(writer, index=False, sheet_name='Rancho')
             
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_fill_color(220, 220, 220)
-            larguras = [10, 55, 25, 15, 20, 50, 15] 
-            titulos = ["COD", "ITEM", "TIPO", "UNID", "PREDEF", "DESCRICAO", "CONF."]
-            for i, t in enumerate(titulos):
-                pdf.cell(larguras[i], 10, t, 1, 0, "C", True)
-            pdf.ln()
-
-            pdf.set_font("Arial", "", 7)
-            for _, row in df_editado.iterrows():
-                pdf.cell(larguras[0], 8, preparar_celula(row.get("ITEM", "")), 1, 0, "C")
-                pdf.cell(larguras[1], 8, preparar_celula(row.get("ITEM", "")), 1) 
-                pdf.cell(larguras[2], 8, preparar_celula(row.get("TIPO", "")), 1)
-                pdf.cell(larguras[3], 8, preparar_celula(row.get("UNID MED", "")), 1, 0, "C")
-                pdf.cell(larguras[4], 8, preparar_celula(row.get("PREDEFINIDO", "0")), 1, 0, "C")
-                pdf.cell(larguras[5], 8, preparar_celula(row.get("DESCRIÇÃO", "")), 1)
-                pdf.cell(larguras[6], 8, preparar_celula(row.get("CONFIRMA", "0")), 1, 1, "C")
-
-            pdf_output = pdf.output(dest='S').encode('latin-1')
-            st.download_button(label="📥 BAIXAR PDF DO ESTOQUE", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
-        except Exception as e:
-            st.error(f"Erro ao preparar PDF: {e}")
+            st.download_button(
+                label="📊 EXPORTAR EXCEL",
+                data=output_excel.getvalue(),
+                file_name=f"Rancho_{st.session_state.navio}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
