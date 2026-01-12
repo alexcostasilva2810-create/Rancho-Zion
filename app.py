@@ -41,17 +41,17 @@ st.markdown("""
 # Logo centralizada e pequena
 st.image("ZION.jpg", width=150)
 
-# Função que o seu código chama na linha 63
+# Função necessária para o restante do código
 def aplicar_estilo_azul():
     pass
 
-# Inicialização da memória (CORRIGE O ERRO QUE SUMIU COM O BOTÃO)
+# Inicialização para destravar o botão de acesso
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
 if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"elif 
+    st.session_state.pagina = "home" 
 st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
