@@ -7,21 +7,32 @@ from fpdf import FPDF
 from PIL import Image
 import os
 import requests
-
-# --- COLE ISSO NO TOPO DO ARQUIVO ---
 def carregar_dados_do_notion():
-    dados = [
-        {"ITEM": "1", "DESCRIÇÃO": "Carne Moida", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 12, "CONFIRMA": 4},
-        {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 10, "CONFIRMA": 10},
-        {"ITEM": "8", "DESCRIÇÃO": "Mocoto", "TIPO": "PROTEINAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 2},
-        {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID MED": "pacotes", "PREDEFINIDO": 3, "CONFIRMA": 3},
-        {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Maco", "PREDEFINIDO": 10, "CONFIRMA": 8},
-        {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 2},
-        {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Kg", "PREDEFINIDO": 5, "CONFIRMA": 3},
-        {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID MED": "Lata", "PREDEFINIDO": 1, "CONFIRMA": 2},
-        {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID MED": "PCT", "PREDEFINIDO": 2, "CONFIRMA": 2}
-    ]
-    return pd.DataFrame(dados)
+    # Esta função usa o ID do seu banco de dados para trazer a lista completa
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {
+        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+    try:
+        res = requests.post(url, headers=headers)
+        data = res.json()
+        lista_completa = []
+        for page in data["results"]:
+            props = page["properties"]
+            lista_completa.append({
+                "ITEM": props["ITEM"]["title"][0]["text"]["content"] if props["ITEM"]["title"] else "",
+                "DESCRIÇÃO": props["DESCRIÇÃO"]["rich_text"][0]["text"]["content"] if props["DESCRIÇÃO"]["rich_text"] else "",
+                "TIPO": props["TIPO"]["select"]["name"] if props["TIPO"]["select"] else "",
+                "UNID MED": props["UNID MED"]["rich_text"][0]["text"]["content"] if props["UNID MED"]["rich_text"] else "",
+                "PREDEFINIDO": props["PREDEFINIDO"]["number"] if "PREDEFINIDO" in props and props["PREDEFINIDO"]["number"] is not None else 0,
+                "CONFIRMA": 0 
+            })
+        return pd.DataFrame(lista_completa).sort_values(by="ITEM")
+    except Exception as e:
+        st.error(f"Erro na conexão: {e}")
+        return pd.DataFrame()
 
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES E IDs
