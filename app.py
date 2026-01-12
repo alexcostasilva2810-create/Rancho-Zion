@@ -51,7 +51,8 @@ if 'df_lista' not in st.session_state:
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
 
 if 'pagina' not in st.session_state:
-    st.session_state.pagina = "home"elif st.session_state.pagina == "menu":
+    st.session_state.pagina = "home"elif 
+st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
