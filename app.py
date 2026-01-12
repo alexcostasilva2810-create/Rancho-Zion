@@ -112,48 +112,96 @@ elif st.session_state.pagina == "lista":
 
     if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
 
-# --- DECLARAÇÃO (PAISAGEM NAVIO / CAMPOS PRETOS) ---
+# --- DECLARAÇÃO (PAISAGEM FORTE / ADVERTÊNCIA DINÂMICA) ---
 elif st.session_state.pagina == "tripulacao":
     st.markdown("""<style>
-        .stApp { background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)), url("https://images.unsplash.com/photo-1498084393753-b411b2d26b34?q=80&w=1920"); background-size: cover; }
-        h1, label, p { color: black !important; font-weight: bold; }
-        .stTextInput input, .stTextArea textarea, .stNumberInput input { color: black !important; background-color: white !important; }
+        .stApp { 
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("https://images.unsplash.com/photo-1544433330-948a3703949e?q=80&w=1920"); 
+            background-size: cover; 
+            background-position: center;
+        }
+        h1, label, p { color: white !important; text-shadow: 2px 2px 4px black; }
+        /* Campos Brancos com Letras Pretas */
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input { 
+            color: black !important; 
+            background-color: white !important; 
+            font-weight: bold !important;
+        }
     </style>""", unsafe_allow_html=True)
     
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
     escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True, key="rad_e")
     dias = 12 if escolta == "SIM" else 15
-    dt_prev = st.date_input("Data prevista para receber:", datetime.now(), key="d_p")
-    dt_val = dt_prev + timedelta(days=dias)
-    st.warning(f"Atenção: Rancho durará até {dt_val.strftime('%d/%m/%Y')}")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        dt_prev = st.date_input("Data prevista para receber:", datetime.now(), key="d_p")
+    with col_b:
+        dt_val = dt_prev + timedelta(days=dias)
+        # Lógica de Cor da Advertência
+        cor_fundo = "#FF4B4B" if escolta == "SIM" else "#00FF00" # Vermelho ou Verde
+        st.markdown(f"""
+            <div style='background-color:{cor_fundo}; padding:15px; border-radius:10px; color:black; font-weight:bold; text-align:center; border: 2px solid black;'>
+                ATENÇÃO: Rancho durará até {dt_val.strftime('%d/%m/%Y')}
+            </div>
+            """, unsafe_allow_html=True)
 
-    with st.form("f_dec"):
+    with st.form("f_dec_oficial"):
         c1, c2 = st.columns(2)
         with c1:
-            st.number_input("Tripulantes:", min_value=1, value=16, key="lot")
-            st.text_input("Porto Origem:", value="Porto Velho", key="orig")
+            lot = st.number_input("Número de Tripulantes:", min_value=1, value=16, key="lot")
+            orig = st.text_input("Porto de Origem:", value="Porto Velho", key="orig")
         with c2:
-            st.date_input("Data do último rancho:", datetime.now(), key="dt_u")
-            st.text_input("Porto Destino:", value="Novo Remanso", key="dest")
+            dt_ult = st.date_input("Data do último rancho:", datetime.now(), key="dt_u")
+            dest = st.text_input("Porto de Destino:", value="Novo Remanso", key="dest")
         
-        st.text_area("Necessidades Extras:", key="ext")
+        extras = st.text_area("Necessidades Extras (Opcional):", key="ext")
         st.write("Assinatura Digital:")
-        canvas = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=100, key="canv")
+        canvas = st_canvas(stroke_width=3, stroke_color="#000", background_color="#FFF", height=120, key="canv")
         
-        if st.form_submit_button("💾 SALVAR E GERAR PDF"):
-            h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-            body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
-                "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
-                "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
-                "Data Pedido": {"date": {"start": dt_prev.strftime("%Y-%m-%d")}},
-                "Validade": {"date": {"start": dt_val.strftime("%Y-%m-%d")}}
-            }}
-            requests.post("https://api.notion.com/v1/pages", headers=h, json=body)
-            st.success("✅ Documento Salvo no Histórico!")
+        # BOTÃO ÚNICO PARA SALVAR E GERAR
+        enviar = st.form_submit_button("💾 SALVAR NO HISTÓRICO E GERAR PDF")
+        
+        if enviar:
+            # 1. SALVAR NO NOTION
+            try:
+                h = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+                body = {"parent": {"database_id": ID_HISTORICO_NOTION}, "properties": {
+                    "Cozinheiro": {"title": [{"text": {"content": st.session_state.cozinheiro}}]},
+                    "Navio": {"rich_text": [{"text": {"content": st.session_state.navio}}]},
+                    "Data Pedido": {"date": {"start": dt_prev.strftime("%Y-%m-%d")}},
+                    "Validade": {"date": {"start": dt_val.strftime("%Y-%m-%d")}}
+                }}
+                res = requests.post("https://api.notion.com/v1/pages", headers=h, json=body)
+                if res.status_code == 200:
+                    st.success("✅ Sucesso! Dados gravados no Histórico.")
+                    st.balloons()
+                else:
+                    st.error("Erro ao salvar no Notion.")
+            except Exception as e:
+                st.error(f"Erro técnico: {e}")
 
-    if st.button("⬅️ VOLTAR", key="v_t"): st.session_state.pagina = "menu"; st.rerun()
+            # 2. GERAR O PDF (Simulado para o botão de download aparecer abaixo)
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
+            pdf.set_font("Arial", "", 12)
+            pdf.ln(10)
+            pdf.multi_cell(0, 10, f"Eu, {st.session_state.cozinheiro}, responsavel pelo navio {st.session_state.navio}, declaro que o rancho recebido em {dt_prev} tem validade de {dias} dias.")
+            
+            st.download_button(
+                label="📥 BAIXAR PDF AGORA",
+                data=pdf.output(dest='S').encode('latin-1'),
+                file_name=f"Declaracao_{st.session_state.navio}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
+    if st.button("⬅️ VOLTAR AO MENU", key="v_t"):
+        st.session_state.pagina = "menu"
+        st.rerun()
 # --- HISTÓRICO (AGORA ATIVO) ---
 elif st.session_state.pagina == "historico":
     st.markdown("<style>.stApp { background-color: #FF8C00; }</style>", unsafe_allow_html=True)
