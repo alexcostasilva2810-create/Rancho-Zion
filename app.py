@@ -20,32 +20,34 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Forçar fundo branco e remover robô */
+    /* 1. Limpeza do fundo e remoção do robô gigante */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
-    /* Limpar menus e topo */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
     
-    /* Centralizar a logo perfeitamente */
+    /* 2. Centralização absoluta da logo Zion */
     [data-testid="stImage"] {
         display: flex;
         justify-content: center;
+        margin-bottom: 20px;
     }
+    
+    /* 3. Remover menus e coroa vermelha */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# Logo centralizada e pequena
+# Exibir logo centralizada
 st.image("ZION.jpg", width=150)
 
-# Função necessária para o sistema
+# Função obrigatória para o sistema
 def aplicar_estilo_azul():
     pass
 
-# Inicialização para destravar o botão de login
+# Inicialização da memória (Isso faz o BOTÃO VOLTAR)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
@@ -53,7 +55,8 @@ if 'df_lista' not in st.session_state:
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
-elif st.session_state.pagina == "menu":
+# Correção da lógica de navegação (Ajuste da Linha 55)
+elif st.session_state.pagina == "menu":elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
