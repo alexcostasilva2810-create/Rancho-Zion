@@ -9,47 +9,50 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES E ESTILO (LETRAS PRETAS NOS CAMPOS)
+# BLOCO 1: CONFIGURAÇÕES E ESTILO "LIMPA TUDO"
 # =================================================================
 st.set_page_config(
     page_title="Zion Rancho App", 
     layout="wide", 
-    page_icon="ZION.jpg"
+    page_icon="ZION.jpg" # O Robô será o ícone na tela do celular
 )
 
-# ESTILO REFORÇADO PARA CAMPOS E TEXTOS
+# ESTILO PARA REMOVER COROA, LOGO E DEIXAR LETRA PRETA
 st.markdown("""
     <style>
-    /* 1. Remove a coroa e menus */
-    #viewerBadge {display: none !important;}
+    /* 1. Remove a coroa e a logo do Streamlit no canto inferior */
+    #viewerBadge, .stDeployButton, footer, img[alt="Streamlit logo"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* 2. Remove menus superiores */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
-    footer {visibility: hidden;}
     
-    /* 2. Fundo do App e Cor de Texto Geral */
+    /* 3. Fundo Branco e Ajuste de Topo */
     .stApp { 
         margin-top: -80px; 
         background-color: #FFFFFF !important; 
     }
-    
-    /* 3. Força letras pretas em textos e labels */
-    h1, h2, h3, p, label, .stMarkdown, .stSelectbox p {
+
+    /* 4. Letras Pretas em tudo (Labels e Textos) */
+    h1, h2, h3, p, label, .stMarkdown, [data-testid="stMarkdownContainer"] p {
         color: #000000 !important;
     }
 
-    /* 4. AJUSTE DOS CAMPOS DE ENTRADA (LETRAS SEMPRE PRETAS) */
+    /* 5. Letras Pretas dentro dos campos de digitação */
     input, textarea, [data-baseweb="input"] {
         color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important; /* Essencial para iPhones */
+        -webkit-text-fill-color: #000000 !important;
     }
     
-    /* 5. Cor de fundo dos campos para contraste */
-    [data-baseweb="input"], [data-baseweb="select"] {
+    /* 6. Cor de fundo dos campos para destaque */
+    [data-baseweb="input"] {
         background-color: #F0F2F6 !important;
-        border-radius: 5px !important;
     }
 
-    /* 6. Botões em Laranja */
+    /* 7. Botões Laranja Zion */
     div.stButton > button {
         background-color: #FF8C00 !important;
         color: white !important;
@@ -59,7 +62,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# FUNÇÃO PARA EVITAR ERRO DE TRANSIÇÃO
+# FUNÇÃO VAZIA PARA EVITAR ERRO DE NOME
 def aplicar_estilo_azul():
     pass 
 
@@ -69,7 +72,7 @@ NOTION_TOKEN = "ntn_jZ6353375938j9kJFqKWjD0N4ONt1rwP515tsIMwxtucHa"
 DATABASE_ID = "2e3025de7b79803abe0efde74f87a2e1" 
 ID_HISTORICO_NOTION = "2e5025de7b79803187a4d8b865179440"
 
-# INICIALIZAÇÃO DE VARIÁVEIS
+# INICIALIZAÇÃO DE VARIÁVEIS DE ESTADO
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state:
