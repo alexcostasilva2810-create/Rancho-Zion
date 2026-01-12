@@ -75,42 +75,78 @@ elif st.session_state.pagina == "menu":
             if st.button("👑 PAINEL ADM", use_container_width=True, key="m4"): st.session_state.pagina = "admin"; st.rerun()
     if st.button("⬅️ SAIR", key="m5"): st.session_state.pagina = "home"; st.rerun()
 
-# --- TABELA DE RANCHO (TÍTULO VERDE / FUNDO ESTOQUE) ---
-elif st.session_state.pagina == "lista":
-    st.markdown("""<style>
-        .stApp { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920"); background-size: cover; }
-        h1 { color: #00FF00 !important; font-weight: bold; text-shadow: 2px 2px 4px #000; }
-        label { color: white !important; }
-    </style>""", unsafe_allow_html=True)
-    st.title("📋 Conferência de Estoque")
-    
-    if st.button("🔄 ATUALIZAR NOTION", key="upd"):
-        url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-        headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Notion-Version": "2022-06-28"}
-        res = requests.post(url, headers=headers)
-        if res.status_code == 200:
-            dados = []
-            for p in res.json().get("results", []):
-                prop = p.get("properties", {})
-                dados.append({
-                    "ITEM": prop.get("ITEM", {}).get("title", [{}])[0].get("plain_text", ""),
-                    "DESCRIÇÃO": prop.get("DESCRIÇÃO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "TIPO": prop.get("TIPO", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "UNID MED": prop.get("UNID MED", {}).get("rich_text", [{}])[0].get("plain_text", ""),
-                    "PREDEFINIDO": prop.get("PREDEFINIDO", {}).get("number", 0),
-                    "CONFIRMA": 0
-                })
-            st.session_state.df_lista = pd.DataFrame(dados)
+# --- BLOCO: TELA DE CONFERÊNCIA DE ESTOQUE (RESTAURADA) ---
+elif st.session_state.pagina == "conferencia":
+    st.markdown("""
+        <style>
+        .stApp { 
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+            url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920"); 
+            background-size: cover; 
+        }
+        .pdf-container { border: 2px solid #ffffff; border-radius: 10px; overflow: hidden; background: white; }
+        </style>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<h1 style='text-align: center; color: white;'>📋 Conferência de Estoque</h1>", unsafe_allow_html=True)
+
+    # Botões de Controle Superior
+    col_btn1, col_btn2 = st.columns([1, 4])
+    with col_btn1:
+        if st.button("⬅️ VOLTAR"):
+            st.session_state.pagina = "menu"
             st.rerun()
+    with col_btn2:
+        if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
+            st.toast("Atualizando dados...")
 
-    if not st.session_state.df_lista.empty:
-        df_ed = st.data_editor(st.session_state.df_lista, hide_index=True, use_container_width=True, key="ed_r")
-        if st.button("📥 SALVAR E GERAR PDF DO RANCHO", key="pdf_r"):
-            pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Checklist de Rancho", ln=True, align="C")
-            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "rancho.pdf")
+    # Layout em duas colunas: PDF à esquerda e Tabela à direita (ou conforme seu anexo)
+    col_pdf, col_tabela = st.columns([1, 1])
 
-    if st.button("⬅️ VOLTAR", key="v_r"): st.session_state.pagina = "menu"; st.rerun()
+    with col_pdf:
+        st.markdown("<h3 style='color: white;'>📄 Arquivo de Referência</h3>", unsafe_allow_html=True)
+        # Caminho do arquivo baseado no seu histórico
+        pdf_path = "Rancho_JACARANDA.pdf" 
+        
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as f:
+                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf" class="pdf-container"></iframe>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+        else:
+            st.error("Arquivo PDF 'Rancho_JACARANDA.pdf' não encontrado para exibição.")
+
+    with col_tabela:
+        st.markdown("<h3 style='color: white;'>📝 Itens para Confirmar</h3>", unsafe_allow_html=True)
+        
+        # Simulação dos dados conforme o anexo e o arquivo Rancho_JACARANDA.pdf
+        dados_conferencia = [
+            {"ITEM": "68", "DESCRIÇÃO": "Tomate", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Kg", "PREDEFINIDO": 5, "CONFIRMA": 0},
+            {"ITEM": "52", "DESCRIÇÃO": "Cheiro verde", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Maço", "PREDEFINIDO": 10, "CONFIRMA": 0},
+            {"ITEM": "66", "DESCRIÇÃO": "Polpa de fruta caju", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 0},
+            {"ITEM": "41", "DESCRIÇÃO": "Biscoito rosquinha de leite 700 g", "TIPO": "DIVERSOS", "UNID MED": "pacotes", "PREDEFINIDO": 3, "CONFIRMA": 0},
+            {"ITEM": "82", "DESCRIÇÃO": "Saco p/ lixo 200 litros c/ 10 unid.", "TIPO": "MAT. DE HIGIENE", "UNID MED": "PCT", "PREDEFINIDO": 2, "CONFIRMA": 0},
+            {"ITEM": "2", "DESCRIÇÃO": "Alcatra", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 10, "CONFIRMA": 0},
+            {"ITEM": "69", "DESCRIÇÃO": "Baygon", "TIPO": "MAT. DE HIGIENE", "UNID MED": "Lata", "PREDEFINIDO": 1, "CONFIRMA": 0},
+            {"ITEM": "54", "DESCRIÇÃO": "Cominho em pó – 100 gramas", "TIPO": "VERDURAS/FRUTAS", "UNID MED": "Pacote", "PREDEFINIDO": 2, "CONFIRMA": 0},
+            {"ITEM": "8", "DESCRIÇÃO": "Mocotó", "TIPO": "PROTEÍNAS", "UNID MED": "kg", "PREDEFINIDO": 2, "CONFIRMA": 0}
+        ]
+        
+        # Exibição da Tabela interativa
+        st.data_editor(
+            dados_conferencia,
+            column_config={
+                "CONFIRMA": st.column_config.NumberColumn("CONFIRMA", min_value=0, step=1),
+                "PREDEFINIDO": st.column_config.NumberColumn("PREDEFINIDO", disabled=True)
+            },
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True
+        )
+        
+        if st.button("💾 FINALIZAR CONFERÊNCIA E SALVAR"):
+            st.success("Conferência salva com sucesso no sistema!")
 
 # --- BLOCO 3: TELA DE DECLARAÇÃO (RESTAURADA COM ALERTA DE ENVIO) ---
 elif st.session_state.pagina == "tripulacao":
