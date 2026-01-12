@@ -20,34 +20,33 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. Limpeza do fundo e remoção do robô gigante */
+    /* 1. Fundo branco e sem robô gigante */
     .stApp {
         background-color: white !important;
         background-image: none !important;
     }
     
-    /* 2. Centralização absoluta da logo Zion */
+    /* 2. Forçar a logo a ficar no centro */
     [data-testid="stImage"] {
         display: flex;
         justify-content: center;
-        margin-bottom: 20px;
     }
-    
-    /* 3. Remover menus e coroa vermelha */
+
+    /* 3. Limpar menus e topo */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# Exibir logo centralizada
+# EXIBIR LOGO PEQUENA E NO MEIO
 st.image("ZION.jpg", width=150)
 
-# Função obrigatória para o sistema
+# FUNÇÃO OBRIGATÓRIA PARA O SISTEMA NÃO TRAVAR
 def aplicar_estilo_azul():
     pass
 
-# Inicialização da memória (Isso faz o BOTÃO VOLTAR)
+# INICIALIZAR MEMÓRIA (ISSO TRAZ O BOTÃO DE VOLTA)
 if 'df_lista' not in st.session_state:
     import pandas as pd
     st.session_state.df_lista = pd.DataFrame(columns=["ITEM", "DESCRIÇÃO", "TIPO", "UNID MED", "PREDEFINIDO", "CONFIRMA"])
@@ -55,8 +54,8 @@ if 'df_lista' not in st.session_state:
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
-# Correção da lógica de navegação (Ajuste da Linha 55)
-elif st.session_state.pagina == "menu":elif st.session_state.pagina == "menu":
+# CONTINUIDADE DO CÓDIGO (LINHA 59 CORRIGIDA)
+elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
     st.title(f"🚢 Painel - {st.session_state.navio}")
     col1, col2 = st.columns(2)
