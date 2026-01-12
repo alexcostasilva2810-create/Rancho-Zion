@@ -18,67 +18,47 @@ st.set_page_config(
 )
 
 # ESTILO DEFINITIVO PARA LIMPAR A INTERFACE
+# ESTILO DEFINITIVO PARA LIMPAR A INTERFACE E CENTRALIZAR A LOGO
 st.markdown("""
     <style>
-   /* Forçar fundo branco e letras pretas em todos os botões e campos */
-div[data-baseweb="select"] > div, 
-div[data-baseweb="input"] > div,
-button {
-    background-color: white !important;
-    color: black !important;
-    border: 1px solid #ccc !important;
-}
+    /* 1. Forçar fundo branco em toda a página e remover imagens de fundo */
+    .stApp {
+        background-color: white !important;
+        background-image: none !important;
+    }
 
-/* Forçar cor do texto em labels e campos de texto */
-.stMarkdown, p, label, span {
-    color: black !important;
-}
+    /* 2. Forçar letras pretas em botões, campos e textos */
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    button {
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+    }
 
-/* Garantir que o fundo da página seja sempre branco */
-.stApp {
-    background-color: white !important;
-}
-    
-    /* 2. REMOVE MENUS E CABEÇALHOS */
+    .stMarkdown, p, label, span, h1, h2, h3 {
+        color: black !important;
+    }
+
+    /* 3. Remover menus e cabeçalhos do Streamlit (Remover a Coroa) */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* 3. FUNDO BRANCO E AJUSTE DE TOPO */
-    .stApp { 
-        margin-top: -80px; 
-        background-color: #FFFFFF !important; 
-    }
+    footer {visibility: hidden;}
 
-    /* 4. FORÇA LETRAS PRETAS EM TODOS OS CAMPOS E TEXTOS */
-    h1, h2, h3, p, label, span, .stMarkdown, [data-testid="stMarkdownContainer"] p {
-        color: #000000 !important;
-    }
-
-    /* 5. TEXTO DIGITADO (INPUT) SEMPRE PRETO - CRUCIAL PARA CELULARES */
-    input, textarea, [data-baseweb="input"], [data-baseweb="select"] {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-        background-color: #F0F2F6 !important;
-    }
-    
-    /* 6. BOTÕES PERSONALIZADOS ZION */
-    div.stButton > button {
-        background-color: #FF8C00 !important;
-        color: white !important;
-        font-weight: bold;
-        border-radius: 10px;
-        border: none;
+    /* 4. Ajuste de topo para a página não ficar com buraco branco */
+    .block-container {
+        padding-top: 2rem !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# EXIBIR LOGO CENTRALIZADA E COM TAMANHO CONTROLADO
+# EXIBIR LOGO ZION CENTRALIZADA E PEQUENA
 col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
     st.image("ZION.jpg", width=150)
-    
-# FUNÇÃO PARA EVITAR ERRO DE TRANSIÇÃO (NAMEERROR)
-def aplicar_estilo_azul():
+
+# FRASE DE BOAS-VINDAS ABAIXO DA LOGO
+st.markdown("<h3 style='text-align: center; color: black;'>Zion Tecnologia</h3>", unsafe_allow_html=True)
     pass 
 
 # IDs DE CONEXÃO E TOKENS
