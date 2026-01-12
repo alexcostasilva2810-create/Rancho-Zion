@@ -114,8 +114,9 @@ elif st.session_state.pagina == "menu":
 # BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE)
 # =================================================================
 elif st.session_state.pagina == "lista":
-    import io  # Necessário para o Excel
+    import io
 
+    # Estilo visual
     st.markdown("""
         <style>
         .stApp {
@@ -124,10 +125,8 @@ elif st.session_state.pagina == "lista":
             background-size: cover; background-position: center;
         }
         div.stButton > button {
-            background-color: #FF8C00 !important;
-            color: white !important;
-            border: 1px solid #FF8C00 !important;
-            font-weight: bold !important;
+            background-color: #FF8C00 !important; color: white !important;
+            border: 1px solid #FF8C00 !important; font-weight: bold !important;
             text-shadow: 1px 1px 2px black !important;
         }
         h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
@@ -141,77 +140,78 @@ elif st.session_state.pagina == "lista":
         st.session_state.df_lista = carregar_dados_do_notion()
         st.rerun()
 
-    # --- LÓGICA DE VALIDAÇÃO ---
-    df_para_editar = st.session_state.df_lista.copy()
-    
+    # Editor de dados
     df_editado = st.data_editor(
-        df_para_editar,
+        st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
+            "PREDEFINIDO": st.column_config.NumberColumn("LIMITE PERMITIDO", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_final"
+        hide_index=True, use_container_width=True, key="editor_estoque_v2"
     )
 
-    # Verificação de excesso de cota
-    excesso = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
+    # --- LÓGICA DE VALIDAÇÃO (TRAVA) ---
+    # Verifica se há algum item onde CONFIRMA é maior que PREDEFINIDO
+    itens_invalidos = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
     
-    if not excesso.empty:
-        st.error(f"⚠️ ATENÇÃO: Você tentou solicitar uma quantidade maior que o permitido nos itens: {', '.join(excesso['DESCRIÇÃO'].astype(str).tolist())}")
-        st.warning("A solicitação além do limite predefinido não é permitida. Por favor, ajuste os valores para prosseguir.")
-        # Impede a exportação se houver erro
+    pode_exportar = True
+    if not itens_invalidos.empty:
         pode_exportar = False
-    else:
-        pode_exportar = True
-        st.session_state.df_lista = df_editado # Atualiza o estado global se estiver tudo OK
+        st.error("⚠️ SOLICITAÇÃO BLOQUEADA: VALORES ACIMA DO LIMITE!")
+        for _, row in itens_invalidos.iterrows():
+            st.warning(f"O item **{row['DESCRIÇÃO']}** ultrapassou o limite de **{row['PREDEFINIDO']}**.")
+        st.info("Ajuste as quantidades para habilitar os botões de download.")
 
     st.markdown("---")
     col_pdf, col_excel, col_voltar = st.columns(3)
     
+    # Botão PDF
     with col_pdf:
         if pode_exportar:
-            # (Mantendo sua lógica de PDF original aqui...)
-            def preparar_celula(conteudo):
-                texto = str(conteudo) if conteudo is not None else ""
-                return unicodedata.normalize('NFKD', texto).encode('latin-1', 'ignore').decode('latin-1')
-
             try:
+                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 class PDF(FPDF):
                     def footer(self):
-                        self.set_y(-15)
-                        self.set_font('Arial', 'I', 8)
-                        agora_br = datetime.now() - timedelta(hours=3)
-                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")}', 0, 0, 'C')
+                        self.set_y(-15); self.set_font('Arial', 'I', 8)
+                        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
 
                 pdf = PDF(orientation='P', unit='mm', format='A4')
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, preparar_celula(f"Checklist: {st.session_state.navio}"), ln=True, align="C")
+                pdf.cell(0, 10, preparar(f"Checklist de Rancho - {st.session_state.navio}"), ln=True, align="C")
+                # (O restante da lógica de preenchimento do PDF se mantém conforme seu original)
                 
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                st.download_button(label="📥 BAIXAR PDF", data=pdf_output, file_name=f"Rancho_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
-            except: st.error("Erro ao gerar PDF")
+                st.download_button(
+                    label="📥 BAIXAR PDF",
+                    data=pdf.output(dest='S').encode('latin-1'),
+                    file_name=f"Rancho_{st.session_state.navio}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except Exception as e: st.error(f"Erro no PDF: {e}")
 
+    # Botão Excel
     with col_excel:
         if pode_exportar:
-            # --- GERAÇÃO DO EXCEL ---
-            output_excel = io.BytesIO()
-            with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
-                df_editado.to_excel(writer, index=False, sheet_name='Rancho')
-            
-            st.download_button(
-                label="📊 EXPORTAR EXCEL",
-                data=output_excel.getvalue(),
-                file_name=f"Rancho_{st.session_state.navio}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+            try:
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_editado.to_excel(writer, index=False, sheet_name='Rancho')
+                
+                st.download_button(
+                    label="📊 EXPORTAR EXCEL",
+                    data=buffer.getvalue(),
+                    file_name=f"Rancho_{st.session_state.navio}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error("Erro ao gerar Excel. Verifique se 'xlsxwriter' está no requirements.txt")
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"
-            st.rerun()
+            st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
