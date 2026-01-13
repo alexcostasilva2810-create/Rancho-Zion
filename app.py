@@ -221,14 +221,16 @@ elif st.session_state.pagina == "menu":
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("⬅️ LOGOUT (SAIR)"): 
         st.session_state.pagina = "home"
-        st.rerun()# =================================================================
-# BLOCO 6: TELA DE LISTA (AJUSTE DE HORÁRIO E CLARIDADE)
+        st.rerun()
+
+# =================================================================
+# BLOCO 6: TELA DE LISTA (AJUSTE: BOTÃO ATUALIZAR ELEGANTE)
 # =================================================================
 elif st.session_state.pagina == "lista":
     import io
     from datetime import datetime, timedelta
     
-    # 1. PLANO DE FUNDO MAIS SUAVE (OPACIDADE REDUZIDA)
+    # 1. ESTILO VISUAL E BOTÃO ELEGANTE
     st.markdown("""
         <style>
         .stApp {
@@ -236,10 +238,25 @@ elif st.session_state.pagina == "lista":
                         url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920");
             background-size: cover; background-position: center; background-attachment: fixed;
         }
-        div.stButton > button {
+        /* Estilo do Botão Atualizar */
+        .stButton > button[kind="secondary"] {
+            background-color: #004aad !important;
+            color: white !important;
+            border-radius: 20px !important;
+            padding: 0.5rem 2rem !important;
+            font-weight: bold !important;
+            border: none !important;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            transition: 0.3s;
+        }
+        .stButton > button[kind="secondary"]:hover {
+            background-color: #003380 !important;
+            transform: scale(1.05);
+        }
+        /* Demais botões (Laranja) */
+        div.stButton > button:not([kind="secondary"]) {
             background-color: #FF8C00 !important; color: white !important;
             border-radius: 10px !important; font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
         }
         .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
         h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 5px black; }
@@ -248,7 +265,17 @@ elif st.session_state.pagina == "lista":
     
     st.title("📋 Conferência de Estoque")
     
-    # Lógica de Dados e Tabela (Mantida conforme solicitado)
+    # --- BOTÃO DE ATUALIZAR ELEGANTE ---
+    col_refresh, col_spacer = st.columns([1, 3])
+    with col_refresh:
+        if st.button("🔄 ATUALIZAR TABELA", kind="secondary", use_container_width=True):
+            st.session_state.df_lista = carregar_dados_do_notion()
+            st.toast("Dados sincronizados com sucesso!")
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 2. CONFIGURAÇÃO DA TABELA
     pode_exportar = True 
     df_editado = st.data_editor(
         st.session_state.df_lista,
@@ -257,7 +284,7 @@ elif st.session_state.pagina == "lista":
             "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("NECESSIDADE", min_value=0),
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_v6"
+        hide_index=True, use_container_width=True, key="editor_estoque_v7"
     )
 
     # Verificação de Limite
@@ -269,40 +296,33 @@ elif st.session_state.pagina == "lista":
     st.markdown("---")
     col_pdf, col_excel, col_voltar = st.columns(3)
     
+    # Exportação PDF (Mantendo o padrão de Brasília no Rodapé)
     with col_pdf:
         if pode_exportar:
             try:
                 def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-
                 class PDF_Checklist(FPDF):
                     def header(self):
                         if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 95, 8, 20)
-                        self.set_font("Arial", "B", 14)
-                        self.ln(22)
+                        self.set_font("Arial", "B", 14); self.ln(22)
                         self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
                         self.ln(5)
-                        self.set_fill_color(200, 200, 200)
-                        self.set_font("Arial", "B", 8)
+                        self.set_fill_color(200, 200, 200); self.set_font("Arial", "B", 8)
                         self.cell(10, 7, "COD", 1, 0, "C", True)
                         self.cell(30, 7, "TIPO", 1, 0, "C", True)
                         self.cell(15, 7, "UNID", 1, 0, "C", True)
                         self.cell(15, 7, "PREDEF", 1, 0, "C", True)
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
                         self.cell(15, 7, "CONF.", 1, 1, "C", True)
-
                     def footer(self):
-                        self.set_y(-15)
-                        self.set_font('Arial', 'I', 8)
-                        # --- AJUSTE PARA HORÁRIO DE BRASÍLIA (UTC-3) ---
+                        self.set_y(-15); self.set_font('Arial', 'I', 8)
                         fuso_brasilia = datetime.now() - timedelta(hours=3)
                         data_hora = fuso_brasilia.strftime("%d/%m/%Y %H:%M:%S")
                         texto_rodape = f"Gerado em: {data_hora} (Horário de Brasília) - Pagina {self.page_no()}"
                         self.cell(0, 10, preparar(texto_rodape), 0, 0, 'C')
 
                 pdf = PDF_Checklist()
-                pdf.add_page()
-                pdf.set_font("Arial", "", 8)
-
+                pdf.add_page(); pdf.set_font("Arial", "", 8)
                 for _, r in df_editado.iterrows():
                     pdf.cell(10, 6, str(r["ITEM"]), 1, 0, "C")
                     pdf.cell(30, 6, preparar(r["TIPO"]), 1, 0, "L")
@@ -311,16 +331,9 @@ elif st.session_state.pagina == "lista":
                     pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
                     pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 1, "C")
 
-                st.download_button(
-                    label="📥 BAIXAR PDF", 
-                    data=pdf.output(dest='S').encode('latin-1'), 
-                    file_name=f"Checklist_{st.session_state.navio}.pdf", 
-                    mime="application/pdf", 
-                    use_container_width=True
-                )
+                st.download_button(label="📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Checklist_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
-    # (Botão de Excel e Voltar permanecem iguais ao anterior)
     with col_excel:
         if pode_exportar:
             try:
@@ -331,7 +344,7 @@ elif st.session_state.pagina == "lista":
             except: st.error("Erro no Excel.")
 
     with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU"):
+        if st.button("⬅️ MENU PRINCIPAL"):
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
