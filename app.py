@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO (CORREÇÃO PDF + NOTION)
+# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO (VERSÃO ORIGINAL RESTAURADA)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -378,16 +378,19 @@ elif st.session_state.pagina == "tripulacao":
         div.stButton > button {
             background-color: #FF8C00 !important; color: white !important;
             border: 1px solid #FF8C00 !important; font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
         }
         h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+        }
         </style>
         """, unsafe_allow_html=True)
 
     st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
     
-    escolta_radio = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
-    dias_duracao = 12 if escolta_radio == "SIM" else 15
-    
+    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta == "SIM" else 15
     col_datas1, col_datas2 = st.columns(2)
     with col_datas1:
         data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
@@ -395,9 +398,9 @@ elif st.session_state.pagina == "tripulacao":
     data_validade = data_recebimento + timedelta(days=dias_duracao)
     with col_datas2:
         st.markdown(f"### 📅 Validade do Rancho")
-        cor_alerta = "#FF8C00" if escolta_radio == "SIM" else "#00FF00"
+        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
         st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
-                    f"Até: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)"
+                    f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
                     f"</div>", unsafe_allow_html=True)
 
     with st.form("form_declaracao_final"):
@@ -411,7 +414,7 @@ elif st.session_state.pagina == "tripulacao":
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
         necessidades_extras = st.text_area("Considerações / Necessidades Extras:", 
-            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio...")
+            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
@@ -424,43 +427,14 @@ elif st.session_state.pagina == "tripulacao":
         if canvas_result.image_data is None:
             st.error("❌ Realize a assinatura antes de gerar o PDF.")
         else:
-            # 1. GERAR O PDF PRIMEIRO (Para garantir que o usuário receba o arquivo)
             try:
-                class PDF_Final(FPDF):
-                    def footer(self):
-                        self.set_y(-15)
-                        self.set_font('Arial', 'I', 8)
-                        agora_br = datetime.now() - timedelta(hours=3)
-                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")}', 0, 0, 'C')
-
-                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
-                pdf.add_page()
-                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                
-                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
-                pdf.set_font("Arial", "B", 16); pdf.set_y(30)
-                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
-                
-                pdf.ln(10)
-                texto_corpo = (f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
-                               f"O suprimento durará {dias_duracao} dias a partir de {data_recebimento.strftime('%d/%m/%Y')}.")
-                pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
-                
-                # Assinatura no PDF
-                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("temp_ass.png")
-                pdf.ln(15); pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
-                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
-                pdf.cell(0, 10, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
-
-                # DISPONIBILIZA O DOWNLOAD IMEDIATAMENTE
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf_output, 
-                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
-                
-                # 2. TENTAR SALVAR NO NOTION (Em segundo plano)
+                # --- PARTE 1: SALVAMENTO NO NOTION (ID_HISTORICO) ---
                 try:
+                    headers = {
+                        "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
+                        "Content-Type": "application/json",
+                        "Notion-Version": "2022-06-28"
+                    }
                     payload = {
                         "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                         "properties": {
@@ -468,23 +442,59 @@ elif st.session_state.pagina == "tripulacao":
                             "Navio": {"select": {"name": st.session_state.navio}},
                             "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                             "Validade": {"date": {"start": data_validade.isoformat()}},
-                            "O navio está com escolt...": {"checkbox": (escolta_radio == "SIM")}
+                            "O navio está com escolt...": {"checkbox": (escolta == "SIM")}
                         }
                     }
-                    requests.post("https://api.notion.com/v1/pages", 
-                                  headers={"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", 
-                                           "Content-Type": "application/json", "Notion-Version": "2022-06-28"}, 
-                                  json=payload, timeout=5)
-                    st.success("✅ Histórico atualizado!")
-                except:
-                    st.warning("⚠️ O PDF foi gerado, mas houve uma falha ao salvar no histórico do Notion.")
+                    res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+                    if res.status_code == 200 or res.status_code == 201:
+                        st.success("✅ Salvo no Notion com sucesso!")
+                    else:
+                        st.error(f"Erro Notion: {res.status_code}")
+                except Exception as e_notion:
+                    st.warning(f"Erro ao enviar para o Notion: {e_notion}")
 
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+                # --- PARTE 2: GERAÇÃO DO PDF (SEU ORIGINAL) ---
+                class PDF_Final(FPDF):
+                    def footer(self):
+                        self.set_y(-15)
+                        self.set_font('Arial', 'I', 8)
+                        agora_br = datetime.now() - timedelta(hours=3)
+                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
+
+                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
+                pdf.add_page()
+                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
+                pdf.set_font("Arial", "B", 16); pdf.set_y(30)
+                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
+                pdf.set_font("Arial", "B", 12); pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
+                pdf.ln(10)
+
+                texto_corpo = (f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
+                               f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
+                               f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
+                               f"Este suprimento é planejado para a viagem corrente.")
+                pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
+                pdf.ln(5); pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo_rancho.strftime('%d/%m/%Y')}"), ln=True)
+                
+                if necessidades_extras:
+                    pdf.ln(5); pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, preparar("CONSIDERAÇÕES:"), ln=True)
+                    pdf.set_font("Arial", "", 10); pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
+                
+                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img_ass.save("temp_ass.png")
+                pdf.ln(15); pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
+                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
+                pdf.cell(0, 10, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf.output(dest='S').encode('latin-1'), 
+                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
+            except Exception as e: st.error(f"Erro: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
-
 # =================================================================
 # BLOCO 8: BANCO DE DADOS - HISTÓRICO (FORMATO PT-BR)
 # =================================================================
