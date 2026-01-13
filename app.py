@@ -354,15 +354,15 @@ elif st.session_state.pagina == "lista":
     with col_menu:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
-            # =================================================================
-# BLOCO 7: RESTAURAÇÃO DA TELA ORIGINAL (ESTÁVEL)
+# =================================================================
+# BLOCO 7: RESTAURAÇÃO DO CÓDIGO ORIGINAL (ESTÁVEL)
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
     import requests
     from fpdf import FPDF
     from datetime import datetime, timedelta
 
-    # Estilo original
+    # 1. ESTILO ORIGINAL
     st.markdown("""
         <style>
         .stApp { background-color: #ffffff; }
@@ -377,7 +377,8 @@ elif st.session_state.pagina == "gerar_declaracao":
 
     st.title("📄 Gerar Declaração")
 
-    # Recuperação dos dados das telas anteriores
+    # 2. RECUPERAÇÃO SEGURA DE DADOS
+    # Usamos .get para evitar que a tela fique branca caso algo falhe
     navio = st.session_state.get('navio', 'Não selecionado')
     data_pedido = st.session_state.get('data_rancho', datetime.now().date())
     usuario = st.session_state.get('usuario', 'Zion User')
@@ -385,12 +386,12 @@ elif st.session_state.pagina == "gerar_declaracao":
 
     st.subheader("Resumo do Pedido")
     st.write(f"**Navio:** {navio}")
-    st.write(f"**Data:** {data_pedido.strftime('%d/%m/%Y')}")
+    st.write(f"**Data:** {data_pedido.strftime('%d/%m/%Y') if hasattr(data_pedido, 'strftime') else data_pedido}")
     st.write(f"**Responsável:** {usuario}")
 
     st.markdown("---")
 
-    # Função de salvamento com os nomes atuais do seu Notion (Imagem 15/17)
+    # 3. FUNÇÃO DE SALVAMENTO (AJUSTADA PARA AS NOVAS COLUNAS DO NOTION)
     def salvar_no_banco():
         try:
             url = "https://api.notion.com/v1/pages"
@@ -399,13 +400,14 @@ elif st.session_state.pagina == "gerar_declaracao":
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
+            # Payload sincronizado com RESPONSÁVEL, Navio e Data prevista...
             payload = {
                 "parent": {"database_id": st.secrets["database_id"]},
                 "properties": {
                     "RESPONSÁVEL": {"title": [{"text": {"content": usuario}}]},
                     "Navio": {"select": {"name": navio}},
-                    "Data prevista para rece...": {"date": {"start": data_pedido.isoformat()}},
-                    "Validade": {"date": {"start": (data_pedido + timedelta(days=15)).isoformat()}},
+                    "Data prevista para rece...": {"date": {"start": str(data_pedido)}},
+                    "Validade": {"date": {"start": str(data_pedido + timedelta(days=15))}},
                     "O navio está com escolt...": {"checkbox": escolta}
                 }
             }
@@ -414,6 +416,7 @@ elif st.session_state.pagina == "gerar_declaracao":
         except:
             return False
 
+    # 4. BOTÕES DE AÇÃO (LAYOUT ORIGINAL)
     col1, col2 = st.columns(2)
 
     with col1:
@@ -421,7 +424,7 @@ elif st.session_state.pagina == "gerar_declaracao":
             if salvar_no_banco():
                 st.success("✅ Gravado com sucesso no Histórico!")
                 
-                # Geração simples de PDF (Original)
+                # Geração de PDF Original
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 16)
@@ -436,17 +439,17 @@ elif st.session_state.pagina == "gerar_declaracao":
                     use_container_width=True
                 )
             else:
-                st.error("Erro ao salvar. Verifique a conexão com o Notion.")
+                st.error("Erro ao salvar no Notion. Verifique seus Secrets.")
 
     with col2:
         if st.button("⬅️ VOLTAR", use_container_width=True):
             st.session_state.pagina = "lista"
             st.rerun()
 
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🏠 MENU PRINCIPAL", use_container_width=True):
         st.session_state.pagina = "menu"
-        st.rerun()
-# =================================================================
+        st.rerun()# =================================================================
 # BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
 # =================================================================
 elif st.session_state.pagina == "historico":
