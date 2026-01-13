@@ -466,16 +466,15 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO UNIFICADO (COPIAR TUDO)
+# BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
-    # --- 1. FUNÇÃO DE CONEXÃO COM O NOTION (DENTRO DO BLOCO PARA UNIFICAR) ---
+    # --- 1. FUNÇÃO DE BUSCA (Ajustada para os nomes da Imagem 15) ---
     def carregar_historico_notion(dt_inicio, dt_fim):
         try:
-            # Puxa as credenciais do Streamlit Secrets
             NOTION_TOKEN = st.secrets["notion_token"]
             DATABASE_ID = st.secrets["database_id"]
             
@@ -486,12 +485,12 @@ elif st.session_state.pagina == "historico":
                 "Notion-Version": "2022-06-28"
             }
             
-            # Filtro conforme as colunas da sua imagem do Notion
+            # Filtro pela coluna "Data prevista para rece..."
             query = {
                 "filter": {
                     "and": [
-                        {"property": "Data Pedido", "date": {"on_or_after": dt_inicio.isoformat()}},
-                        {"property": "Data Pedido", "date": {"on_or_before": dt_fim.isoformat()}}
+                        {"property": "Data prevista para rece...", "date": {"on_or_after": dt_inicio.isoformat()}},
+                        {"property": "Data prevista para rece...", "date": {"on_or_before": dt_fim.isoformat()}}
                     ]
                 }
             }
@@ -502,73 +501,69 @@ elif st.session_state.pagina == "historico":
                 lista_final = []
                 for item in results:
                     p = item["properties"]
-                    # Mapeamento exato das colunas que vimos na sua foto do Notion
+                    # Mapeamento conforme Imagem 15
                     lista_final.append({
-                        "usuario": p["Cozinheiro"]["title"][0]["text"]["content"] if p["Cozinheiro"]["title"] else "N/A",
+                        "usuario": p["RESPONSÁVEL"]["title"][0]["text"]["content"] if p["RESPONSÁVEL"]["title"] else "N/A",
                         "empurrador": p["Navio"]["select"]["name"] if p["Navio"]["select"] else "N/A",
-                        "data_ultimo": p["Data Pedido"]["date"]["start"] if p["Data Pedido"]["date"] else "-",
-                        "data_prox": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
-                        "escolta": "SIM" if p["Escolta"]["checkbox"] else "NÃO"
+                        "data_receb": p["Data prevista para rece..."]["date"]["start"] if p["Data prevista para rece..."]["date"] else "-",
+                        "validade": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
+                        "escolta": "SIM" if p["O navio está com escolt..."]["checkbox"] else "NÃO"
                     })
                 return lista_final
             else:
-                st.error(f"Erro na API do Notion: {response.status_code}")
+                st.error(f"Erro Notion: {response.status_code}")
                 return []
         except Exception as e:
-            st.error(f"Erro de Conexão: {e}")
+            st.error(f"Erro de conexão: {e}")
             return []
 
-    # --- 2. ESTILO VISUAL (AZUL E BRANCO - BANCO DE DADOS) ---
+    # --- 2. LAYOUT E ESTILO ---
     st.markdown("""
         <style>
         .stApp { background-color: #F0F8FF !important; }
-        h1, h2, h3, p, label { color: #0D47A1 !important; font-weight: bold; }
+        h1, h2, label { color: #0D47A1 !important; font-weight: bold; }
         div.stButton > button { background-color: #0D47A1 !important; color: white !important; border-radius: 8px !important; }
         </style>
         """, unsafe_allow_html=True)
 
-    st.title("🗄️ Banco de Dados - Histórico de Declarações")
+    st.title("🗄️ Banco de Dados - Histórico")
 
-    # --- 3. FILTROS DE BUSCA ---
-    with st.container():
-        c1, c2, c3 = st.columns([2, 2, 1])
-        data_ini = c1.date_input("🗓️ Data Início", value=date.today(), format="DD/MM/YYYY")
-        data_fim = c2.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        if c3.button("🔍 BUSCAR"):
-            # Chama a função unificada e salva no estado da sessão
-            with st.spinner("Buscando dados no Notion..."):
-                st.session_state.historico_declaracoes = carregar_historico_notion(data_ini, data_fim)
-            st.rerun()
+    # --- 3. FILTROS ---
+    c1, c2, c3 = st.columns([2, 2, 1])
+    # Usei 'data_inicio' e 'data_fim' para evitar o erro da imagem 14
+    data_inicio = c1.date_input("🗓️ Data Início", value=date.today(), format="DD/MM/YYYY")
+    data_fim = c2.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if c3.button("🔍 BUSCAR"):
+        with st.spinner("Buscando dados..."):
+            st.session_state.historico_declaracoes = carregar_historico_notion(data_inicio, data_fim)
+        st.rerun()
 
     st.markdown("---")
 
     # --- 4. TABELA DE RESULTADOS ---
-    # Cabeçalho
     cols_h = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
-    titulos = ["USUÁRIO", "EMPURRADOR", "ÚLT. RANCHO", "PRÓX. RANCHO", "ESCOLTA", "IMPRIMIR"]
+    titulos = ["USUÁRIO", "EMPURRADOR", "DATA RECEB.", "VALIDADE", "ESCOLTA", "IMPRIMIR"]
     for i, t in enumerate(titulos):
         cols_h[i].markdown(f"**{t}**")
-    st.markdown("<hr style='margin:0; border-top: 2px solid #0D47A1;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border-top: 2px solid #0D47A1;'>", unsafe_allow_html=True)
 
-    # Conteúdo da Tabela
     if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
-        st.info("Clique em BUSCAR para carregar os registros do Notion.")
+        st.info("Nenhum registro encontrado para este período.")
     else:
         for idx, reg in enumerate(st.session_state.historico_declaracoes):
             r = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
             r[0].write(reg["usuario"])
             r[1].write(reg["empurrador"])
-            r[2].write(reg["data_ultimo"])
-            r[3].write(reg["data_prox"])
+            r[2].write(reg["data_receb"])
+            r[3].write(reg["validade"])
             r[4].write(reg["escolta"])
             with r[5]:
-                # Botão para segunda via (caso tenha o binário salvo)
-                st.button("🖨️ 2ª VIA", key=f"print_{idx}")
+                st.button("🖨️ 2ª VIA", key=f"btn_{idx}")
             st.markdown("<hr style='margin:0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
 
-    # --- 5. NAVEGAÇÃO FINAL ---
+    # --- 5. NAVEGAÇÃO ---
     st.markdown("<br>", unsafe_allow_html=True)
     col_v1, col_v2 = st.columns(2)
     with col_v1:
