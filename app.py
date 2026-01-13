@@ -354,94 +354,98 @@ elif st.session_state.pagina == "lista":
     with col_menu:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
-            
-# =================================================================
-# BLOCO 7: GERAR DECLARAÇÃO - CORREÇÃO FINAL (ANTI-TELA BRANCA)
+            # =================================================================
+# BLOCO 7: RESTAURAÇÃO DA TELA ORIGINAL (ESTÁVEL)
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
     import requests
+    from fpdf import FPDF
     from datetime import datetime, timedelta
 
-    # 1. SEGURANÇA: Garante que as variáveis básicas existam para evitar tela branca
-    if 'navio' not in st.session_state:
-        st.session_state.navio = "Não Selecionado"
-    if 'data_rancho' not in st.session_state:
-        st.session_state.data_rancho = datetime.now().date()
-    if 'usuario' not in st.session_state:
-        st.session_state.usuario = "Usuário Zion"
-
-    st.title("📄 Finalizar Pedido")
-
-    # 2. INTERFACE VISUAL
-    st.markdown(f"""
-        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #0D47A1;">
-            <h4 style="margin:0; color: #0D47A1;">Resumo para o Histórico</h4>
-            <p style="margin:5px 0;"><b>Responsável:</b> {st.session_state.usuario}</p>
-            <p style="margin:5px 0;"><b>Embarcação:</b> {st.session_state.navio}</p>
-            <p style="margin:5px 0;"><b>Data do Pedido:</b> {st.session_state.data_rancho.strftime('%d/%m/%Y')}</p>
-        </div>
+    # Estilo original
+    st.markdown("""
+        <style>
+        .stApp { background-color: #ffffff; }
+        h1, h2, h3 { color: #0D47A1 !important; }
+        div.stButton > button {
+            background-color: #0D47A1 !important;
+            color: white !important;
+            border-radius: 10px;
+        }
+        </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.title("📄 Gerar Declaração")
 
-    # 3. FUNÇÃO DE SALVAMENTO (MAPEADA COM SUA NOVA TABELA DO NOTION)
-    def salvar_historico_notion():
+    # Recuperação dos dados das telas anteriores
+    navio = st.session_state.get('navio', 'Não selecionado')
+    data_pedido = st.session_state.get('data_rancho', datetime.now().date())
+    usuario = st.session_state.get('usuario', 'Zion User')
+    escolta = st.session_state.get('escolta', False)
+
+    st.subheader("Resumo do Pedido")
+    st.write(f"**Navio:** {navio}")
+    st.write(f"**Data:** {data_pedido.strftime('%d/%m/%Y')}")
+    st.write(f"**Responsável:** {usuario}")
+
+    st.markdown("---")
+
+    # Função de salvamento com os nomes atuais do seu Notion (Imagem 15/17)
+    def salvar_no_banco():
         try:
-            # Puxa os tokens salvos nos Secrets
-            NOTION_TOKEN = st.secrets["notion_token"]
-            DATABASE_ID = st.secrets["database_id"]
-            
+            url = "https://api.notion.com/v1/pages"
             headers = {
-                "Authorization": f"Bearer {NOTION_TOKEN}",
+                "Authorization": f"Bearer {st.secrets['notion_token']}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            
-            # Payload ajustado para as colunas: RESPONSÁVEL, Navio, Data prevista..., Validade, etc.
             payload = {
-                "parent": {"database_id": DATABASE_ID},
+                "parent": {"database_id": st.secrets["database_id"]},
                 "properties": {
-                    "RESPONSÁVEL": {
-                        "title": [{"text": {"content": st.session_state.usuario}}]
-                    },
-                    "Navio": {
-                        "select": {"name": st.session_state.navio}
-                    },
-                    "Data prevista para rece...": {
-                        "date": {"start": st.session_state.data_rancho.isoformat()}
-                    },
-                    "Validade": {
-                        "date": {"start": (st.session_state.data_rancho + timedelta(days=15)).isoformat()}
-                    },
-                    "O navio está com escolt...": {
-                        "checkbox": st.session_state.get('escolta', False)
-                    }
+                    "RESPONSÁVEL": {"title": [{"text": {"content": usuario}}]},
+                    "Navio": {"select": {"name": navio}},
+                    "Data prevista para rece...": {"date": {"start": data_pedido.isoformat()}},
+                    "Validade": {"date": {"start": (data_pedido + timedelta(days=15)).isoformat()}},
+                    "O navio está com escolt...": {"checkbox": escolta}
                 }
             }
-            
-            response = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
+            response = requests.post(url, json=payload, headers=headers)
             return response.status_code == 200
-        except Exception as e:
-            st.error(f"Erro na conexão: {e}")
+        except:
             return False
 
-    # 4. BOTÕES DE AÇÃO
-    col_salvar, col_voltar = st.columns(2)
-    
-    with col_salvar:
-        if st.button("🚀 GRAVAR E FINALIZAR", use_container_width=True):
-            with st.spinner("Gravando no Banco de Dados..."):
-                if salvar_historico_notion():
-                    st.success("✅ Pedido gravado no histórico!")
-                    st.balloons()
-                    # Aqui você pode adicionar a lógica de gerar o PDF se desejar
-                else:
-                    st.error("❌ Falha ao gravar. Verifique se o Database ID e o Token estão corretos.")
+    col1, col2 = st.columns(2)
 
-    with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
-            st.session_state.pagina = "menu"
+    with col1:
+        if st.button("🚀 FINALIZAR E SALVAR", use_container_width=True):
+            if salvar_no_banco():
+                st.success("✅ Gravado com sucesso no Histórico!")
+                
+                # Geração simples de PDF (Original)
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", ln=True, align='C')
+                pdf_output = pdf.output(dest='S').encode('latin-1')
+                
+                st.download_button(
+                    label="📥 BAIXAR PDF",
+                    data=pdf_output,
+                    file_name=f"Declaracao_{navio}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            else:
+                st.error("Erro ao salvar. Verifique a conexão com o Notion.")
+
+    with col2:
+        if st.button("⬅️ VOLTAR", use_container_width=True):
+            st.session_state.pagina = "lista"
             st.rerun()
+
+    if st.button("🏠 MENU PRINCIPAL", use_container_width=True):
+        st.session_state.pagina = "menu"
+        st.rerun()
 # =================================================================
 # BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
 # =================================================================
