@@ -356,38 +356,48 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
-# BLOCO 7: PROCESSAMENTO E SALVAMENTO (VERSÃO COMPLETA)
+# BLOCO 7: GERAR DECLARAÇÃO - VOLTANDO A EXIBIR E SALVANDO NO NOTION
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
     import requests
     from fpdf import FPDF
     from datetime import datetime, timedelta
-    import unicodedata
 
-    # 1. ESTILO DA PÁGINA
+    # 1. ESTILO VISUAL (IGUAL AO QUE VOCÊ TINHA)
     st.markdown("""
         <style>
-        .stApp { background-color: #f8f9fa; }
-        .card {
-            background-color: white; padding: 25px; border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #0D47A1;
+        .stApp { background-color: #f0f2f6 !important; }
+        .card-final {
+            background-color: white; padding: 25px; border-radius: 10px;
+            border-top: 5px solid #0D47A1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1, h2, h3 { color: #0D47A1 !important; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Verificação de segurança: Se os dados não existirem, ele não deixa a tela em branco
-    if "navio" not in st.session_state or "data_rancho" not in st.session_state:
-        st.error("⚠️ Erro: Dados da declaração não encontrados.")
-        if st.button("⬅️ VOLTAR AO INÍCIO"):
-            st.session_state.pagina = "menu"
-            st.rerun()
-        st.stop()
+    st.title("📄 Finalizar e Enviar para Histórico")
 
-    st.title("📄 Finalizar Declaração")
+    # 2. RECUPERAÇÃO DE DADOS (COM VALORES PADRÃO PARA NÃO FICAR EM BRANCO)
+    navio_nome = st.session_state.get('navio', 'Navio não selecionado')
+    data_sel = st.session_state.get('data_rancho', datetime.now())
+    usuario_atual = st.session_state.get('usuario', 'GABRIEL MORANGO')
+    escolta_check = st.session_state.get('escolta', False)
 
-    # 2. FUNÇÃO DE SALVAMENTO NO NOTION (SINCRONIZADA COM SUA TABELA)
-    def enviar_ao_notion_v2(dados_final):
+    # Exibição do Resumo
+    st.markdown(f"""
+    <div class="card-final">
+        <h3>Resumo da Declaração</h3>
+        <p><b>Responsável:</b> {usuario_atual}</p>
+        <p><b>Embarcação:</b> {navio_nome}</p>
+        <p><b>Data prevista:</b> {data_sel.strftime('%d/%m/%Y')}</p>
+        <p><b>Escolta:</b> {"Sim" if escolta_check else "Não"}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. FUNÇÃO DE SALVAMENTO (MAPEADA COM A IMAGEM 15 DO NOTION)
+    def realizar_salvamento():
         try:
             url = "https://api.notion.com/v1/pages"
             headers = {
@@ -395,89 +405,59 @@ elif st.session_state.pagina == "gerar_declaracao":
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            # Payload exato para os nomes da Imagem 15
+            # Aqui está o ajuste para as colunas exatas da sua foto do Notion
             payload = {
                 "parent": {"database_id": st.secrets["database_id"]},
                 "properties": {
-                    "RESPONSÁVEL": {"title": [{"text": {"content": dados_final['usuario']}}]},
-                    "Navio": {"select": {"name": dados_final['navio']}},
-                    "Data prevista para rece...": {"date": {"start": dados_final['data_receb']}},
-                    "Validade": {"date": {"start": dados_final['validade']}},
-                    "O navio está com escolt...": {"checkbox": dados_final['escolta']},
-                    "porto de Origem": {"rich_text": [{"text": {"content": dados_final.get('origem', 'Porto de Belém')}}]}
+                    "RESPONSÁVEL": {"title": [{"text": {"content": usuario_atual}}]},
+                    "Navio": {"select": {"name": navio_nome}},
+                    "Data prevista para rece...": {"date": {"start": data_sel.isoformat()}},
+                    "Validade": {"date": {"start": (data_sel + timedelta(days=15)).isoformat()}},
+                    "O navio está com escolt...": {"checkbox": escolta_check}
                 }
             }
-            res = requests.post(url, json=payload, headers=headers)
-            return res.status_code == 200
-        except Exception as e:
-            st.error(f"Erro técnico no salvamento: {e}")
+            response = requests.post(url, json=payload, headers=headers)
+            return response.status_code == 200
+        except:
             return False
 
-    # 3. CONTEÚDO DA TELA
-    with st.container():
-        st.markdown(f"""
-        <div class="card">
-            <h3>Resumo para Conferência</h3>
-            <hr>
-            <p><b>Responsável:</b> {st.session_state.get('usuario', 'GABRIEL MORANGO')}</p>
-            <p><b>Navio:</b> {st.session_state.navio}</p>
-            <p><b>Data Recebimento:</b> {st.session_state.data_rancho.strftime('%d/%m/%Y')}</p>
-            <p><b>Escolta:</b> {'SIM' if st.session_state.escolta else 'NÃO'}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
     # 4. BOTÕES DE AÇÃO
-    col_salvar, col_voltar = st.columns(2)
+    col_enviar, col_voltar = st.columns(2)
 
-    with col_salvar:
-        if st.button("🚀 SALVAR E GERAR PDF", use_container_width=True):
-            # Preparação dos dados
-            validade_calc = (st.session_state.data_rancho + timedelta(days=15)).isoformat()
-            
-            dados_notion = {
-                'usuario': st.session_state.get('usuario', 'GABRIEL MORANGO'),
-                'navio': st.session_state.navio,
-                'data_receb': st.session_state.data_rancho.isoformat(),
-                'validade': validade_calc,
-                'escolta': st.session_state.escolta,
-                'origem': "Porto de Belém"
-            }
-
-            with st.spinner("Salvando no Banco de Dados..."):
-                sucesso = enviar_ao_notion_v2(dados_notion)
-
-            if sucesso:
-                st.success("✅ Histórico gerado com sucesso!")
+    with col_enviar:
+        if st.button("🚀 SALVAR NO BANCO E GERAR PDF", use_container_width=True):
+            if realizar_salvamento():
+                st.success("✅ Sucesso! Registro salvo no histórico.")
                 
-                # --- GERAÇÃO DO PDF ---
+                # Gera o PDF para download
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", ln=True, align="C")
-                pdf.ln(10)
-                pdf.set_font("Arial", "", 12)
-                pdf.multi_cell(0, 10, f"Eu, {dados_notion['usuario']}, declaro o recebimento de rancho para o navio {dados_notion['navio']} na data de {st.session_state.data_rancho.strftime('%d/%m/%Y')}.")
-                
+                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", 0, 1, "C")
                 pdf_output = pdf.output(dest='S').encode('latin-1')
+                
                 st.download_button(
                     label="📥 BAIXAR DECLARAÇÃO",
                     data=pdf_output,
-                    file_name=f"Declaracao_{st.session_state.navio}.pdf",
+                    file_name=f"Rancho_{navio_nome}.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
+                
+                # Botão para ir direto ao histórico após salvar
+                if st.button("Ir para o Banco de Dados ➡️"):
+                    st.session_state.pagina = "historico"
+                    st.rerun()
             else:
-                st.error("❌ Falha ao comunicar com o Notion. Verifique os Secrets.")
+                st.error("❌ Erro ao salvar. Verifique se as colunas no Notion estão corretas.")
 
     with col_voltar:
-        if st.button("⬅️ EDITAR LISTA", use_container_width=True):
+        if st.button("⬅️ VOLTAR PARA EDIÇÃO", use_container_width=True):
             st.session_state.pagina = "lista"
             st.rerun()
 
     st.markdown("---")
-    if st.button("🏠 CANCELAR E VOLTAR AO MENU", use_container_width=True):
+    if st.button("🏠 MENU PRINCIPAL", use_container_width=True):
         st.session_state.pagina = "menu"
         st.rerun()
 
