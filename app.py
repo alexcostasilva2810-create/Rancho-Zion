@@ -223,108 +223,70 @@ elif st.session_state.pagina == "menu":
         st.session_state.pagina = "home"
         st.rerun()
 # =================================================================
-# BLOCO 6: TELA DE LISTA (CONFERÊNCIA DE ESTOQUE)
+# BLOCO 6: TELA DE LISTA (AJUSTE DE EXPORTAÇÃO PDF)
 # =================================================================
 elif st.session_state.pagina == "lista":
     import io
+    # ... (mantenha seu código de estilo e data_editor aqui)
 
-    # Estilo visual
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                        url("https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?q=80&w=1920");
-            background-size: cover; background-position: center;
-        }
-        div.stButton > button {
-            background-color: #FF8C00 !important; color: white !important;
-            border: 1px solid #FF8C00 !important; font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
-        }
-        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    st.title("📋 Conferência de Estoque")
-    
-    if st.button("🔄 ATUALIZAR DADOS DO NOTION"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+    # --- LÓGICA DE EXPORTAÇÃO AJUSTADA ---
+    if pode_exportar: # Verifica a trava de segurança que criamos
+        try:
+            def preparar(t): 
+                return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
 
-    # Editor de dados
-    df_editado = st.data_editor(
-        st.session_state.df_lista,
-        column_config={
-            "ITEM": st.column_config.NumberColumn("CÓD.", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("LIMITE PERMITIDO", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("SUA QTD", min_value=0),
-        },
-        hide_index=True, use_container_width=True, key="editor_estoque_v2"
-    )
+            class PDF_Checklist(FPDF):
+                def header(self):
+                    if os.path.exists("ZION.jpg"):
+                        self.image("ZION.jpg", 95, 8, 20)
+                    self.set_font("Arial", "B", 14)
+                    self.ln(25)
+                    self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
+                    self.set_font("Arial", "", 11)
+                    self.cell(0, 8, preparar(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
+                    self.ln(5)
+                    # Cabeçalho da Tabela (Modelo Anexo)
+                    self.set_fill_color(220, 220, 220)
+                    self.set_font("Arial", "B", 8)
+                    self.cell(10, 7, "COD", 1, 0, "C", True)
+                    self.cell(35, 7, "TIPO", 1, 0, "C", True)
+                    self.cell(15, 7, "UNID", 1, 0, "C", True)
+                    self.cell(15, 7, "PREDEF", 1, 0, "C", True)
+                    self.cell(95, 7, "DESCRICAO", 1, 0, "C", True)
+                    self.cell(15, 7, "CONF.", 1, 1, "C", True)
 
-    # --- LÓGICA DE VALIDAÇÃO (TRAVA) ---
-    # Verifica se há algum item onde CONFIRMA é maior que PREDEFINIDO
-    itens_invalidos = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
-    
-    pode_exportar = True
-    if not itens_invalidos.empty:
-        pode_exportar = False
-        st.error("⚠️ SOLICITAÇÃO BLOQUEADA: VALORES ACIMA DO LIMITE!")
-        for _, row in itens_invalidos.iterrows():
-            st.warning(f"O item **{row['DESCRIÇÃO']}** ultrapassou o limite de **{row['PREDEFINIDO']}**.")
-        st.info("Ajuste as quantidades para habilitar os botões de download.")
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('Arial', 'I', 8)
+                    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    self.cell(0, 10, f'Gerado em: {agora} - Pagina {self.page_no()}', 0, 0, 'C')
 
-    st.markdown("---")
-    col_pdf, col_excel, col_voltar = st.columns(3)
-    
-    # Botão PDF
-    with col_pdf:
-        if pode_exportar:
-            try:
-                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                class PDF(FPDF):
-                    def footer(self):
-                        self.set_y(-15); self.set_font('Arial', 'I', 8)
-                        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+            # Gerando o documento com os dados do editor
+            pdf = PDF_Checklist()
+            pdf.add_page()
+            pdf.set_font("Arial", "", 8)
 
-                pdf = PDF(orientation='P', unit='mm', format='A4')
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, preparar(f"Checklist de Rancho - {st.session_state.navio}"), ln=True, align="C")
-                # (O restante da lógica de preenchimento do PDF se mantém conforme seu original)
-                
-                st.download_button(
-                    label="📥 BAIXAR PDF",
-                    data=pdf.output(dest='S').encode('latin-1'),
-                    file_name=f"Rancho_{st.session_state.navio}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-            except Exception as e: st.error(f"Erro no PDF: {e}")
+            for index, row in df_editado.iterrows():
+                # Altura dinâmica para evitar quebra de linha feia
+                h = 6
+                pdf.cell(10, h, str(row["ITEM"]), 1, 0, "C")
+                pdf.cell(35, h, preparar(row["TIPO"]), 1, 0, "L")
+                pdf.cell(15, h, preparar(row["UNID MED"]), 1, 0, "C")
+                pdf.cell(15, h, str(row["PREDEFINIDO"]), 1, 0, "C")
+                pdf.cell(95, h, preparar(row["DESCRIÇÃO"]), 1, 0, "L")
+                pdf.cell(15, h, str(row["CONFIRMA"]), 1, 1, "C")
 
-    # Botão Excel
-    with col_excel:
-        if pode_exportar:
-            try:
-                buffer = io.BytesIO()
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                    df_editado.to_excel(writer, index=False, sheet_name='Rancho')
-                
-                st.download_button(
-                    label="📊 EXPORTAR EXCEL",
-                    data=buffer.getvalue(),
-                    file_name=f"Rancho_{st.session_state.navio}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-            except Exception as e:
-                st.error("Erro ao gerar Excel. Verifique se 'xlsxwriter' está no requirements.txt")
-
-    with col_voltar:
-        if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"; st.rerun()
-
+            # Botão de Download
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            st.download_button(
+                label="📥 BAIXAR PDF DA LISTA",
+                data=pdf_output,
+                file_name=f"Checklist_{st.session_state.navio}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
 # =================================================================
