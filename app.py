@@ -445,88 +445,49 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: TELA DE HISTÓRICO
+# BLOCO 8: TELA DE HISTÓRICO DE DECLARAÇÕES
 # =================================================================
 elif st.session_state.pagina == "historico":
-    aplicar_estilo_azul()
-    st.title("📜 Histórico de Registros")
-
-    try:
-        url_h = f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query"
-        headers_h = {
-            "Authorization": f"Bearer {NOTION_TOKEN}", 
-            "Content-Type": "application/json", 
-            "Notion-Version": "2022-06-28"
+    # Estilo visual padronizado com o sistema
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
+            background-size: cover; background-position: center;
         }
-        payload = {"filter": {"property": "Navio", "rich_text": {"equals": st.session_state.navio}}}
-        res = requests.post(url_h, headers=headers_h, json=payload)
+        .stTable { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
+        h1, h2, th, td { color: white !important; text-shadow: 1px 1px 2px black; }
+        </style>
+        """, unsafe_allow_html=True)
 
-        if res.status_code == 200:
-            results = res.json().get("results", [])
-            
-            if results:
-                dados_h = []
-                for r in results:
-                    p = r["properties"]
-                    if p["Cozinheiro"]["title"]:
-                        dados_h.append({
-                            "Data Pedido": p["Data Pedido"]["date"]["start"],
-                            "Responsável": p["Cozinheiro"]["title"][0]["text"]["content"],
-                            "Validade": p["Validade"]["date"]["start"]
-                        })
+    st.title(f"📜 Histórico de Declarações - {st.session_state.navio}")
+
+    # Verifica se existem dados salvos no histórico (deve ser alimentado no Bloco 7)
+    if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
+        st.warning("Nenhum registro de declaração encontrado para este período.")
+    else:
+        # Criando a tabela de exibição
+        for idx, reg in enumerate(reversed(st.session_state.historico_declaracoes)):
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
                 
-                df_h = pd.DataFrame(dados_h)
-                # Formata as datas para o padrão brasileiro
-                df_h["Data Pedido"] = pd.to_datetime(df_h["Data Pedido"]).dt.strftime('%d/%m/%Y')
-                df_h["Validade"] = pd.to_datetime(df_h["Validade"]).dt.strftime('%d/%m/%Y')
-
-                st.dataframe(df_h, use_container_width=True, hide_index=True)
-
+                # Exibição dos dados na mesma linha conforme solicitado
+                col1.write(f"**Data Registro:** \n {reg['data_registro']}")
+                col2.write(f"**Último Rancho:** \n {reg['ultimo_rancho']}")
+                col3.write(f"**Origem:** \n {reg['origem']}")
+                col4.write(f"**Destino:** \n {reg['destino']}")
+                
+                # Botão de retorno do arquivo PDF salvo
+                with col5:
+                    st.download_button(
+                        label="📄 Ver PDF",
+                        data=reg['pdf_binary'],
+                        file_name=f"Declaracao_{reg['data_registro'].replace('/','_')}.pdf",
+                        mime="application/pdf",
+                        key=f"btn_hist_{idx}"
+                    )
                 st.markdown("---")
-                st.markdown("### 📄 Gerar 2ª Via")
-                
-                # Seleção por data formatada
-                lista_datas = df_h["Data Pedido"].unique().tolist()
-                data_sel = st.selectbox("Selecione a data do registro:", lista_datas)
-                
-                # Lógica de reconstrução do PDF (Simplificada para o histórico)
-                def preparar_texto(t):
-                    return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-
-                # Criando o PDF da 2ª Via
-                pdf_hist = FPDF(orientation='P', unit='mm', format='A4')
-                pdf_hist.add_page()
-                
-                if os.path.exists("ZION.jpg"): 
-                    pdf_hist.image("ZION.jpg", 95, 8, 20)
-                
-                pdf_hist.set_font("Arial", "B", 14)
-                pdf_hist.set_y(30)
-                pdf_hist.cell(0, 10, preparar_texto(f"2a VIA - DECLARACAO DE RANCHO"), ln=True, align="C")
-                pdf_hist.set_font("Arial", "", 12)
-                pdf_hist.cell(0, 10, preparar_texto(f"Navio: {st.session_state.navio}"), ln=True, align="C")
-                pdf_hist.cell(0, 10, preparar_texto(f"Data do Registro: {data_sel}"), ln=True, align="C")
-                pdf_hist.ln(10)
-                
-                # Texto padrão de 2ª via
-                corpo = f"Este documento e uma segunda via gerada automaticamente referente ao pedido realizado em {data_sel}."
-                pdf_hist.multi_cell(0, 10, preparar_texto(corpo), align="C")
-                
-                # O botão de download aparece logo abaixo do selectbox
-                st.download_button(
-                    label=f"📥 BAIXAR 2ª VIA ({data_sel})",
-                    data=pdf_hist.output(dest='S').encode('latin-1'),
-                    file_name=f"2via_Rancho_{st.session_state.navio}_{data_sel.replace('/','-')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-            else:
-                st.warning("Nenhum registro encontrado.")
-        else:
-            st.error("Erro ao conectar com o Notion.")
-            
-    except Exception as e:
-        st.error(f"Erro: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
