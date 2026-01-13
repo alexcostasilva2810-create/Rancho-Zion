@@ -465,12 +465,13 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (SINCRONIZADO COM NOTION)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
+    # Estilização visual (Azul Zion)
     st.markdown("""
         <style>
         .stApp { background-color: #f0f5ff !important; }
@@ -481,50 +482,45 @@ elif st.session_state.pagina == "historico":
 
     st.markdown('<div class="titulo-banco">🗄️ Banco de Dados - Histórico</div>', unsafe_allow_html=True)
 
+    # Filtros de Data
     c_ini, c_fim, c_btn = st.columns([2, 2, 1])
-    # Mantendo o padrão de datas do seu vídeo
-    dt_inicio_sel = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1))
-    dt_fim_sel = c_fim.date_input("🗓️ Data Fim", value=date.today())
+    dt_inicio = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1))
+    dt_fim = c_fim.date_input("🗓️ Data Fim", value=date.today())
 
     if c_btn.button("🔍 BUSCAR"):
         try:
-            # Puxando as chaves MAIÚSCULAS dos seus Secrets
+            # Chaves dos Secrets (MAIÚSCULAS)
             token = st.secrets["NOTION_TOKEN"]
             db_id = st.secrets["ID_HISTORICO"]
             
-            url_notion = f"https://api.notion.com/v1/databases/{db_id}/query"
-            headers_notion = {
+            url = f"https://api.notion.com/v1/databases/{db_id}/query"
+            headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
             
-            # NOME DA COLUNA ATUALIZADO conforme imagem_9a5bac.png:
-            # "Data prevista para receber o novo rancho"
-            payload_query = {
+            # ATUALIZADO: Nome da coluna alterado para "Novo Rancho"
+            col_data_rancho = "Novo Rancho"
+            
+            payload = {
                 "filter": {
                     "and": [
-                        {
-                            "property": "Data prevista para receber o novo rancho",
-                            "date": {"on_or_after": dt_inicio_sel.isoformat()}
-                        },
-                        {
-                            "property": "Data prevista para receber o novo rancho",
-                            "date": {"on_or_before": dt_fim_sel.isoformat()}
-                        }
+                        {"property": col_data_rancho, "date": {"on_or_after": dt_inicio.isoformat()}},
+                        {"property": col_data_rancho, "date": {"on_or_before": dt_fim.isoformat()}}
                     ]
                 }
             }
             
-            resp = requests.post(url_notion, json=payload_query, headers=headers_notion)
+            response = requests.post(url, json=payload, headers=headers)
             
-            if resp.status_code == 200:
-                st.session_state.dados_historico = resp.json().get("results", [])
-                if not st.session_state.dados_historico:
+            if response.status_code == 200:
+                st.session_state.historico_notion = response.json().get("results", [])
+                if not st.session_state.historico_notion:
                     st.info("Nenhum registro encontrado para este período.")
             else:
-                # Caso retorne 400 ou 401, ele detalha o erro para você
-                st.error(f"Erro {resp.status_code}: Verifique se a integração foi 'Convidada' na página do Notion.")
+                # Caso o erro 400 persista, ele mostrará a mensagem de permissão
+                st.error(f"Erro {response.status_code}: Verifique se a coluna se chama exatamente '{col_data_rancho}' e se a integração está conectada.")
                 
         except Exception as e:
             st.error(f"Falha técnica: {e}")
@@ -534,33 +530,37 @@ elif st.session_state.pagina == "historico":
     # Cabeçalho da Tabela
     h_cols = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
     titulos = ["USUÁRIO", "EMPURRADOR", "DATA RECEB.", "VALIDADE", "ESCOLTA", "IMPRIMIR"]
-    for col_ref, texto_tit in zip(h_cols, titulos):
-        col_ref.markdown(f"**{texto_tit}**")
+    for col, txt in zip(h_cols, titulos):
+        col.markdown(f"**{txt}**")
 
-    # Exibição dos Resultados
-    if "dados_historico" in st.session_state and st.session_state.dados_historico:
-        for idx, item in enumerate(st.session_state.dados_historico):
-            prop = item["properties"]
-            r_cols = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
+    # Listagem dos dados
+    if "historico_notion" in st.session_state and st.session_state.historico_notion:
+        for idx, item in enumerate(st.session_state.historico_notion):
+            p = item["properties"]
+            r = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
             
-            # Mapeamento baseado nas colunas da imagem_9a5bac.png
-            u_nome = prop["RESPONSÁVEL"]["title"][0]["text"]["content"] if prop["RESPONSÁVEL"]["title"] else "N/A"
-            n_nome = prop["Navio"]["select"]["name"] if prop["Navio"]["select"] else "N/A"
-            d_receb = prop["Data prevista para receber o novo rancho"]["date"]["start"] if prop["Data prevista para receber o novo rancho"]["date"] else "-"
-            d_valid = prop["Validade"]["date"]["start"] if prop["Validade"]["date"] else "-"
+            # Mapeamento das colunas
+            usuario = p["RESPONSÁVEL"]["title"][0]["text"]["content"] if p["RESPONSÁVEL"]["title"] else "---"
+            navio = p["Navio"]["select"]["name"] if p["Navio"]["select"] else "---"
             
-            # Checkbox da escolta
-            escolta_val = prop["O navio está com escolt..."]["checkbox"] if "O navio está com escolt..." in prop else False
-            escolta_icon = "✅" if escolta_val else "❌"
+            # Puxa a data da nova coluna "Novo Rancho"
+            d_r = p["Novo Rancho"]["date"]["start"] if p["Novo Rancho"]["date"] else "-"
+            val = p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-"
+            
+            # Lógica para escolta
+            escolta_status = "❌"
+            for key in p:
+                if "escolt" in key.lower() and p[key].get("checkbox") is True:
+                    escolta_status = "✅"
 
-            r_cols[0].write(u_nome)
-            r_cols[1].write(n_nome)
-            r_cols[2].write(d_receb)
-            r_cols[3].write(d_valid)
-            r_cols[4].write(escolta_icon)
-            r_cols[5].button("🖨️", key=f"hist_print_{idx}")
+            r[0].write(usuario)
+            r[1].write(navio)
+            r[2].write(d_r)
+            r[3].write(val)
+            r[4].write(escolta_status)
+            r[5].button("🖨️", key=f"btn_print_hist_{idx}")
     
-    # Navegação Inferior
+    # Navegação
     st.markdown("<br>", unsafe_allow_html=True)
     b_menu, b_sair = st.columns(2)
     if b_menu.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
