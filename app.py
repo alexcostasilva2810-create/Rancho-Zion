@@ -466,85 +466,67 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO COM BOTÕES DE AÇÃO
+# BLOCO 8: BANCO DE DADOS (CONECTADO AO NOTION)
 # =================================================================
 elif st.session_state.pagina == "historico":
-    from datetime import date
-    
-    # Estilo Visual: Fundo de Banco de Dados e Botões Padronizados
+    # 1. ESTILO BANCO DE DATOS (FUNDO DA IMAGEM 11)
     st.markdown("""
         <style>
         .stApp {
             background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
                         url("https://images.unsplash.com/photo-1558494949-ef010cbdcc51?q=80&w=1920");
-            background-size: cover; background-position: center;
+            background-size: cover;
         }
-        h1, h2, h3, p, label { color: #0D47A1 !important; font-weight: bold; }
-        /* Botões de navegação inferiores */
-        .btn-footer { margin-top: 20px; }
+        h1, h2, label { color: #0D47A1 !important; }
         </style>
         """, unsafe_allow_html=True)
 
     st.title("🗄️ Banco de Dados - Histórico de Declarações")
 
-    # Filtro de Busca
-    with st.container():
-        col_ini, col_fim, col_btn = st.columns([2, 2, 1])
-        data_ini = col_ini.date_input("🗓️ Data Início", value=date.today(), format="DD/MM/YYYY")
-        data_fim = col_fim.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
-        col_btn.markdown("<br>", unsafe_allow_html=True)
-        if col_btn.button("🔍 BUSCAR"):
-            st.toast("Consultando registros...")
+    # 2. FILTRO DE BUSCA (Conforme Imagem 11)
+    col_ini, col_fim, col_search = st.columns([2, 2, 1])
+    data_inicio = col_ini.date_input("🗓️ Data Início", format="DD/MM/YYYY")
+    data_fim = col_fim.date_input("🗓️ Data Fim", format="DD/MM/YYYY")
+    
+    if col_search.button("🔍 BUSCAR"):
+        # Aqui chamamos a função que lê o seu Notion (Imagem 12)
+        st.session_state.historico_declaracoes = carregar_historico_notion(data_inicio, data_fim)
+        st.rerun()
 
     st.markdown("---")
 
-    # Cabeçalho da Tabela
-    # Aumentei o número de colunas para comportar o botão de 2ª via
-    c_tab = st.columns([1.5, 1.5, 1.5, 1.5, 1.2, 1.2])
+    # 3. CABEÇALHO DA TABELA (Colunas da sua Imagem 13)
+    c = st.columns([1.5, 1.5, 1.2, 1.2, 1, 1.2])
     titulos = ["USUÁRIO", "EMPURRADOR", "ÚLT. RANCHO", "PRÓX. RANCHO", "ESCOLTA", "IMPRIMIR"]
     for i, t in enumerate(titulos):
-        c_tab[i].markdown(f"**{t}**")
+        c[i].markdown(f"**{t}**")
     
-    st.markdown("<hr style='margin:0; border-top: 2px solid #0D47A1;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border-top: 2px solid #0D47A1;'>", unsafe_allow_html=True)
 
-    # Exibição dos Dados do Notion/Histórico
-    if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
-        st.info("Nenhum registro encontrado no Banco de Dados.")
+    # 4. EXIBIÇÃO DOS DADOS RECUPERADOS
+    if not st.session_state.get("historico_declaracoes"):
+        st.info("Nenhum registro encontrado no Banco de Dados (Notion).")
     else:
-        for idx, reg in enumerate(reversed(st.session_state.historico_declaracoes)):
-            r_col = st.columns([1.5, 1.5, 1.5, 1.5, 1.2, 1.2])
+        for idx, reg in enumerate(st.session_state.historico_declaracoes):
+            r = st.columns([1.5, 1.5, 1.2, 1.2, 1, 1.2])
+            # Mapeando colunas da Imagem 12 (Notion)
+            r[0].write(reg.get('Cozinheiro', 'N/A'))
+            r[1].write(reg.get('Navio', 'N/A'))
+            r[2].write(reg.get('Data Pedido', '-'))
+            r[3].write(reg.get('Validade', '-'))
+            r[4].write(reg.get('Escolta', 'Não'))
             
-            r_col[0].write(reg.get('usuario', 'N/A'))
-            r_col[1].write(reg.get('empurrador', 'N/A'))
-            r_col[2].write(reg.get('data_ultimo_rancho', '-'))
-            r_col[3].write(reg.get('data_proximo_rancho', '-'))
-            r_col[4].write("SIM" if reg.get('com_escolta') else "NÃO")
-            
-            # BOTÃO DE IMPRIMIR 2ª VIA (Arquivo gerado no Bloco 7)
-            with r_col[5]:
-                if 'pdf_binary' in reg:
-                    st.download_button(
-                        label="🖨️ 2ª VIA",
-                        data=reg['pdf_binary'],
-                        file_name=f"2via_Declaracao_{idx}.pdf",
-                        mime="application/pdf",
-                        key=f"btn_print_{idx}",
-                        use_container_width=True
-                    )
-            st.markdown("<hr style='margin:0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+            with r[5]:
+                # Botão de 2ª Via (Busca o PDF salvo)
+                if reg.get('pdf_url'):
+                    st.download_button("🖨️ 2ª VIA", data=reg['pdf_content'], file_name=f"2via_{idx}.pdf", key=f"print_{idx}")
 
-    # BOTÕES DE NAVEGAÇÃO INFERIORES
-    st.markdown("<div class='btn-footer'>", unsafe_allow_html=True)
+    # 5. BOTÕES DE NAVEGAÇÃO (Conforme Imagem 13)
+    st.markdown("<br>", unsafe_allow_html=True)
     col_v1, col_v2 = st.columns(2)
-    
     with col_v1:
         if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"
-            st.rerun()
-            
+            st.session_state.pagina = "menu"; st.rerun()
     with col_v2:
         if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
-            # Limpa a sessão e volta para a Home
-            st.session_state.pagina = "home"
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.session_state.pagina = "home"; st.rerun()
