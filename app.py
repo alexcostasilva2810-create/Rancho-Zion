@@ -356,108 +356,88 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
-# BLOCO 7: GERAR DECLARAÇÃO - VOLTANDO A EXIBIR E SALVANDO NO NOTION
+# BLOCO 7: GERAR DECLARAÇÃO - VERSÃO DE EMERGÊNCIA (ANTI-TELA BRANCA)
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
+    # Importações seguras dentro do bloco
     import requests
-    from fpdf import FPDF
-    from datetime import datetime, timedelta
+    try:
+        from fpdf import FPDF
+    except:
+        st.error("Erro: Biblioteca FPDF não encontrada. Instale com 'pip install fpdf'")
 
-    # 1. ESTILO VISUAL (IGUAL AO QUE VOCÊ TINHA)
-    st.markdown("""
-        <style>
-        .stApp { background-color: #f0f2f6 !important; }
-        .card-final {
-            background-color: white; padding: 25px; border-radius: 10px;
-            border-top: 5px solid #0D47A1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        h1, h2, h3 { color: #0D47A1 !important; }
-        </style>
-    """, unsafe_allow_html=True)
+    st.title("📄 Finalizar Declaração")
 
-    st.title("📄 Finalizar e Enviar para Histórico")
+    # --- TENTATIVA DE RECUPERAR DADOS (COM PROTEÇÃO) ---
+    # Se o dado não existir, ele coloca um texto padrão em vez de dar erro
+    navio_final = st.session_state.get('navio', 'Navio não identificado')
+    
+    # Tratamento de data para evitar erro de formato
+    try:
+        data_rancho_br = st.session_state.data_rancho.strftime('%d/%m/%Y')
+        data_iso = st.session_state.data_rancho.isoformat()
+    except:
+        data_rancho_br = "Data não definida"
+        data_iso = None
 
-    # 2. RECUPERAÇÃO DE DADOS (COM VALORES PADRÃO PARA NÃO FICAR EM BRANCO)
-    navio_nome = st.session_state.get('navio', 'Navio não selecionado')
-    data_sel = st.session_state.get('data_rancho', datetime.now())
-    usuario_atual = st.session_state.get('usuario', 'GABRIEL MORANGO')
-    escolta_check = st.session_state.get('escolta', False)
+    # --- INTERFACE VISUAL SIMPLES ---
+    st.info(f"**Resumo:** {navio_final} | **Data:** {data_rancho_br}")
 
-    # Exibição do Resumo
-    st.markdown(f"""
-    <div class="card-final">
-        <h3>Resumo da Declaração</h3>
-        <p><b>Responsável:</b> {usuario_atual}</p>
-        <p><b>Embarcação:</b> {navio_nome}</p>
-        <p><b>Data prevista:</b> {data_sel.strftime('%d/%m/%Y')}</p>
-        <p><b>Escolta:</b> {"Sim" if escolta_check else "Não"}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # 3. FUNÇÃO DE SALVAMENTO (MAPEADA COM A IMAGEM 15 DO NOTION)
-    def realizar_salvamento():
+    # --- FUNÇÃO DE SALVAMENTO NO NOTION ---
+    def salvar_notion_emergencia():
         try:
-            url = "https://api.notion.com/v1/pages"
+            # Puxa credenciais dos Secrets
+            token = st.secrets["notion_token"]
+            db_id = st.secrets["database_id"]
+            
             headers = {
-                "Authorization": f"Bearer {st.secrets['notion_token']}",
+                "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            # Aqui está o ajuste para as colunas exatas da sua foto do Notion
+            
+            # Payload com nomes exatos da sua Imagem 15
             payload = {
-                "parent": {"database_id": st.secrets["database_id"]},
+                "parent": {"database_id": db_id},
                 "properties": {
-                    "RESPONSÁVEL": {"title": [{"text": {"content": usuario_atual}}]},
-                    "Navio": {"select": {"name": navio_nome}},
-                    "Data prevista para rece...": {"date": {"start": data_sel.isoformat()}},
-                    "Validade": {"date": {"start": (data_sel + timedelta(days=15)).isoformat()}},
-                    "O navio está com escolt...": {"checkbox": escolta_check}
+                    "RESPONSÁVEL": {"title": [{"text": {"content": st.session_state.get('usuario', 'GABRIEL MORANGO')}}]},
+                    "Navio": {"select": {"name": navio_final}},
+                    "Data prevista para rece...": {"date": {"start": data_iso}} if data_iso else None,
+                    "O navio está com escolt...": {"checkbox": st.session_state.get('escolta', False)}
                 }
             }
-            response = requests.post(url, json=payload, headers=headers)
-            return response.status_code == 200
-        except:
-            return False
+            # Remove campos nulos para não dar erro na API
+            payload["properties"] = {k: v for k, v in payload["properties"].items() if v is not None}
+            
+            response = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
+            return response.status_code
+        except Exception as e:
+            return str(e)
 
-    # 4. BOTÕES DE AÇÃO
-    col_enviar, col_voltar = st.columns(2)
+    # --- BOTÕES DE AÇÃO ---
+    col1, col2 = st.columns(2)
 
-    with col_enviar:
-        if st.button("🚀 SALVAR NO BANCO E GERAR PDF", use_container_width=True):
-            if realizar_salvamento():
-                st.success("✅ Sucesso! Registro salvo no histórico.")
-                
-                # Gera o PDF para download
+    with col1:
+        if st.button("🚀 SALVAR E GERAR", use_container_width=True):
+            resultado = salvar_notion_emergencia()
+            if resultado == 200:
+                st.success("✅ Salvo no Notion com sucesso!")
+                # Lógica simples para o PDF
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", 0, 1, "C")
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                
-                st.download_button(
-                    label="📥 BAIXAR DECLARAÇÃO",
-                    data=pdf_output,
-                    file_name=f"Rancho_{navio_nome}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-                
-                # Botão para ir direto ao histórico após salvar
-                if st.button("Ir para o Banco de Dados ➡️"):
-                    st.session_state.pagina = "historico"
-                    st.rerun()
+                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", ln=True, align='C')
+                st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="rancho.pdf")
             else:
-                st.error("❌ Erro ao salvar. Verifique se as colunas no Notion estão corretas.")
+                st.error(f"Erro ao salvar: {resultado}. Verifique se as colunas no Notion estão idênticas ao código.")
 
-    with col_voltar:
-        if st.button("⬅️ VOLTAR PARA EDIÇÃO", use_container_width=True):
+    with col2:
+        if st.button("⬅️ VOLTAR"):
             st.session_state.pagina = "lista"
             st.rerun()
 
     st.markdown("---")
-    if st.button("🏠 MENU PRINCIPAL", use_container_width=True):
+    if st.button("🏠 MENU PRINCIPAL"):
         st.session_state.pagina = "menu"
         st.rerun()
 
