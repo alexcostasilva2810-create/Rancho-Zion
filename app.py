@@ -356,62 +356,92 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
-# BLOCO 7: VERSÃO TESTE FINAL (MINIMALISTA)
+# BLOCO 7: GERAR DECLARAÇÃO - CORREÇÃO FINAL (ANTI-TELA BRANCA)
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
-    st.title("📄 Finalizar Declaração")
-    
-    # 1. Recuperação segura de dados
-    navio_nome = st.session_state.get('navio', 'Navio não identificado')
-    usuario_nome = st.session_state.get('usuario', 'Usuário não identificado')
-    
-    st.write(f"**Responsável:** {usuario_nome}")
-    st.write(f"**Embarcação:** {navio_nome}")
+    import requests
+    from datetime import datetime, timedelta
 
-    # 2. Botão de Salvamento
-    if st.button("🚀 SALVAR NO BANCO DE DADOS (NOTION)"):
+    # 1. SEGURANÇA: Garante que as variáveis básicas existam para evitar tela branca
+    if 'navio' not in st.session_state:
+        st.session_state.navio = "Não Selecionado"
+    if 'data_rancho' not in st.session_state:
+        st.session_state.data_rancho = datetime.now().date()
+    if 'usuario' not in st.session_state:
+        st.session_state.usuario = "Usuário Zion"
+
+    st.title("📄 Finalizar Pedido")
+
+    # 2. INTERFACE VISUAL
+    st.markdown(f"""
+        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #0D47A1;">
+            <h4 style="margin:0; color: #0D47A1;">Resumo para o Histórico</h4>
+            <p style="margin:5px 0;"><b>Responsável:</b> {st.session_state.usuario}</p>
+            <p style="margin:5px 0;"><b>Embarcação:</b> {st.session_state.navio}</p>
+            <p style="margin:5px 0;"><b>Data do Pedido:</b> {st.session_state.data_rancho.strftime('%d/%m/%Y')}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. FUNÇÃO DE SALVAMENTO (MAPEADA COM SUA NOVA TABELA DO NOTION)
+    def salvar_historico_notion():
         try:
-            import requests
-            url = "https://api.notion.com/v1/pages"
+            # Puxa os tokens salvos nos Secrets
+            NOTION_TOKEN = st.secrets["notion_token"]
+            DATABASE_ID = st.secrets["database_id"]
+            
             headers = {
-                "Authorization": f"Bearer {st.secrets['notion_token']}",
+                "Authorization": f"Bearer {NOTION_TOKEN}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            # Payload simplificado com os nomes da Imagem 15
+            
+            # Payload ajustado para as colunas: RESPONSÁVEL, Navio, Data prevista..., Validade, etc.
             payload = {
-                "parent": {"database_id": st.secrets["database_id"]},
+                "parent": {"database_id": DATABASE_ID},
                 "properties": {
-                    "RESPONSÁVEL": {"title": [{"text": {"content": usuario_nome}}]},
-                    "Navio": {"select": {"name": navio_nome}},
-                    "O navio está com escolt...": {"checkbox": st.session_state.get('escolta', False)}
+                    "RESPONSÁVEL": {
+                        "title": [{"text": {"content": st.session_state.usuario}}]
+                    },
+                    "Navio": {
+                        "select": {"name": st.session_state.navio}
+                    },
+                    "Data prevista para rece...": {
+                        "date": {"start": st.session_state.data_rancho.isoformat()}
+                    },
+                    "Validade": {
+                        "date": {"start": (st.session_state.data_rancho + timedelta(days=15)).isoformat()}
+                    },
+                    "O navio está com escolt...": {
+                        "checkbox": st.session_state.get('escolta', False)
+                    }
                 }
             }
             
-            res = requests.post(url, json=payload, headers=headers)
-            
-            if res.status_code == 200:
-                st.success("✅ Salvo com sucesso no Histórico!")
-                st.balloons()
-            else:
-                st.error(f"Erro no Notion: {res.status_code}")
-                st.write(res.text) # Mostra o erro exato da API
+            response = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
+            return response.status_code == 200
         except Exception as e:
-            st.error(f"Erro técnico: {e}")
+            st.error(f"Erro na conexão: {e}")
+            return False
 
-    st.markdown("---")
+    # 4. BOTÕES DE AÇÃO
+    col_salvar, col_voltar = st.columns(2)
     
-    # 3. Botões de Navegação
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("⬅️ VOLTAR"):
-            st.session_state.pagina = "lista"
-            st.rerun()
-    with col2:
-        if st.button("🏠 MENU"):
+    with col_salvar:
+        if st.button("🚀 GRAVAR E FINALIZAR", use_container_width=True):
+            with st.spinner("Gravando no Banco de Dados..."):
+                if salvar_historico_notion():
+                    st.success("✅ Pedido gravado no histórico!")
+                    st.balloons()
+                    # Aqui você pode adicionar a lógica de gerar o PDF se desejar
+                else:
+                    st.error("❌ Falha ao gravar. Verifique se o Database ID e o Token estão corretos.")
+
+    with col_voltar:
+        if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
             st.session_state.pagina = "menu"
             st.rerun()
-
 # =================================================================
 # BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
 # =================================================================
