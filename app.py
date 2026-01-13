@@ -356,90 +356,61 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
-# BLOCO 7: GERAR DECLARAÇÃO - VERSÃO DE EMERGÊNCIA (ANTI-TELA BRANCA)
+# BLOCO 7: VERSÃO TESTE FINAL (MINIMALISTA)
 # =================================================================
 elif st.session_state.pagina == "gerar_declaracao":
-    # Importações seguras dentro do bloco
-    import requests
-    try:
-        from fpdf import FPDF
-    except:
-        st.error("Erro: Biblioteca FPDF não encontrada. Instale com 'pip install fpdf'")
-
     st.title("📄 Finalizar Declaração")
-
-    # --- TENTATIVA DE RECUPERAR DADOS (COM PROTEÇÃO) ---
-    # Se o dado não existir, ele coloca um texto padrão em vez de dar erro
-    navio_final = st.session_state.get('navio', 'Navio não identificado')
     
-    # Tratamento de data para evitar erro de formato
-    try:
-        data_rancho_br = st.session_state.data_rancho.strftime('%d/%m/%Y')
-        data_iso = st.session_state.data_rancho.isoformat()
-    except:
-        data_rancho_br = "Data não definida"
-        data_iso = None
+    # 1. Recuperação segura de dados
+    navio_nome = st.session_state.get('navio', 'Navio não identificado')
+    usuario_nome = st.session_state.get('usuario', 'Usuário não identificado')
+    
+    st.write(f"**Responsável:** {usuario_nome}")
+    st.write(f"**Embarcação:** {navio_nome}")
 
-    # --- INTERFACE VISUAL SIMPLES ---
-    st.info(f"**Resumo:** {navio_final} | **Data:** {data_rancho_br}")
-
-    # --- FUNÇÃO DE SALVAMENTO NO NOTION ---
-    def salvar_notion_emergencia():
+    # 2. Botão de Salvamento
+    if st.button("🚀 SALVAR NO BANCO DE DADOS (NOTION)"):
         try:
-            # Puxa credenciais dos Secrets
-            token = st.secrets["notion_token"]
-            db_id = st.secrets["database_id"]
-            
+            import requests
+            url = "https://api.notion.com/v1/pages"
             headers = {
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {st.secrets['notion_token']}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            
-            # Payload com nomes exatos da sua Imagem 15
+            # Payload simplificado com os nomes da Imagem 15
             payload = {
-                "parent": {"database_id": db_id},
+                "parent": {"database_id": st.secrets["database_id"]},
                 "properties": {
-                    "RESPONSÁVEL": {"title": [{"text": {"content": st.session_state.get('usuario', 'GABRIEL MORANGO')}}]},
-                    "Navio": {"select": {"name": navio_final}},
-                    "Data prevista para rece...": {"date": {"start": data_iso}} if data_iso else None,
+                    "RESPONSÁVEL": {"title": [{"text": {"content": usuario_nome}}]},
+                    "Navio": {"select": {"name": navio_nome}},
                     "O navio está com escolt...": {"checkbox": st.session_state.get('escolta', False)}
                 }
             }
-            # Remove campos nulos para não dar erro na API
-            payload["properties"] = {k: v for k, v in payload["properties"].items() if v is not None}
             
-            response = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
-            return response.status_code
-        except Exception as e:
-            return str(e)
-
-    # --- BOTÕES DE AÇÃO ---
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("🚀 SALVAR E GERAR", use_container_width=True):
-            resultado = salvar_notion_emergencia()
-            if resultado == 200:
-                st.success("✅ Salvo no Notion com sucesso!")
-                # Lógica simples para o PDF
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "DECLARAÇÃO DE RANCHO", ln=True, align='C')
-                st.download_button("📥 BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name="rancho.pdf")
+            res = requests.post(url, json=payload, headers=headers)
+            
+            if res.status_code == 200:
+                st.success("✅ Salvo com sucesso no Histórico!")
+                st.balloons()
             else:
-                st.error(f"Erro ao salvar: {resultado}. Verifique se as colunas no Notion estão idênticas ao código.")
+                st.error(f"Erro no Notion: {res.status_code}")
+                st.write(res.text) # Mostra o erro exato da API
+        except Exception as e:
+            st.error(f"Erro técnico: {e}")
 
-    with col2:
+    st.markdown("---")
+    
+    # 3. Botões de Navegação
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("⬅️ VOLTAR"):
             st.session_state.pagina = "lista"
             st.rerun()
-
-    st.markdown("---")
-    if st.button("🏠 MENU PRINCIPAL"):
-        st.session_state.pagina = "menu"
-        st.rerun()
+    with col2:
+        if st.button("🏠 MENU"):
+            st.session_state.pagina = "menu"
+            st.rerun()
 
 # =================================================================
 # BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
