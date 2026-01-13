@@ -224,13 +224,14 @@ elif st.session_state.pagina == "menu":
         st.rerun()
 
 # =================================================================
-# BLOCO 6: TELA DE LISTA (VERSÃO ESTÁVEL SEM ERROS)
+# BLOCO 6: CONFERÊNCIA DE ESTOQUE - COM BOTÕES DE EXPORTAÇÃO
 # =================================================================
 elif st.session_state.pagina == "lista":
     import io
     from datetime import datetime, timedelta
-    
-    # Plano de fundo suave de supermercado
+    import unicodedata
+
+    # 1. ESTILO VISUAL E FUNDO
     st.markdown("""
         <style>
         .stApp {
@@ -238,6 +239,13 @@ elif st.session_state.pagina == "lista":
                         url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920");
             background-size: cover; background-position: center;
         }
+        /* Botões de Exportação Brancos */
+        .btn-export {
+            background-color: white !important; color: #004aad !important;
+            border-radius: 10px !important; font-weight: bold !important;
+            border: 1px solid #004aad !important;
+        }
+        /* Botões de Ação Azuis */
         div.stButton > button {
             background-color: #004aad !important; color: white !important;
             border-radius: 20px !important; font-weight: bold !important;
@@ -249,14 +257,18 @@ elif st.session_state.pagina == "lista":
     
     st.title("📋 Conferência de Estoque")
     
-    # Botão de atualizar (Removido o 'kind' que causava erro)
-    if st.button("🔄 ATUALIZAR TABELA"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+    # 2. BOTÃO DE ATUALIZAR (CORRIGIDO)
+    col_refresh, col_spacer = st.columns([1, 3])
+    with col_refresh:
+        if st.button("🔄 ATUALIZAR TABELA", use_container_width=True):
+            st.session_state.df_lista = carregar_dados_do_notion()
+            st.toast("Dados sincronizados!")
+            st.rerun()
 
-    # Definição obrigatória antes do uso para evitar NameError
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. CONFIGURAÇÃO DA TABELA E SEGURANÇA
     pode_exportar = True 
-
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -264,25 +276,83 @@ elif st.session_state.pagina == "lista":
             "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("NECESSIDADE", min_value=0),
         },
-        hide_index=True, use_container_width=True
+        hide_index=True, use_container_width=True, key="editor_estoque_final"
     )
 
-    # Trava de segurança
+    # Verificação de limite para trava de segurança
     itens_excedentes = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
     if not itens_excedentes.empty:
         pode_exportar = False
-        st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE!")
+        st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE PERMITIDO!")
 
     st.markdown("---")
+    
+    # 4. BOTÕES DE EXPORTAÇÃO E NAVEGAÇÃO
     col_pdf, col_excel, col_menu = st.columns(3)
     
     with col_pdf:
         if pode_exportar:
-            # Lógica do PDF aqui (mantendo o rodapé de Brasília solicitado)
-            pass 
+            try:
+                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                
+                class PDF_Checklist(FPDF):
+                    def header(self):
+                        # Logo e Cabeçalho idêntico ao padrão tratado
+                        if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 95, 8, 20)
+                        self.set_font("Arial", "B", 14); self.ln(22)
+                        self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
+                        self.ln(5)
+                        self.set_fill_color(200, 200, 200); self.set_font("Arial", "B", 8)
+                        self.cell(10, 7, "COD", 1, 0, "C", True)
+                        self.cell(30, 7, "TIPO", 1, 0, "C", True)
+                        self.cell(15, 7, "UNID", 1, 0, "C", True)
+                        self.cell(15, 7, "PREDEF", 1, 0, "C", True)
+                        self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
+                        self.cell(15, 7, "CONF.", 1, 1, "C", True)
+                    
+                    def footer(self):
+                        self.set_y(-15); self.set_font('Arial', 'I', 8)
+                        # Horário de Brasília
+                        fuso_brasilia = datetime.now() - timedelta(hours=3)
+                        data_hora = fuso_brasilia.strftime("%d/%m/%Y %H:%M:%S")
+                        texto = f"Gerado em: {data_hora} (Brasília) - Pagina {self.page_no()}"
+                        self.cell(0, 10, preparar(texto), 0, 0, 'C')
+
+                pdf = PDF_Checklist()
+                pdf.add_page(); pdf.set_font("Arial", "", 8)
+                for _, r in df_editado.iterrows():
+                    pdf.cell(10, 6, str(r["ITEM"]), 1, 0, "C")
+                    pdf.cell(30, 6, preparar(r["TIPO"]), 1, 0, "L")
+                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
+                    pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
+                    pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 1, "C")
+
+                st.download_button(
+                    label="📄 BAIXAR PDF", 
+                    data=pdf.output(dest='S').encode('latin-1'), 
+                    file_name=f"Checklist_{st.session_state.navio}.pdf", 
+                    mime="application/pdf", 
+                    use_container_width=True
+                )
+            except Exception as e: st.error(f"Erro no PDF: {e}")
+
+    with col_excel:
+        if pode_exportar:
+            try:
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df_editado.to_excel(writer, index=False, sheet_name='Rancho')
+                st.download_button(
+                    label="📊 BAIXAR EXCEL", 
+                    data=output.getvalue(), 
+                    file_name=f"Rancho_{st.session_state.navio}.xlsx", 
+                    use_container_width=True
+                )
+            except: st.error("Erro ao gerar Excel.")
 
     with col_menu:
-        if st.button("⬅️ MENU PRINCIPAL"):
+        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
             
 # =================================================================
