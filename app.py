@@ -353,7 +353,8 @@ elif st.session_state.pagina == "lista":
 
     with col_menu:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun() # =================================================================
+            st.session_state.pagina = "menu"; st.rerun() 
+# =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
@@ -464,109 +465,103 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: HISTÓRICO - CONEXÃO INTEGRAL COM NOTION (AJUSTADO)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (RECONSTRUÇÃO FINAL)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
-    # --- 1. FUNÇÃO DE BUSCA (Ajustada para os nomes da Imagem 15) ---
-    def carregar_historico_notion(dt_inicio, dt_fim):
+    # --- Estilização Visual (Original Azul) ---
+    st.markdown("""
+        <style>
+        .stApp { background-color: #f0f5ff !important; }
+        .titulo-banco { color: #0D47A1; font-weight: bold; font-size: 32px; margin-bottom: 10px; }
+        div.stButton > button { background-color: #0D47A1 !important; color: white !important; border-radius: 5px; }
+        .cabecalho-tabela { background-color: #0D47A1; color: white; padding: 10px; border-radius: 5px; font-weight: bold; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="titulo-banco">🗄️ Banco de Dados - Histórico de Declarações</div>', unsafe_allow_html=True)
+
+    # --- Filtros de Busca (Corrigindo o NameError da sua imagem) ---
+    col_data1, col_data2, col_busca = st.columns([2, 2, 1])
+    
+    # Definindo as variáveis que o botão BUSCAR vai utilizar
+    data_inicio_filtro = col_data1.date_input("🗓️ Data Início", value=date(2026, 1, 1), format="DD/MM/YYYY")
+    data_fim_filtro = col_data2.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
+
+    if col_busca.button("🔍 BUSCAR"):
         try:
-            NOTION_TOKEN = st.secrets["notion_token"]
-            DATABASE_ID = st.secrets["database_id"]
-            
-            url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+            url_query = f"https://api.notion.com/v1/databases/{st.secrets['database_id']}/query"
             headers = {
-                "Authorization": f"Bearer {NOTION_TOKEN}",
+                "Authorization": f"Bearer {st.secrets['notion_token']}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
             
-            # Filtro pela coluna "Data prevista para rece..."
-            query = {
+            # Filtro exato para a coluna "Data prevista para rece..." do seu Notion
+            payload_query = {
                 "filter": {
                     "and": [
-                        {"property": "Data prevista para rece...", "date": {"on_or_after": dt_inicio.isoformat()}},
-                        {"property": "Data prevista para rece...", "date": {"on_or_before": dt_fim.isoformat()}}
+                        {
+                            "property": "Data prevista para rece...",
+                            "date": {"on_or_after": data_inicio_filtro.isoformat()}
+                        },
+                        {
+                            "property": "Data prevista para rece...",
+                            "date": {"on_or_before": data_fim_filtro.isoformat()}
+                        }
                     ]
                 }
             }
             
-            response = requests.post(url, json=query, headers=headers)
-            if response.status_code == 200:
-                results = response.json().get("results", [])
-                lista_final = []
-                for item in results:
-                    p = item["properties"]
-                    # Mapeamento conforme Imagem 15
-                    lista_final.append({
-                        "usuario": p["RESPONSÁVEL"]["title"][0]["text"]["content"] if p["RESPONSÁVEL"]["title"] else "N/A",
-                        "empurrador": p["Navio"]["select"]["name"] if p["Navio"]["select"] else "N/A",
-                        "data_receb": p["Data prevista para rece..."]["date"]["start"] if p["Data prevista para rece..."]["date"] else "-",
-                        "validade": p["Validade"]["date"]["start"] if p["Validade"]["date"] else "-",
-                        "escolta": "SIM" if p["O navio está com escolt..."]["checkbox"] else "NÃO"
-                    })
-                return lista_final
+            response_query = requests.post(url_query, json=payload_query, headers=headers)
+            if response_query.status_code == 200:
+                st.session_state.historico_resultados = response_query.json().get("results", [])
             else:
-                st.error(f"Erro Notion: {response.status_code}")
-                return []
+                st.error(f"Erro ao consultar Notion: {response_query.status_code}")
         except Exception as e:
-            st.error(f"Erro de conexão: {e}")
-            return []
-
-    # --- 2. LAYOUT E ESTILO ---
-    st.markdown("""
-        <style>
-        .stApp { background-color: #F0F8FF !important; }
-        h1, h2, label { color: #0D47A1 !important; font-weight: bold; }
-        div.stButton > button { background-color: #0D47A1 !important; color: white !important; border-radius: 8px !important; }
-        </style>
-        """, unsafe_allow_html=True)
-
-    st.title("🗄️ Banco de Dados - Histórico")
-
-    # --- 3. FILTROS ---
-    c1, c2, c3 = st.columns([2, 2, 1])
-    # Usei 'data_inicio' e 'data_fim' para evitar o erro da imagem 14
-    data_inicio = c1.date_input("🗓️ Data Início", value=date.today(), format="DD/MM/YYYY")
-    data_fim = c2.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    if c3.button("🔍 BUSCAR"):
-        with st.spinner("Buscando dados..."):
-            st.session_state.historico_declaracoes = carregar_historico_notion(data_inicio, data_fim)
-        st.rerun()
+            st.error(f"Falha na busca: {e}")
 
     st.markdown("---")
 
-    # --- 4. TABELA DE RESULTADOS ---
-    cols_h = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
-    titulos = ["USUÁRIO", "EMPURRADOR", "DATA RECEB.", "VALIDADE", "ESCOLTA", "IMPRIMIR"]
-    for i, t in enumerate(titulos):
-        cols_h[i].markdown(f"**{t}**")
-    st.markdown("<hr style='border-top: 2px solid #0D47A1;'>", unsafe_allow_html=True)
+    # --- Exibição da Tabela de Resultados ---
+    # Layout de colunas para o cabeçalho
+    c_user, c_navio, c_data, c_val, c_esc, c_pdf = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
+    c_user.markdown("**USUÁRIO**")
+    c_navio.markdown("**EMPURRADOR**")
+    c_data.markdown("**DATA RECEB.**")
+    c_val.markdown("**VALIDADE**")
+    c_esc.markdown("**ESCOLTA**")
+    c_pdf.markdown("**IMPRIMIR**")
 
-    if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
-        st.info("Nenhum registro encontrado para este período.")
-    else:
-        for idx, reg in enumerate(st.session_state.historico_declaracoes):
+    if "historico_resultados" in st.session_state and st.session_state.historico_resultados:
+        for p_index, page in enumerate(st.session_state.historico_resultados):
+            props = page["properties"]
             r = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
-            r[0].write(reg["usuario"])
-            r[1].write(reg["empurrador"])
-            r[2].write(reg["data_receb"])
-            r[3].write(reg["validade"])
-            r[4].write(reg["escolta"])
-            with r[5]:
-                st.button("🖨️ 2ª VIA", key=f"btn_{idx}")
-            st.markdown("<hr style='margin:0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+            
+            # Extração segura conforme imagem_80f2c1.png
+            txt_user = props["RESPONSÁVEL"]["title"][0]["text"]["content"] if props["RESPONSÁVEL"]["title"] else "N/A"
+            txt_navio = props["Navio"]["select"]["name"] if props["Navio"]["select"] else "N/A"
+            txt_data = props["Data prevista para rece..."]["date"]["start"] if props["Data prevista para rece..."]["date"] else "-"
+            txt_val = props["Validade"]["date"]["start"] if props["Validade"]["date"] else "-"
+            txt_esc = "✅" if props["O navio está com escolt..."]["checkbox"] else "❌"
 
-    # --- 5. NAVEGAÇÃO ---
+            r[0].write(txt_user)
+            r[1].write(txt_navio)
+            r[2].write(txt_data)
+            r[3].write(txt_val)
+            r[4].write(txt_esc)
+            r[5].button("🖨️", key=f"btn_print_{p_index}")
+    else:
+        st.info("Nenhum registro encontrado para este período.")
+
+    # --- Navegação Inferior ---
     st.markdown("<br>", unsafe_allow_html=True)
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun()
-    with col_v2:
-        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
-            st.session_state.pagina = "home"; st.rerun()
+    b_voltar, b_sair = st.columns(2)
+    if b_voltar.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
+        st.session_state.pagina = "menu"
+        st.rerun()
+    if b_sair.button("🚪 SAIR DO SISTEMA", use_container_width=True):
+        st.session_state.pagina = "login"
+        st.rerun()
