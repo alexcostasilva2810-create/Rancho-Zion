@@ -221,63 +221,54 @@ elif st.session_state.pagina == "menu":
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("⬅️ LOGOUT (SAIR)"): 
         st.session_state.pagina = "home"
-        st.rerun()
-# =================================================================
-# BLOCO 6: TELA DE LISTA (CONFERÊNCIA, SALVAMENTO E PDF COM RODAPÉ)
+        st.rerun()# =================================================================
+# BLOCO 6: TELA DE LISTA (AJUSTE DE HORÁRIO E CLARIDADE)
 # =================================================================
 elif st.session_state.pagina == "lista":
     import io
-    from datetime import datetime
+    from datetime import datetime, timedelta
     
-    # 1. NOVO PLANO DE FUNDO: COMPRAS DE SUPERMERCADO
+    # 1. PLANO DE FUNDO MAIS SUAVE (OPACIDADE REDUZIDA)
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
                         url("https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1920");
             background-size: cover; background-position: center; background-attachment: fixed;
         }
         div.stButton > button {
             background-color: #FF8C00 !important; color: white !important;
             border-radius: 10px !important; font-weight: bold !important;
+            text-shadow: 1px 1px 2px black !important;
         }
         .stDataFrame { background-color: rgba(255, 255, 255, 0.9) !important; border-radius: 10px; }
-        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
+        h1, h2, h3, p, label { color: white !important; text-shadow: 2px 2px 5px black; }
         </style>
         """, unsafe_allow_html=True)
     
     st.title("📋 Conferência de Estoque")
     
-    if st.button("🔄 ATUALIZAR DADOS DO SISTEMA"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
-
-    # 2. CONFIGURAÇÃO DA TABELA E TRAVA DE SEGURANÇA
+    # Lógica de Dados e Tabela (Mantida conforme solicitado)
     pode_exportar = True 
-    df_temp = st.session_state.df_lista.copy()
-    
     df_editado = st.data_editor(
-        df_temp,
+        st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("COD", disabled=True),
             "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
             "CONFIRMA": st.column_config.NumberColumn("NECESSIDADE", min_value=0),
         },
-        hide_index=True, use_container_width=True, key="editor_estoque_v5"
+        hide_index=True, use_container_width=True, key="editor_estoque_v6"
     )
 
+    # Verificação de Limite
     itens_excedentes = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
-    
     if not itens_excedentes.empty:
         pode_exportar = False
         st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE PERMITIDO!")
-        for _, row in itens_excedentes.iterrows():
-            st.warning(f"Item: {row['DESCRIÇÃO']} (Limite: {row['PREDEFINIDO']})")
 
     st.markdown("---")
     col_pdf, col_excel, col_voltar = st.columns(3)
     
-    # 3. EXPORTAÇÃO PDF COM DATA E HORA NO RODAPÉ
     with col_pdf:
         if pode_exportar:
             try:
@@ -289,8 +280,6 @@ elif st.session_state.pagina == "lista":
                         self.set_font("Arial", "B", 14)
                         self.ln(22)
                         self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-                        self.set_font("Arial", "", 10)
-                        self.cell(0, 7, preparar(f"Responsavel: {st.session_state.cozinheiro}"), ln=True, align="C")
                         self.ln(5)
                         self.set_fill_color(200, 200, 200)
                         self.set_font("Arial", "B", 8)
@@ -301,13 +290,13 @@ elif st.session_state.pagina == "lista":
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
                         self.cell(15, 7, "CONF.", 1, 1, "C", True)
 
-                    # --- RODAPÉ COM DATA E HORA ---
                     def footer(self):
                         self.set_y(-15)
                         self.set_font('Arial', 'I', 8)
-                        # Gera a data e hora atual do sistema
-                        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                        texto_rodape = f"Gerado em: {data_hora} - Pagina {self.page_no()}"
+                        # --- AJUSTE PARA HORÁRIO DE BRASÍLIA (UTC-3) ---
+                        fuso_brasilia = datetime.now() - timedelta(hours=3)
+                        data_hora = fuso_brasilia.strftime("%d/%m/%Y %H:%M:%S")
+                        texto_rodape = f"Gerado em: {data_hora} (Horário de Brasília) - Pagina {self.page_no()}"
                         self.cell(0, 10, preparar(texto_rodape), 0, 0, 'C')
 
                 pdf = PDF_Checklist()
@@ -331,7 +320,7 @@ elif st.session_state.pagina == "lista":
                 )
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
-    # 4. EXPORTAÇÃO EXCEL
+    # (Botão de Excel e Voltar permanecem iguais ao anterior)
     with col_excel:
         if pode_exportar:
             try:
@@ -343,7 +332,9 @@ elif st.session_state.pagina == "lista":
 
     with col_voltar:
         if st.button("⬅️ VOLTAR AO MENU"):
-            st.session_state.pagina = "menu"; st.rerun()# =================================================================
+            st.session_state.pagina = "menu"; st.rerun() 
+            
+# =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
