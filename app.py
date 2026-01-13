@@ -445,82 +445,83 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: TELA DE HISTÓRICO COM BUSCA E TABELA ESTRUTURADA
+# BLOCO 8: HISTÓRICO DE DECLARAÇÕES (AJUSTADO)
 # =================================================================
 elif st.session_state.pagina == "historico":
     from datetime import date
-
-    # 1. ESTILO VISUAL: PLANO DE FUNDO AZUL CLARO
+    
+    # 1. ESTILO VISUAL: PLANO DE FUNDO BANCO DE DADOS
     st.markdown("""
         <style>
         .stApp {
-            background-color: #E3F2FD !important; /* Azul Claro */
-            background-image: none !important;
+            background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
+                        url("https://images.unsplash.com/photo-1558494949-ef010cbdcc51?q=80&w=1920");
+            background-size: cover; background-position: center;
         }
         .stDataFrame, div[data-testid="stTable"] { 
             background-color: white !important; 
             border-radius: 10px; 
         }
-        h1, h2, h3, p, label { color: #1565C0 !important; } /* Texto em Azul Escuro para contraste */
+        /* Títulos e labels em azul marinho para remeter a banco de dados */
+        h1, h2, h3, p, label { color: #0D47A1 !important; font-weight: bold; }
         div.stButton > button {
-            background-color: #1976D2 !important; color: white !important;
-            border-radius: 8px !important;
+            background-color: #0D47A1 !important; color: white !important;
+            border-radius: 5px !important; width: 100%;
         }
         </style>
         """, unsafe_allow_html=True)
 
-    st.title(f"📜 Histórico de Declarações - {st.session_state.navio}")
+    st.title(f"🗄️ Banco de Dados - Histórico de Declarações")
 
-    # 2. BOTÕES DE BUSCA POR PERÍODO
-    with st.expander("🔍 FILTRAR POR PERÍODO", expanded=True):
-        col_ini, col_fim, col_filtrar = st.columns([2, 2, 1])
-        data_inicio = col_ini.date_input("Data Início", value=date.today())
-        data_fim = col_fim.date_input("Data Fim", value=date.today())
-        btn_busca = col_filtrar.button("BUSCAR")
+    # 2. BUSCA POR PERÍODO
+    with st.container():
+        col_ini, col_fim, col_btn = st.columns([2, 2, 1])
+        data_ini = col_ini.date_input("🗓️ Data Início", value=date.today(), format="DD/MM/YYYY")
+        data_fim = col_fim.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
+        if col_btn.button("🔍 FILTRAR"):
+            st.toast("Filtrando dados no Notion...")
 
-    # 3. ESTRUTURA DA TABELA (MESMO QUE VAZIA)
-    st.markdown("### Registros no Período")
-    
-    # Criamos as colunas do cabeçalho da tabela
-    header_cols = st.columns([2, 2, 2, 2, 2])
-    header_cols[0].markdown("**Data Registro**")
-    header_cols[1].markdown("**Último Rancho**")
-    header_cols[2].markdown("**Origem**")
-    header_cols[3].markdown("**Destino**")
-    header_cols[4].markdown("**Ações**")
     st.markdown("---")
 
-    # Verifica se há dados
-    if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
-        st.info("Nenhum registro encontrado para o período selecionado.")
-        # Exibe linhas vazias para manter a estrutura visual
-        for _ in range(3):
-            cols = st.columns([2, 2, 2, 2, 2])
-            for c in cols: c.write("-")
-            st.markdown("---")
-    else:
-        # Lógica de filtro (simplificada para demonstração)
-        registros = st.session_state.historico_declaracoes
-        
-        for idx, reg in enumerate(reversed(registros)):
-            cols = st.columns([2, 2, 2, 2, 2])
-            cols[0].write(reg['data_registro'])
-            cols[1].write(reg['ultimo_rancho'])
-            cols[2].write(reg['origem'])
-            cols[3].write(reg['destino'])
-            
-            # 4. BOTÃO DE EXPORTAR/VER PDF
-            with cols[4]:
-                st.download_button(
-                    label="📄 EXPORTAR PDF",
-                    data=reg['pdf_binary'],
-                    file_name=f"Relatorio_{reg['data_registro'].replace('/','_')}.pdf",
-                    mime="application/pdf",
-                    key=f"btn_pdf_{idx}"
-                )
-            st.markdown("---")
+    # 3. CABEÇALHO DA TABELA (Conforme solicitado)
+    cols = st.columns([1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
+    campos = ["USUÁRIO", "EMPURRADOR", "ÚLTIMO RANCHO", "PRÓX. RANCHO", "ESCOLTA", "AÇÕES"]
+    for i, nome_campo in enumerate(campos):
+        cols[i].markdown(f"**{nome_campo}**")
+    
+    st.markdown("---")
 
-    # 5. BOTÃO VOLTAR
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL"):
-        st.session_state.pagina = "menu"
+    # 4. EXIBIÇÃO DOS DADOS (Vindos do Bloco 7 / Notion)
+    if "historico_declaracoes" not in st.session_state or not st.session_state.historico_declaracoes:
+        st.info("Nenhum registro encontrado no Banco de Dados.")
+        # Linhas vazias estruturais
+        for _ in range(3):
+            st.columns([1, 1, 1, 1, 1, 1])
+            st.markdown("<hr style='margin:0; border-top: 1px solid #ddd;'>", unsafe_allow_html=True)
+    else:
+        # Exibição dos dados salvos
+        for idx, reg in enumerate(reversed(st.session_state.historico_declaracoes)):
+            c = st.columns([1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
+            
+            c[0].write(reg.get('usuario', st.session_state.cozinheiro))
+            c[1].write(reg.get('empurrador', st.session_state.navio))
+            c[2].write(reg.get('data_ultimo_rancho', '-'))
+            c[3].write(reg.get('data_proximo_rancho', '-'))
+            c[4].write("SIM" if reg.get('com_escolta') else "NÃO")
+            
+            # Botão de Segunda Via
+            with c[5]:
+                if 'pdf_binary' in reg:
+                    st.download_button(
+                        label="🖨️ 2ª VIA",
+                        data=reg['pdf_binary'],
+                        file_name=f"2via_Declaracao_{idx}.pdf",
+                        mime="application/pdf",
+                        key=f"2via_{idx}"
+                    )
+
+    # 5. BOTÃO SAIR (VOLTA PARA HOME)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚪 SAIR (VOLTAR À TELA INICIAL)", use_container_width=True):
+        st.session_state.pagina = "home"
         st.rerun()
