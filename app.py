@@ -355,9 +355,11 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
+# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO (COM SALVAMENTO NO NOTION)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
+    import requests # Garanta que esta importação esteja no topo do seu arquivo
+    
     st.markdown("""
         <style>
         .stApp {
@@ -383,8 +385,8 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
     
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
-    dias_duracao = 12 if escolta == "SIM" else 15
+    escolta_radio = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    dias_duracao = 12 if escolta_radio == "SIM" else 15
     col_datas1, col_datas2 = st.columns(2)
     with col_datas1:
         data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
@@ -392,7 +394,7 @@ elif st.session_state.pagina == "tripulacao":
     data_validade = data_recebimento + timedelta(days=dias_duracao)
     with col_datas2:
         st.markdown(f"### 📅 Validade do Rancho")
-        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
+        cor_alerta = "#FF8C00" if escolta_radio == "SIM" else "#00FF00"
         st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
                     f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
                     f"</div>", unsafe_allow_html=True)
@@ -422,6 +424,39 @@ elif st.session_state.pagina == "tripulacao":
             st.error("❌ Realize a assinatura antes de gerar o PDF.")
         else:
             try:
+                # --- INÍCIO DA PARTE NOVA: SALVAMENTO NO NOTION ---
+                token = st.secrets["NOTION_TOKEN"]
+                db_id = st.secrets["ID_HISTORICO"] # Usando o ID do banco da sua imagem
+                
+                url_notion = "https://api.notion.com/v1/pages"
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "Notion-Version": "2022-06-28"
+                }
+
+                # Payload ajustado para a sua coluna "Novo Rancho" e "O navio está com escolt..."
+                payload = {
+                    "parent": {"database_id": db_id},
+                    "properties": {
+                        "RESPONSÁVEL": {"title": [{"text": {"content": resp_nome}}]},
+                        "Navio": {"select": {"name": st.session_state.navio}},
+                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                        "Validade": {"date": {"start": data_validade.isoformat()}},
+                        "O navio está com escolt...": {"checkbox": True if escolta_radio == "SIM" else False},
+                        "porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                        "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
+                    }
+                }
+                
+                res_notion = requests.post(url_notion, json=payload, headers=headers)
+                if res_notion.status_code == 200 or res_notion.status_code == 201:
+                    st.success("✅ Registro salvo no histórico do Notion!")
+                else:
+                    st.warning(f"⚠️ Dados não salvos no Notion (Erro {res_notion.status_code}). Mas o PDF será gerado.")
+                # --- FIM DA PARTE NOVA ---
+
+                # Geração do PDF (Mantido conforme seu original perfeito)
                 class PDF_Final(FPDF):
                     def footer(self):
                         self.set_y(-15)
