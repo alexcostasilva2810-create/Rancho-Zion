@@ -465,13 +465,12 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (SOLUÇÃO DEFINITIVA)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (FORMATO PT-BR)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
-    # Manter o visual azul do sistema
     st.markdown("""
         <style>
         .stApp { background-color: #f0f5ff !important; }
@@ -482,9 +481,12 @@ elif st.session_state.pagina == "historico":
 
     st.markdown('<div class="titulo-banco">🗄️ Banco de Dados - Histórico</div>', unsafe_allow_html=True)
 
+    # --- Filtros de Data com Formatação PT-BR ---
     c_ini, c_fim, c_btn = st.columns([2, 2, 1])
-    data_inicio_ref = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1))
-    data_fim_ref = c_fim.date_input("🗓️ Data Fim", value=date.today())
+    
+    # format="DD/MM/YYYY" ajusta a visualização no componente
+    data_inicio_ref = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1), format="DD/MM/YYYY")
+    data_fim_ref = c_fim.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
 
     if c_btn.button("🔍 BUSCAR"):
         try:
@@ -498,38 +500,36 @@ elif st.session_state.pagina == "historico":
                 "Notion-Version": "2022-06-28"
             }
             
-            # ESTRATÉGIA: Enviamos o json vazio {} para o Notion.
-            # Isso obriga o Notion a aceitar a busca sem validar nomes de colunas.
+            # Busca todos os registros (Payload vazio evita erro 400 de nome de coluna)
             response = requests.post(url, json={}, headers=headers)
             
             if response.status_code == 200:
-                todos_os_resultados = response.json().get("results", [])
+                resultados = response.json().get("results", [])
                 st.session_state.dados_historico = []
                 
-                for item in todos_os_resultados:
+                for item in resultados:
                     props = item["properties"]
                     
-                    # Tentamos achar a data em qualquer coluna que você tenha criado
-                    # (Seja "Novo Rancho" ou "Data prevista...")
-                    dt_encontrada = None
+                    # Localiza a data na coluna "Novo Rancho" ou qualquer uma de data
+                    dt_str = None
                     for p_name in props:
                         if props[p_name].get("date"):
-                            dt_encontrada = props[p_name]["date"]["start"]
+                            dt_str = props[p_name]["date"]["start"]
                             break
                     
-                    if dt_encontrada:
-                        dt_obj = date.fromisoformat(dt_encontrada)
-                        # Filtro feito no Python (seguro contra erro 400)
+                    if dt_str:
+                        dt_obj = date.fromisoformat(dt_str)
+                        # Filtro lógico: se a data estiver no intervalo, adiciona à lista
                         if data_inicio_ref <= dt_obj <= data_fim_ref:
                             st.session_state.dados_historico.append(item)
                 
                 if not st.session_state.dados_historico:
-                    st.info("Nenhum registro encontrado para este período.")
+                    st.info("Nenhum registro encontrado no Notion para este período.")
             else:
-                st.error(f"Erro {response.status_code}: Falha crítica na comunicação com o Notion.")
+                st.error(f"Erro {response.status_code}: Verifique a conexão no Notion.")
                 
         except Exception as e:
-            st.error(f"Erro técnico: {e}")
+            st.error(f"Erro: {e}")
 
     st.markdown("---")
 
@@ -539,39 +539,40 @@ elif st.session_state.pagina == "historico":
     for col, txt in zip(h_cols, titulos):
         col.markdown(f"**{txt}**")
 
-    # Exibição dos dados com busca dinâmica de colunas
+    # Exibição dos Dados
     if "dados_historico" in st.session_state and st.session_state.dados_historico:
         for idx, item in enumerate(st.session_state.dados_historico):
             p = item["properties"]
             r = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
             
-            # Pegar Usuário (Título)
+            # Formatação da data de ISO (yyyy-mm-dd) para BR (dd/mm/yyyy)
+            def formatar_data_br(data_iso):
+                if data_iso == "-": return "-"
+                partes = data_iso.split("-")
+                return f"{partes[2]}/{partes[1]}/{partes[0]}"
+
             usuario = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
-            # Pegar Navio (Select)
             navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
-            # Pegar Validade
-            val = p.get("Validade", {}).get("date", {}).get("start", "-")
             
-            # Achar a data dinamicamente
-            dt_receb = "-"
+            # Busca as datas originais
+            dt_raw = "-"
             for k in p:
                 if "Rancho" in k or "Data" in k:
-                    if p[k].get("date"):
-                        dt_receb = p[k]["date"]["start"]
+                    if p[k].get("date"): dt_raw = p[k]["date"]["start"]
             
-            # Achar escolta dinamicamente
-            escolta_check = "❌"
-            for k in p:
-                if "escolt" in k.lower() and p[k].get("checkbox"):
-                    escolta_check = "✅"
-
+            val_raw = p.get("Validade", {}).get("date", {}).get("start", "-")
+            
+            # Exibe formatado em dd/mm/yyyy
             r[0].write(usuario)
             r[1].write(navio)
-            r[2].write(dt_receb)
-            r[3].write(val)
-            r[4].write(escolta_check)
-            r[5].button("🖨️", key=f"print_def_{idx}")
-    
+            r[2].write(formatar_data_br(dt_raw))
+            r[3].write(formatar_data_br(val_raw))
+            
+            # Escolta
+            escolta = "✅" if any(p[k].get("checkbox") for k in p if "escolt" in k.lower()) else "❌"
+            r[4].write(escolta)
+            r[5].button("🖨️", key=f"btn_h_{idx}")
+
     # Navegação
     st.markdown("<br>", unsafe_allow_html=True)
     b1, b2 = st.columns(2)
