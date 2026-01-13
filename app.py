@@ -465,17 +465,17 @@ elif st.session_state.pagina == "tripulacao":
         st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (RECONSTRUÇÃO FINAL)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (RECONSTRUÇÃO DEFINITIVA)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
-    # --- Estilização Visual Original (Azul Zion) ---
+    # --- Estilo Visual Original Azul Zion ---
     st.markdown("""
         <style>
         .stApp { background-color: #f0f5ff !important; }
-        .titulo-banco { color: #0D47A1; font-weight: bold; font-size: 32px; margin-bottom: 20px; }
+        .titulo-banco { color: #0D47A1; font-weight: bold; font-size: 30px; margin-bottom: 20px; }
         div.stButton > button { background-color: #0D47A1 !important; color: white !important; border-radius: 5px; }
         </style>
     """, unsafe_allow_html=True)
@@ -484,13 +484,13 @@ elif st.session_state.pagina == "historico":
 
     # --- Filtros de Data ---
     c_ini, c_fim, c_btn = st.columns([2, 2, 1])
-    data_filtro_inicio = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1))
-    data_filtro_fim = c_fim.date_input("🗓️ Data Fim", value=date.today())
+    # Iniciamos com a data de hoje para facilitar a busca
+    data_inicio_ref = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1))
+    data_fim_ref = c_fim.date_input("🗓️ Data Fim", value=date.today())
 
     if c_btn.button("🔍 BUSCAR"):
         try:
-            # CORREÇÃO CRÍTICA: Usando as chaves EXATAS dos seus Secrets (MAIÚSCULAS)
-            # Usando ID_HISTORICO conforme sua imagem de segredos
+            # Puxando as chaves EXATAS da sua imagem 9a5047.png
             token = st.secrets["NOTION_TOKEN"]
             db_id = st.secrets["ID_HISTORICO"]
             
@@ -501,12 +501,12 @@ elif st.session_state.pagina == "historico":
                 "Notion-Version": "2022-06-28"
             }
             
-            # Payload sincronizado com a coluna "Data prevista para rece..."
+            # Payload filtrando pela coluna "Data prevista para rece..." da sua imagem 996b32.png
             payload_query = {
                 "filter": {
                     "and": [
-                        {"property": "Data prevista para rece...", "date": {"on_or_after": data_filtro_inicio.isoformat()}},
-                        {"property": "Data prevista para rece...", "date": {"on_or_before": data_filtro_fim.isoformat()}}
+                        {"property": "Data prevista para rece...", "date": {"on_or_after": data_inicio_ref.isoformat()}},
+                        {"property": "Data prevista para rece...", "date": {"on_or_before": data_fim_ref.isoformat()}}
                     ]
                 }
             }
@@ -515,46 +515,48 @@ elif st.session_state.pagina == "historico":
             
             if resp.status_code == 200:
                 st.session_state.dados_historico = resp.json().get("results", [])
+                if not st.session_state.dados_historico:
+                    st.info("Nenhum registro encontrado para este período.")
             else:
-                st.error(f"Erro na API (Status {resp.status_code}): {resp.text}")
+                # Caso o token ntn_... ainda dê erro de autorização
+                st.error(f"Erro na conexão (Status {resp.status_code}). Verifique se a integração foi 'Convidada' para a página no Notion.")
                 
         except Exception as e:
-            st.error(f"Falha na conexão: Verifique se as chaves nos Secrets estão corretas.")
+            st.error(f"Falha técnica: {e}")
 
     st.markdown("---")
 
-    # --- Cabeçalho da Listagem (Visual da Imagem 8e2cc8) ---
+    # --- Cabeçalho da Tabela ---
     h_cols = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
     titulos = ["USUÁRIO", "EMPURRADOR", "DATA RECEB.", "VALIDADE", "ESCOLTA", "IMPRIMIR"]
     for col_ref, texto_tit in zip(h_cols, titulos):
         col_ref.markdown(f"**{texto_tit}**")
 
-    # --- Exibição dos Dados ---
+    # --- Exibição dos Resultados (Mapeados pela sua Imagem 996b32.png) ---
     if "dados_historico" in st.session_state and st.session_state.dados_historico:
         for idx, item in enumerate(st.session_state.dados_historico):
             prop = item["properties"]
             r_cols = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
             
-            # Mapeamento das colunas da Imagem 80f2c1
-            nome_usuario = prop["RESPONSÁVEL"]["title"][0]["text"]["content"] if prop["RESPONSÁVEL"]["title"] else "N/A"
-            nome_navio = prop["Navio"]["select"]["name"] if prop["Navio"]["select"] else "N/A"
-            dt_receb = prop["Data prevista para rece..."]["date"]["start"] if prop["Data prevista para rece..."]["date"] else "-"
-            dt_valid = prop["Validade"]["date"]["start"] if prop["Validade"]["date"] else "-"
-            tem_escolta = "✅" if prop["O navio está com escolt..."]["checkbox"] else "❌"
+            # Extração dos dados usando os nomes exatos das suas colunas
+            # RESPONSÁVEL (Título), Navio (Select), Validade (Date), etc.
+            u_nome = prop["RESPONSÁVEL"]["title"][0]["text"]["content"] if prop["RESPONSÁVEL"]["title"] else "N/A"
+            n_nome = prop["Navio"]["select"]["name"] if prop["Navio"]["select"] else "N/A"
+            d_receb = prop["Data prevista para rece..."]["date"]["start"] if prop["Data prevista para rece..."]["date"] else "-"
+            d_valid = prop["Validade"]["date"]["start"] if prop["Validade"]["date"] else "-"
+            escolta = "✅" if prop["O navio está com escolt..."]["checkbox"] else "❌"
 
-            r_cols[0].write(nome_usuario)
-            r_cols[1].write(nome_navio)
-            r_cols[2].write(dt_receb)
-            r_cols[3].write(dt_valid)
-            r_cols[4].write(tem_escolta)
-            r_cols[5].button("🖨️", key=f"print_{idx}")
-    else:
-        st.info("Nenhum registro encontrado para este período.")
-
+            r_cols[0].write(u_nome)
+            r_cols[1].write(n_nome)
+            r_cols[2].write(d_receb)
+            r_cols[3].write(d_valid)
+            r_cols[4].write(escolta)
+            r_cols[5].button("🖨️", key=f"hist_print_{idx}")
+    
     # --- Navegação Inferior ---
     st.markdown("<br>", unsafe_allow_html=True)
-    btn_col1, btn_col2 = st.columns(2)
-    if btn_col1.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
+    b_menu, b_sair = st.columns(2)
+    if b_menu.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
         st.session_state.pagina = "menu"; st.rerun()
-    if btn_col2.button("🚪 SAIR DO SISTEMA", use_container_width=True):
+    if b_sair.button("🚪 SAIR DO SISTEMA", use_container_width=True):
         st.session_state.pagina = "login"; st.rerun()
