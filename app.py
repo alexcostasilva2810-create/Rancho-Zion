@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO DEFINITIVO)
+# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO CORRIGIDO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -363,11 +363,16 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Lógica de Escolta e Validade
+    # Configuração de Datas
     escolta_check = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
     dias_duracao = 12 if escolta_check == "SIM" else 15
+    
+    # Data que o usuário seleciona
     data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
     data_validade = data_recebimento + timedelta(days=dias_duracao)
+
+    # Exibição da validade na tela para conferência
+    st.info(f"📅 Validade calculada: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
     with st.form("form_declaracao"):
         col1, col2 = st.columns(2)
@@ -378,6 +383,8 @@ elif st.session_state.pagina == "tripulacao":
         with col2:
             data_ultimo = st.date_input("Data do último rancho recebido:")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
+            # Campo Navio como texto simples para evitar erro de 'Select'
+            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
         
         consideracoes = st.text_area("Considerações:")
         
@@ -394,12 +401,12 @@ elif st.session_state.pagina == "tripulacao":
                 "Notion-Version": "2022-06-28"
             }
 
-            # Montagem do JSON com nomes EXATOS da sua imagem e tipos de campo corretos
+            # Payload corrigido com nomes e tipos EXATOS da sua imagem
             payload = {
                 "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                 "properties": {
                     "Responsável": {"title": [{"text": {"content": resp_nome}}]},
-                    "Navio": {"select": {"name": st.session_state.get('navio', 'JATOBA')}},
+                    "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
                     "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                     "Validade": {"date": {"start": data_validade.isoformat()}},
                     "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
@@ -410,12 +417,9 @@ elif st.session_state.pagina == "tripulacao":
             res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
             
             if res.status_code == 200:
-                st.success("✅ SUCESSO! Dados registrados no Notion.")
+                st.success("✅ SUCESSO! Dados salvos no Notion.")
             else:
-                # Exibe o erro exato do Notion para sabermos qual coluna está incomodando
-                erro_detalhado = res.json().get('message', 'Erro desconhecido')
-                st.error(f"❌ Erro {res.status_code}: {erro_detalhado}")
-                st.info("Verifique se as colunas no Notion são do tipo 'Texto' (Rich Text), exceto Navio (Select) e Datas (Date).")
+                st.error(f"❌ Erro {res.status_code}: {res.json().get('message')}")
         
         except Exception as e:
             st.error(f"Falha técnica: {e}")
