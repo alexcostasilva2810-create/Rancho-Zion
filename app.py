@@ -491,47 +491,52 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (CONECTADO AO NOTION)
+# BLOCO 8: HISTÓRICO E 2ª VIA (COM PDF MODELO ORIGINAL)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date, datetime
-    import base64
+    import unicodedata
+    import pytz
     from fpdf import FPDF
 
+    # --- CSS: MANTER FUNDO AZUL E BOTÕES VAZADOS ---
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
         h1, h2, p, label, .stMarkdown, .stInfo { color: #ffffff !important; }
         div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        div.stButton > button { border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; color: #ffffff; font-weight: bold; }
+        div.stButton > button { 
+            border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; 
+            color: #ffffff; font-weight: bold; height: 45px;
+        }
         div.stButton > button:hover { background-color: #ffffff; color: #3b66eb; }
         </style>
     """, unsafe_allow_html=True)
 
+    # Navegação
     c_nav1, c_nav2, c_nav3 = st.columns([1, 2, 1])
     with c_nav1:
-        if st.button("⬅️ MENU", use_container_width=True):
+        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun()
     with c_nav3:
-        if st.button("🚪 SAIR", use_container_width=True):
+        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
             st.session_state.pagina = "login"; st.rerun()
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
     
-    # Filtro de busca
+    # Filtros de Busca
     with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
-        d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
+        d_ini = c1.date_input("De:", value=date(2025, 12, 15), format="DD/MM/YYYY")
         d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
-        btn_b = c3.button("🔍 BUSCAR", use_container_width=True)
+        btn_b = c3.button("🔍 CONSULTAR", use_container_width=True)
 
-    # --- LÓGICA DE BUSCA NO NOTION ---
     if btn_b:
         headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-        
-        # Filtro de privacidade: Marcos vê tudo, CZAs veem apenas o seu
         user_logado = st.session_state.get('cozinheiro', '')
+        
+        # Filtro de acesso: MARCOS vê tudo, outros veem apenas o seu
         if user_logado.upper() == "MARCOS":
             filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         else:
@@ -549,30 +554,58 @@ elif st.session_state.pagina == "historico":
                 p = page.get("properties", {})
                 dados_temp.append({
                     "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "data_hora_br": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
+                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
                     "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A"),
-                    "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("plain_text", "N/A")
+                    "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
+                    "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
+                    "tripulantes": p.get("Qtde Tripulante", {}).get("number", 0)
                 })
             st.session_state.dados_busca = dados_temp
             st.rerun()
 
-    # Exibição dos resultados
+    # --- EXIBIÇÃO E GERADOR DE PDF FIEL AO MODELO ---
     if st.session_state.get("dados_busca"):
         for idx, reg in enumerate(st.session_state.dados_busca):
-            with st.expander(f"🚢 {reg['navio']} - {reg['data_hora_br']}"):
-                col_txt, col_pdf = st.columns([4, 1])
-                col_txt.write(f"**Responsável:** {reg['resp']} | **Destino:** {reg['destino']}")
-                
-                # Gerador Simples de 2ª via para o botão não ficar vazio
-                pdf_v2 = FPDF()
-                pdf_v2.add_page()
-                pdf_v2.set_font("Arial", "B", 16)
-                pdf_v2.cell(0, 10, f"REIMPRESSAO: {reg['navio']}", ln=True)
-                pdf_v2.set_font("Arial", "", 12)
-                pdf_v2.cell(0, 10, f"Data: {reg['data_hora_br']}", ln=True)
-                pdf_v2.cell(0, 10, f"Responsavel: {reg['resp']}", ln=True)
-                
-                col_pdf.download_button("🖨️ PDF", 
-                                      data=pdf_v2.output(dest='S').encode('latin-1'), 
-                                      file_name=f"2via_{reg['navio']}.pdf", 
-                                      key=f"v_{idx}")
+            with st.expander(f"🚢 {reg['navio']} | 📅 {reg['data']} | 👤 {reg['resp']}"):
+                if st.button(f"📄 GERAR E BAIXAR PDF (2ª VIA)", key=f"btn_{idx}"):
+                    try:
+                        pdf = FPDF()
+                        pdf.add_page()
+                        def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+
+                        # Cabeçalho ZION
+                        pdf.set_font("Arial", "B", 30)
+                        pdf.set_text_color(0, 51, 153)
+                        pdf.cell(0, 20, "ZION", ln=True, align="C")
+                        
+                        # Título Documento
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font("Arial", "B", 14)
+                        pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C")
+                        pdf.ln(15)
+
+                        # Corpo do Texto fiel ao modelo da imagem
+                        pdf.set_font("Arial", "", 12)
+                        data_dt = datetime.strptime(reg['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
+                        
+                        texto_corpo = (
+                            f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {reg['navio']} e de {reg['tripulantes']} "
+                            f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                            f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {data_dt}. Este "
+                            f"suprimento e planejado para a viagem corrente.\n\n\n"
+                            f"Origem: {reg['origem']} | Destino: {reg['destino']}"
+                        )
+                        pdf.multi_cell(0, 8, f(texto_corpo), align="L")
+                        
+                        # Rodapé de Assinatura
+                        pdf.ln(40)
+                        pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                        pdf.set_font("Arial", "B", 11)
+                        pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
+                        pdf.set_font("Arial", "I", 9)
+                        pdf.cell(0, 5, f("Assinado em: " + datetime.now().strftime('%d/%m/%Y as %H:%M')), ln=True, align="C")
+
+                        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                        st.download_button("⬇️ CLIQUE AQUI PARA BAIXAR", data=pdf_bytes, file_name=f"2via_{reg['navio']}.pdf", key=f"dl_{idx}")
+                    except Exception as e:
+                        st.error(f"Erro ao gerar PDF: {e}")
