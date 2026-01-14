@@ -26,7 +26,7 @@ if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(
 USUARIOS = {
     "JATOBA": {"nome": "CZA AUGUSTO", "senha": "5881"},
     "AROEIRA": {"nome": "Marcos", "senha": "789"},
-    "NAVIO 03": {"nome": "Carlos", "senha": "456"}
+    "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"}
 }
 
 # =================================================================
