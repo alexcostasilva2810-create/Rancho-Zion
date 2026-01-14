@@ -444,6 +444,8 @@ elif st.session_state.pagina == "tripulacao":
             else:
                 st.error(f"Erro {res.status_code} ao salvar no Notion.")
                 st.json(res.json()) # Se der erro, o Notion dirá o motivo aqui
+
+
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA (ESTILO ZION BLUE VIBRANT)
 # =================================================================
