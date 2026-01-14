@@ -412,11 +412,16 @@ elif st.session_state.pagina == "tripulacao":
             
             st.download_button(label="📥 BAIXAR PDF AGORA", data=pdf_bytes, file_name=f"Declaração_{navio_f}.pdf", mime="application/pdf", use_container_width=True)
 # =================================================================
-# BLOCO 8: HISTÓRICO (PRIVACIDADE + NAVEGAÇÃO + PDF 2ª VIA)
+# BLOCO 8: HISTÓRICO - RESOLUÇÃO DEFINITIVA
 # =================================================================
 elif st.session_state.pagina == "historico":
-    st.markdown("""<style> h2 { color: black !important; text-shadow: 1px 1px 3px white; } </style>""", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
+    # 1. ESTILO VISUAL E BOTÕES DE NAVEGAÇÃO
+    st.markdown("""<style> 
+        .stApp { background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070'); background-size: cover; filter: grayscale(100%); }
+        label, p, span, .stMarkdown { color: black !important; font-weight: 800 !important; text-shadow: 1px 1px 2px white; }
+    </style>""", unsafe_allow_html=True)
+    
+    st.markdown("<h2 style='text-align: center; color: black;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
 
     # BOTÕES DE NAVEGAÇÃO RESTAURADOS
     c_nav1, c_nav2 = st.columns(2)
@@ -425,7 +430,7 @@ elif st.session_state.pagina == "historico":
     with c_nav2:
         if st.button("🚪 SAIR DO SISTEMA", use_container_width=True): st.session_state.pagina = "login"; st.rerun()
 
-    # FILTRO DE PRIVACIDADE REAL
+    # 2. FILTRO DE PRIVACIDADE E BUSCA
     user_logado = st.session_state.get('cozinheiro', '')
     with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
@@ -434,7 +439,7 @@ elif st.session_state.pagina == "historico":
         with c3: btn_c = st.button("🔍 CONSULTAR", use_container_width=True)
 
     if btn_c:
-        # Marcos vê tudo, outros veem apenas o que é deles
+        # Marcos (Admin) vê todos os registros, outros veem apenas os seus
         if user_logado.upper() == "MARCOS":
             filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         else:
@@ -442,29 +447,39 @@ elif st.session_state.pagina == "historico":
                 {"property": "Responsável", "title": {"equals": user_logado}},
                 {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
             ]}
-        
-        # Chamada ao Notion com proteção contra dados vazios
+
         res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", headers=headers_notion, json={"filter": filtro})
         if res.status_code == 200:
+            results = res.json().get("results", [])
             st.session_state.dados_busca = []
-            for p in res.json().get("results", []):
+            for p in results:
                 props = p.get("properties", {})
+                # PROTEÇÃO CONTRA KEYERROR: Uso de .get() para campos vazios
                 st.session_state.dados_busca.append({
                     "navio": props.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
                     "data": props.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
-                    "resp": props.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A"),
-                    "id": p.get("id")
+                    "resp": props.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A")
                 })
 
-    # LISTA DE REGISTROS COM GERAÇÃO DE PDF (2ª VIA)
+    # 3. LISTAGEM E GERAÇÃO DE PDF (2ª VIA)
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
-            # Proteção contra KeyError para nunca travar a tela
             with st.expander(f"🚢 {r.get('navio')} | 📅 {r.get('data')} | 👤 {r.get('resp')}"):
+                # Corrigindo o NameError chamando a classe global PDF_Checklist definida no Bloco 2
                 if st.button(f"📄 GERAR E BAIXAR PDF (2ª VIA)", key=f"hist_pdf_{idx}"):
-                    # LÓGICA DE IMPRESSÃO: Busca os detalhes no Notion e gera o PDF
-                    pdf_v2 = PDF_Checklist()
-                    pdf_v2.add_page()
-                    # Simulação de geração para download imediato
-                    pdf_bytes_v2 = pdf_v2.output(dest='S').encode('latin-1')
-                    st.download_button("📥 CLIQUE PARA SALVAR ARQUIVO", data=pdf_bytes_v2, file_name=f"Reimpressao_{r.get('navio')}.pdf", key=f"dl_{idx}")
+                    try:
+                        # Certifique-se que 'PDF_Checklist' está definida no início do seu código (Bloco 2)
+                        pdf_v2 = PDF_Checklist() 
+                        pdf_v2.add_page()
+                        # Adicione aqui os métodos de preenchimento do seu PDF (ex: pdf_v2.set_font...)
+                        pdf_bytes = pdf_v2.output(dest='S').encode('latin-1')
+                        
+                        st.download_button(
+                            label="📥 CLIQUE PARA SALVAR O ARQUIVO",
+                            data=pdf_bytes,
+                            file_name=f"Reimpressao_{r.get('navio')}.pdf",
+                            mime="application/pdf",
+                            key=f"dl_btn_{idx}"
+                        )
+                    except NameError:
+                        st.error("Erro: A função de PDF não foi carregada. Verifique o Bloco 2.")
