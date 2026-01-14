@@ -412,33 +412,33 @@ elif st.session_state.pagina == "tripulacao":
             
             st.download_button(label="📥 BAIXAR PDF AGORA", data=pdf_bytes, file_name=f"Declaração_{navio_f}.pdf", mime="application/pdf", use_container_width=True)
 # =================================================================
-# BLOCO 8: HISTÓRICO - RESOLUÇÃO DEFINITIVA DE ERROS
+# BLOCO 8: HISTÓRICO - VERSÃO ESTÁVEL "SHOW DE BOLA"
 # =================================================================
 elif st.session_state.pagina == "historico":
     from fpdf import FPDF
     
-    # Criamos a classe aqui dentro para garantir que ela sempre exista
-    class PDF_Hist(FPDF):
+    # Classe de PDF interna para garantir que sempre seja encontrada
+    class PDF_Historico(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
             self.cell(0, 10, '⚓ SEGUNDA VIA - DECLARAÇÃO', 0, 1, 'C')
 
-    # Estilo Visual Realçado
+    # Estilo Visual Original
     st.markdown("""<style> 
         .stApp { background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e'); background-size: cover; filter: grayscale(100%); }
-        label, p, span, .stMarkdown { color: black !important; font-weight: 800 !important; text-shadow: 1px 1px 2px white; }
+        label, p, span, h2 { color: black !important; font-weight: bold !important; text-shadow: 1px 1px 2px white; }
     </style>""", unsafe_allow_html=True)
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
 
-    # NAVEGAÇÃO SUPERIOR REESTABELECIDA
+    # NAVEGAÇÃO SUPERIOR
     c_nav1, c_nav2 = st.columns(2)
     with c_nav1:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
     with c_nav2:
         if st.button("🚪 SAIR DO SISTEMA", use_container_width=True): st.session_state.pagina = "login"; st.rerun()
 
-    # BUSCA E PRIVACIDADE
+    # BUSCA COM INDIVIDUALIZAÇÃO DE REGISTROS
     user_logado = st.session_state.get('cozinheiro', '')
     with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
@@ -447,7 +447,7 @@ elif st.session_state.pagina == "historico":
         with c3: btn_c = st.button("🔍 CONSULTAR", use_container_width=True)
 
     if btn_c:
-        # Filtro: MARCOS vê tudo, outros veem apenas o seu
+        # FILTRO INDIVIDUALIZADO: Marcos vê tudo / Outros veem apenas o seu
         if user_logado.upper() == "MARCOS":
             filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         else:
@@ -462,27 +462,26 @@ elif st.session_state.pagina == "historico":
             st.session_state.dados_busca = []
             for page in res.json().get("results", []):
                 p = page.get("properties", {})
-                # AQUI ESTÁ A BLINDAGEM: Usamos .get() para evitar o KeyError
+                # BLINDAGEM CONTRA KEYERROR
                 st.session_state.dados_busca.append({
-                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "Não Informado"),
-                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "Sem Data"),
+                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
+                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
                     "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A")
                 })
 
-    # LISTA DE REGISTROS
+    # LISTAGEM E PDF SEM ERRO DE ACENTUAÇÃO
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
-            # Acesso seguro aos dados para renderizar a tela
-            n_exibir = r.get('navio', 'N/A')
-            d_exibir = r.get('data', 'S/D')
-            
-            with st.expander(f"🚢 {n_exibir} | 📅 {d_exibir}"):
+            with st.expander(f"🚢 {r.get('navio')} | 📅 {r.get('data')}"):
                 if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"btn_pdf_{idx}"):
-                    pdf = PDF_Hist()
+                    pdf = PDF_Historico()
                     pdf.add_page()
                     pdf.set_font('Arial', '', 12)
-                    pdf.cell(0, 10, f"Navio: {n_exibir}", 0, 1)
-                    pdf.cell(0, 10, f"Data: {d_exibir}", 0, 1)
-                    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                    # CORREÇÃO UNICODE: Substituindo caracteres para evitar erro de encode
+                    txt_navio = r.get('navio').encode('latin-1', 'replace').decode('latin-1')
+                    pdf.cell(0, 10, f"Navio: {txt_navio}", 0, 1)
+                    pdf.cell(0, 10, f"Data: {r.get('data')}", 0, 1)
                     
-                    st.download_button("📥 BAIXAR AGORA", data=pdf_bytes, file_name=f"Copia_{n_exibir}.pdf", key=f"dl_{idx}")
+                    # Saída segura em latin-1 para o navegador
+                    pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
+                    st.download_button("📥 BAIXAR AGORA", data=pdf_bytes, file_name=f"Copia_{txt_navio}.pdf", key=f"dl_{idx}")
