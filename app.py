@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO DO LAYOUT ORIGINAL)
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO TOTAL - TEXTO CORRIDO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -382,93 +382,87 @@ elif st.session_state.pagina == "tripulacao":
         st.write("**📅 Validade Calculada:**")
         st.success(f"{data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    with st.form("form_restauracao_total"):
+    # --- FORMULÁRIO COM CAMPOS TRAVADOS ---
+    with st.form("form_declaracao_oficial_zion"):
         c1, c2 = st.columns(2)
         with c1:
-            # CAMPOS TRAVADOS (Conforme solicitado)
             resp_nome = c1.text_input("Responsável", value=st.session_state.get('cozinheiro', 'USUÁRIO'), disabled=True)
             navio_nome = c1.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
             origem = c1.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = c2.number_input("Qtde Tripulante:", min_value=1, value=16)
-            data_ultimo = c2.date_input("Data do último rancho:", format="DD/MM/YYYY")
+            data_ultimo = c2.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
             destino = c2.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
+        consideracoes = st.text_area("Considerações / Necessidades Extras:", value="Consumo regular conforme escala.")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_original_restaurado"
+            height=120, drawing_mode="freedraw", key="canvas_restaurado_v2"
         )
         
-        btn_gerar = st.form_submit_button("🚀 SALVAR E GERAR PDF ORIGINAL")
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
 
-    if btn_gerar:
+    if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # --- GERAÇÃO DO PDF NO LAYOUT EXATO DA IMAGEM ---
+                # --- GERAÇÃO DO PDF (ESTILO IMAGEM 2 - TEXTO CORRIDO) ---
                 pdf = FPDF()
                 pdf.add_page()
-                def t(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
+                def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
-                # Cabeçalho ZION Azul
+                # Cabeçalho: ZION em Azul
                 pdf.set_font("Arial", "B", 35)
-                pdf.set_text_color(0, 51, 153) # Azul Oficial
+                pdf.set_text_color(0, 51, 153) # Azul
                 pdf.cell(0, 20, "ZION", ln=True, align="C")
                 
-                pdf.set_text_color(0, 0, 0) # Volta para preto
+                # Título
+                pdf.set_text_color(0, 0, 0) # Preto
                 pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, t("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
+                pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
                 pdf.ln(10)
                 
-                # Montagem da Tabela de Dados (Layout da primeira imagem)
-                pdf.set_font("Arial", "B", 11)
-                
-                # Criando as linhas da tabela
-                def linha_tabela(label, valor):
-                    pdf.set_fill_color(240, 240, 240) # Fundo leve para o label
-                    pdf.set_font("Arial", "B", 11)
-                    pdf.cell(55, 10, t(f" {label}"), 1, 0, 'L', True)
-                    pdf.set_font("Arial", "", 11)
-                    pdf.cell(0, 10, t(f" {valor}"), 1, 1, 'L')
-
-                linha_tabela("Responsável", resp_nome)
-                linha_tabela("Embarcação", navio_nome)
-                linha_tabela("Quantidade Tripulantes", str(qtde_trip))
-                linha_tabela("Uso de Escolta", escolta_selecionada)
-                linha_tabela("Data de Recebimento", data_recebimento.strftime('%d/%m/%Y'))
-                linha_tabela("Data de Validade", data_validade.strftime('%d/%m/%Y'))
-                linha_tabela("Porto de Origem", origem)
-                linha_tabela("Porto de Destino", destino)
+                # CORPO DO TEXTO (EXATAMENTE COMO A IMAGEM 2)
+                pdf.set_font("Arial", "", 12)
+                texto_declaracao = (
+                    f"Eu, {resp_nome}, responsável pela embarcação {navio_nome}, declaro que a lotação atual "
+                    f"é de {qtde_trip} tripulantes. O rancho solicitado em {data_recebimento.strftime('%d/%m/%Y')} "
+                    f"terá validade prevista até {data_validade.strftime('%d/%m/%Y')}, totalizando um período "
+                    f"de {dias_duracao} dias, considerando o uso de escolta: {escolta_selecionada}."
+                )
+                pdf.multi_cell(0, 10, f(texto_declaracao))
                 
                 pdf.ln(5)
-                pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 8, t(" CONSIDERAÇÕES / OBSERVAÇÕES:"), 1, 1, 'L', True)
-                pdf.set_font("Arial", "", 10)
-                pdf.multi_cell(0, 8, t(consideracoes), 1, 'L')
+                pdf.cell(0, 10, f(f"Porto de Origem: {origem} | Porto de Destino: {destino}"), ln=True)
                 
-                # Espaço para Assinatura (Rodapé do PDF)
+                pdf.ln(10)
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 10, f("CONSIDERAÇÕES:"), ln=True)
+                pdf.set_font("Arial", "", 11)
+                pdf.multi_cell(0, 8, f(consideracoes))
+                
+                # ASSINATURA NO FINAL
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("assinatura_final.png")
-                pdf.ln(15)
-                pdf.image("assinatura_final.png", x=75, w=60)
+                img_ass.save("temp_assinatura.png")
+                pdf.ln(20)
+                pdf.image("temp_assinatura.png", x=75, w=60)
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                 pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 7, t(resp_nome), ln=True, align="C")
+                pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 pdf.set_font("Arial", "I", 9)
-                pdf.cell(0, 5, t("Assinatura do Responsável"), ln=True, align="C")
+                pdf.cell(0, 5, f("Assinatura do Responsável"), ln=True, align="C")
 
-                pdf_out = pdf.output(dest='S').encode('latin-1')
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
                 
-                # Botão de Download PDF
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (FORMATO ORIGINAL)", 
-                                   data=pdf_out, 
-                                   file_name=f"Declaracao_ZION_{navio_nome}.pdf", 
+                # BOTÃO DE DOWNLOAD PDF
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF OFICIAL)", 
+                                   data=pdf_bytes, 
+                                   file_name=f"Declaracao_Zion_{navio_nome}.pdf", 
                                    mime="application/pdf", 
                                    use_container_width=True)
 
-                # --- SALVAMENTO NO NOTION (PADRONIZADO) ---
+                # --- SALVAMENTO NO NOTION ---
                 headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
                 payload = {
                     "parent": {"database_id": st.secrets["ID_HISTORICO"]},
@@ -483,13 +477,16 @@ elif st.session_state.pagina == "tripulacao":
                         "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
                     }
                 }
-                requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-                st.success("✅ Documento gerado e histórico salvo com sucesso!")
+                res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+                if res.status_code == 200:
+                    st.success("✅ Histórico registrado e PDF gerado!")
+                else:
+                    st.warning("⚠️ PDF pronto para baixar, mas houve um erro no salvamento do histórico.")
 
             except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+                st.error(f"Erro no processamento: {e}")
         else:
-            st.warning("⚠️ Por favor, assine o documento primeiro.")
+            st.warning("⚠️ Por favor, realize a assinatura primeiro.")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
