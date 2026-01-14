@@ -355,114 +355,156 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURADA E ELEGANTE)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
+    import requests
+    from datetime import datetime, timedelta
+    import unicodedata
+    import pytz
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    from fpdf import FPDF
+    from streamlit_drawable_canvas import st_canvas
+
+    # --- CSS PARA FUNDO AZUL E CONTRASTE ---
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
-                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
-            background-size: cover; background-position: center;
+            background-color: #3b66eb !important;
         }
-        .titulo-centralizado {
-            text-align: center; color: white; text-shadow: 2px 2px 4px black;
-            font-size: 2.5rem; font-weight: bold; margin-bottom: 20px;
+        h1, h2, h3, p, label, .stMarkdown, span {
+            color: #ffffff !important;
         }
+        /* Campos de entrada em branco puro para contraste */
+        input, div[data-baseweb="input"], textarea, div[data-baseweb="select"] {
+            background-color: #ffffff !important;
+            color: #1a365d !important;
+            border-radius: 8px !important;
+        }
+        /* Botões Vazados com Hover Branco */
         div.stButton > button {
-            background-color: #FF8C00 !important; color: white !important;
-            border: 1px solid #FF8C00 !important; font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
+            border-radius: 10px;
+            border: 2px solid #ffffff;
+            background-color: transparent;
+            color: #ffffff;
+            font-weight: bold;
+            transition: all 0.3s;
         }
-        h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
-            background-color: rgba(255, 255, 255, 0.9) !important; 
+        div.stButton > button:hover {
+            background-color: #ffffff;
+            color: #3b66eb;
+        }
+        .stForm {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
         }
         </style>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
-    
-    escolta = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
-    dias_duracao = 12 if escolta == "SIM" else 15
-    col_datas1, col_datas2 = st.columns(2)
-    with col_datas1:
-        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
-    
-    data_validade = data_recebimento + timedelta(days=dias_duracao)
-    with col_datas2:
-        st.markdown(f"### 📅 Validade do Rancho")
-        cor_alerta = "#FF8C00" if escolta == "SIM" else "#00FF00"
-        st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
-                    f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
-                    f"</div>", unsafe_allow_html=True)
+    # Navegação Superior
+    c_nav1, c_nav2, c_nav3 = st.columns([1, 2, 1])
+    with c_nav1:
+        if st.button("⬅️ MENU", use_container_width=True):
+            st.session_state.pagina = "menu"; st.rerun()
+    with c_nav3:
+        if st.button("🚪 SAIR", use_container_width=True):
+            st.session_state.pagina = "login"; st.rerun()
 
-    with st.form("form_declaracao_final"):
-        col1, col2 = st.columns(2)
-        with col1:
-            resp_nome = st.text_input("Responsável (Login)", value=st.session_state.cozinheiro, disabled=True)
-            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16)
+    st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    
+    # --- CAMPOS RESTAURADOS ---
+    col_esc, col_val = st.columns([2, 2])
+    with col_esc:
+        escolta_opcoes = {"NÃO": 0, "SIM": 1}
+        escolta_sel = st.radio("O navio está com escolta?", list(escolta_opcoes.keys()), horizontal=True)
+        dias_duracao = 12 if escolta_sel == "SIM" else 15
+    
+    with col_val:
+        data_recebimento = st.date_input("Data prevista para o novo rancho:", datetime.now(), format="DD/MM/YYYY")
+        data_validade = data_recebimento + timedelta(days=dias_duracao)
+        st.success(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
+
+    with st.form("form_declaracao_completo"):
+        c1, c2 = st.columns(2)
+        with c1:
+            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
+            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
-        with col2:
-            data_ultimo_rancho = st.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
+        with c2:
+            qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
+            data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        necessidades_extras = st.text_area("Considerações / Necessidades Extras:", 
-            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
+        consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
-            background_color="#FFFFFF", height=120, drawing_mode="freedraw", key="ass_final_ancora",
+            stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
+            height=120, drawing_mode="freedraw", key="canvas_restaurado"
         )
-        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
+        
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF ORIGINAL", use_container_width=True)
 
-    if enviar:
-        if canvas_result.image_data is None:
-            st.error("❌ Realize a assinatura antes de gerar o PDF.")
-        else:
+    # --- LÓGICA DE SALVAMENTO ---
+    if btn_acao:
+        if canvas_result.image_data is not None:
             try:
-                class PDF_Final(FPDF):
-                    def footer(self):
-                        self.set_y(-15)
-                        self.set_font('Arial', 'I', 8)
-                        agora_br = datetime.now() - timedelta(hours=3)
-                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
-
-                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
-                pdf.add_page()
-                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 95, 8, 20)
-                pdf.set_font("Arial", "B", 16); pdf.set_y(30)
-                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
-                pdf.ln(10)
-
-                texto_corpo = (f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
-                               f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
-                               f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
-                               f"Este suprimento é planejado para a viagem corrente.")
-                pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
-                pdf.ln(5); pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
-                pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo_rancho.strftime('%d/%m/%Y')}"), ln=True)
-                
-                if necessidades_extras:
-                    pdf.ln(5); pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, preparar("CONSIDERAÇÕES:"), ln=True)
-                    pdf.set_font("Arial", "", 10); pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
-                
+                # Gerar imagem da assinatura
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("temp_ass.png")
-                pdf.ln(15); pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
-                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
-                pdf.cell(0, 10, preparar(f"Responsável: {st.session_state.cozinheiro}"), ln=True, align="C")
+                buffered = BytesIO()
+                img_ass.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode()
 
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf.output(dest='S').encode('latin-1'), 
-                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
-            except Exception as e: st.error(f"Erro: {e}")
+                # Criar PDF
+                pdf = FPDF()
+                pdf.add_page()
+                def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                
+                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
+                
+                pdf.set_font("Arial", "", 12)
+                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
+                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                         f"por um periodo de {dias_duracao} dias nauticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
+                         f"Este suprimento e planejado para a viagem corrente.\n\n"
+                         f"Origem: {origem} | Destino: {destino}")
+                pdf.multi_cell(0, 10, f(corpo))
+                
+                pdf.ln(35)
+                agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
+                txt_hora = agora_br.strftime('%d/%m/%Y às %H:%M')
 
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"; st.rerun()
+                img_ass.save("temp_sign.png")
+                pdf.image("temp_sign.png", x=75, w=50)
+                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
+                pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
+
+                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
+
+                # Salvar no Notion
+                headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+                payload = {
+                    "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                    "properties": {
+                        "Responsável": {"title": [{"text": {"content": resp_nome}}]},
+                        "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
+                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                        "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                        "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
+                        "Assinatura": {"rich_text": [{"text": {"content": img_str}}]},
+                        "Qtde Tripulante": {"number": int(qtde_trip)}
+                    }
+                }
+                requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+                st.success("✅ Registro salvo com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao processar: {e}")
 
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA - MAPEAMENTO COMPLETO
