@@ -353,8 +353,7 @@ elif st.session_state.pagina == "lista":
 
     with col_menu:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun() 
-# =================================================================
+            st.session_state.pagina = "menu"; st.rerun() # =================================================================
 # BLOCO 7: DECLARAÇÃO COM RELATÓRIO DE ERROS
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
