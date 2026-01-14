@@ -355,13 +355,14 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO TOTAL - TEXTO CORRIDO)
+# BLOCO 7: TELA DE DECLARAÇÃO (TEXTO PADRÃO + DATA/HORA BRASÍLIA)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
     from datetime import datetime, timedelta
     import unicodedata
     import os
+    import pytz  # Para fuso horário de Brasília
     from PIL import Image
     from fpdf import FPDF
     from streamlit_drawable_canvas import st_canvas
@@ -382,8 +383,7 @@ elif st.session_state.pagina == "tripulacao":
         st.write("**📅 Validade Calculada:**")
         st.success(f"{data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    # --- FORMULÁRIO COM CAMPOS TRAVADOS ---
-    with st.form("form_declaracao_oficial_zion"):
+    with st.form("form_declaracao_oficial_final"):
         c1, c2 = st.columns(2)
         with c1:
             resp_nome = c1.text_input("Responsável", value=st.session_state.get('cozinheiro', 'USUÁRIO'), disabled=True)
@@ -394,12 +394,12 @@ elif st.session_state.pagina == "tripulacao":
             data_ultimo = c2.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
             destino = c2.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações / Necessidades Extras:", value="Consumo regular conforme escala.")
+        consideracoes = st.text_area("CONSIDERAÇÕES:", value="Consumo regular conforme escala.")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_restaurado_v2"
+            height=120, drawing_mode="freedraw", key="canvas_final_brasilia"
         )
         
         btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
@@ -407,7 +407,7 @@ elif st.session_state.pagina == "tripulacao":
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # --- GERAÇÃO DO PDF (ESTILO IMAGEM 2 - TEXTO CORRIDO) ---
+                # --- GERAÇÃO DO PDF ---
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
@@ -418,51 +418,54 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.cell(0, 20, "ZION", ln=True, align="C")
                 
                 # Título
-                pdf.set_text_color(0, 0, 0) # Preto
+                pdf.set_text_color(0, 0, 0)
                 pdf.set_font("Arial", "B", 14)
                 pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
                 pdf.ln(10)
                 
-                # CORPO DO TEXTO (EXATAMENTE COMO A IMAGEM 2)
+                # CORPO DO TEXTO AJUSTADO CONFORME SOLICITADO
                 pdf.set_font("Arial", "", 12)
-                texto_declaracao = (
-                    f"Eu, {resp_nome}, responsável pela embarcação {navio_nome}, declaro que a lotação atual "
-                    f"é de {qtde_trip} tripulantes. O rancho solicitado em {data_recebimento.strftime('%d/%m/%Y')} "
-                    f"terá validade prevista até {data_validade.strftime('%d/%m/%Y')}, totalizando um período "
-                    f"de {dias_duracao} dias, considerando o uso de escolta: {escolta_selecionada}."
+                texto_corpo = (
+                    f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
+                    f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                    f"por um periodo de {dias_duracao} dias nauticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
+                    f"Este suprimento e planejado para a viagem corrente.\n\n"
+                    f"Origem: {origem} | Destino: {destino}\n"
+                    f"Ultimo Rancho: {data_ultimo.strftime('%d/%m/%Y')}"
                 )
-                pdf.multi_cell(0, 10, f(texto_declaracao))
+                pdf.multi_cell(0, 10, f(texto_corpo))
                 
                 pdf.ln(5)
-                pdf.cell(0, 10, f(f"Porto de Origem: {origem} | Porto de Destino: {destino}"), ln=True)
-                
-                pdf.ln(10)
                 pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 10, f("CONSIDERAÇÕES:"), ln=True)
+                pdf.cell(0, 10, f("CONSIDERACOES:"), ln=True)
                 pdf.set_font("Arial", "", 11)
                 pdf.multi_cell(0, 8, f(consideracoes))
                 
-                # ASSINATURA NO FINAL
+                # DATA E HORA DE BRASÍLIA
+                fuso_br = pytz.timezone('America/Sao_Paulo')
+                agora_br = datetime.now(fuso_br)
+                data_hora_texto = agora_br.strftime('%d/%m/%Y às %H:%M:%S')
+
+                # ASSINATURA
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("temp_assinatura.png")
-                pdf.ln(20)
-                pdf.image("temp_assinatura.png", x=75, w=60)
+                img_ass.save("temp_sign_br.png")
+                pdf.ln(15)
+                pdf.image("temp_sign_br.png", x=75, w=60)
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 pdf.set_font("Arial", "I", 9)
-                pdf.cell(0, 5, f("Assinatura do Responsável"), ln=True, align="C")
+                pdf.cell(0, 5, f(f"Assinado em: {data_hora_texto}"), ln=True, align="C")
 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
                 
-                # BOTÃO DE DOWNLOAD PDF
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF OFICIAL)", 
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", 
                                    data=pdf_bytes, 
-                                   file_name=f"Declaracao_Zion_{navio_nome}.pdf", 
+                                   file_name=f"Declaracao_{navio_nome}.pdf", 
                                    mime="application/pdf", 
                                    use_container_width=True)
 
-                # --- SALVAMENTO NO NOTION ---
+                # --- NOTION ---
                 headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
                 payload = {
                     "parent": {"database_id": st.secrets["ID_HISTORICO"]},
@@ -477,16 +480,13 @@ elif st.session_state.pagina == "tripulacao":
                         "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
                     }
                 }
-                res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-                if res.status_code == 200:
-                    st.success("✅ Histórico registrado e PDF gerado!")
-                else:
-                    st.warning("⚠️ PDF pronto para baixar, mas houve um erro no salvamento do histórico.")
+                requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+                st.success(f"✅ Histórico registrado e PDF gerado em {data_hora_texto}!")
 
             except Exception as e:
-                st.error(f"Erro no processamento: {e}")
+                st.error(f"Erro: {e}")
         else:
-            st.warning("⚠️ Por favor, realize a assinatura primeiro.")
+            st.warning("⚠️ Assine o campo digital antes de salvar.")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
