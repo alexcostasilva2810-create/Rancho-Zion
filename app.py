@@ -355,252 +355,124 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO / TRIPULAÇÃO (VERSÃO FINAL COMPLETA)
+# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO CORRIGIDO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
     from datetime import datetime, timedelta
     import unicodedata
-    import os
-    from PIL import Image
 
-    st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
-                        url("https://images.unsplash.com/photo-1500514960902-e64e75c44c83?q=80&w=1920");
-            background-size: cover; background-position: center;
-        }
-        .titulo-centralizado {
-            text-align: center; color: white; text-shadow: 2px 2px 4px black;
-            font-size: 2.5rem; font-weight: bold; margin-bottom: 20px;
-        }
-        div.stButton > button {
-            background-color: #FF8C00 !important; color: white !important;
-            border: 1px solid #FF8C00 !important; font-weight: bold !important;
-            text-shadow: 1px 1px 2px black !important;
-        }
-        h3, p, label { color: white !important; text-shadow: 2px 2px 4px black; }
-        .stTextInput>div>div>input, .stTextArea textarea, .stNumberInput input { 
-            background-color: rgba(255, 255, 255, 0.9) !important; 
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<div class='titulo-centralizado'>⚓ Declaração de Reabastecimento</div>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
+    # Lógica de Escolta
     escolta_check = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
     dias_duracao = 12 if escolta_check == "SIM" else 15
-    
-    col_datas1, col_datas2 = st.columns(2)
-    with col_datas1:
-        data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now(), format="DD/MM/YYYY")
-    
+    data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
     data_validade = data_recebimento + timedelta(days=dias_duracao)
-    with col_datas2:
-        st.markdown(f"### 📅 Validade do Rancho")
-        cor_alerta = "#FF8C00" if escolta_check == "SIM" else "#00FF00"
-        st.markdown(f"<div style='background-color:{cor_alerta}; padding:10px; border-radius:5px; color:black; font-weight:bold; text-align:center;'>"
-                    f"Com {dias_duracao} dias, seu rancho durará até: {data_validade.strftime('%d/%m/%Y')}"
-                    f"</div>", unsafe_allow_html=True)
 
-    with st.form("form_declaracao_final"):
+    with st.form("form_declaracao"):
         col1, col2 = st.columns(2)
         with col1:
-            resp_nome = st.text_input("Responsável (Login)", value=st.session_state.cozinheiro, disabled=True)
-            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16)
+            resp_nome = st.text_input("Responsável (Login)", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
+            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=10)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with col2:
-            data_ultimo_rancho = st.date_input("Data do último rancho recebido:", format="DD/MM/YYYY")
+            data_ultimo = st.date_input("Data do último rancho recebido:")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        necessidades_extras = st.text_area("Considerações / Necessidades Extras:", 
-            value="Foi acrescentado 10 água no rancho pelo fato da baixa do rio. Por gentileza colocar 06 vassoura, 06 rodo, 02 pá de lixo de ferro...")
+        consideracoes = st.text_area("Considerações:")
         
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
-            background_color="#FFFFFF", height=120, drawing_mode="freedraw", key="ass_final_v4",
-        )
-        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#EEE", height=100, key="canvas_dec")
+        
+        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF")
 
     if enviar:
-        if canvas_result.image_data is None:
-            st.error("❌ Realize a assinatura antes de gerar o PDF.")
-        else:
-            try:
-                # --- PARTE 1: SALVAMENTO NO NOTION ---
-                token_n = st.secrets["NOTION_TOKEN"]
-                db_id_n = st.secrets["ID_HISTORICO"]
-                
-                headers = {
-                    "Authorization": f"Bearer {token_n}",
-                    "Content-Type": "application/json",
-                    "Notion-Version": "2022-06-28"
-                }
-
-                payload = {
-                    "parent": {"database_id": db_id_n},
-                    "properties": {
-                        "RESPONSÁVEL": {"title": [{"text": {"content": resp_nome}}]},
-                        "Navio": {"select": {"name": st.session_state.navio}},
-                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                        "Validade": {"date": {"start": data_validade.isoformat()}},
-                        "O navio está com escolt...": {"checkbox": (escolta_check == "SIM")},
-                        "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
-                        "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
-                    }
-                }
-
-                res_notion = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-                
-                if res_notion.status_code == 200 or res_notion.status_code == 201:
-                    st.success("✅ Dados salvos no Histórico do Notion!")
-                else:
-                    st.warning(f"⚠️ PDF gerado, mas falha ao salvar no Notion (Erro {res_notion.status_code}).")
-
-                # --- PARTE 2: GERAÇÃO DO PDF ---
-                class PDF_Final(FPDF):
-                    def footer(self):
-                        self.set_y(-15)
-                        self.set_font('Arial', 'I', 8)
-                        agora_br = datetime.now() - timedelta(hours=3)
-                        self.cell(0, 10, f'Gerado em: {agora_br.strftime("%d/%m/%Y %H:%M:%S")} - Pagina ' + str(self.page_no()), 0, 0, 'C')
-
-                pdf = PDF_Final(orientation='P', unit='mm', format='A4')
-                pdf.add_page()
-                def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                
-                if os.path.exists("ZION.jpg"):
-                    pdf.image("ZION.jpg", 95, 8, 20)
-                
-                pdf.set_font("Arial", "B", 16); pdf.set_y(30)
-                pdf.cell(0, 10, preparar("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C")
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio}"), ln=True, align="C")
-                pdf.ln(10)
-
-                texto_corpo = (f"Pelo presente, certifico que a lotação de tripulantes a bordo do empurrador é de {lotacao} tripulantes. "
-                               f"A provisão de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulação "
-                               f"por um período de {dias_duracao} dias náuticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
-                               f"Este suprimento é planejado para a viagem corrente.")
-                pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, preparar(texto_corpo), align="J")
-                pdf.ln(5); pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 8, preparar(f"Origem: {origem} | Destino: {destino}"), ln=True)
-                pdf.cell(0, 8, preparar(f"Último Rancho: {data_ultimo_rancho.strftime('%d/%m/%Y')}"), ln=True)
-                
-                if necessidades_extras:
-                    pdf.ln(5); pdf.set_font("Arial", "B", 11); pdf.cell(0, 8, preparar("CONSIDERAÇÕES:"), ln=True)
-                    pdf.set_font("Arial", "", 10); pdf.multi_cell(0, 7, preparar(necessidades_extras), align="J")
-                
-                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                img_ass.save("temp_ass.png")
-                pdf.ln(15); pdf.cell(0, 10, preparar("__________________________________________"), ln=True, align="C")
-                pdf.image("temp_ass.png", x=75, y=pdf.get_y()-17, w=60)
-                pdf.cell(0, 10, preparar(f"Responsável: {resp_nome}"), ln=True, align="C")
-
-                pdf_data = pdf.output(dest='S').encode('latin-1')
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf_data, 
-                                   file_name=f"Declaracao_{st.session_state.navio}.pdf", mime="application/pdf", use_container_width=True)
-            
-            except Exception as e:
-                st.error(f"Ocorreu um erro: {e}")
-
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"; st.rerun()
-# =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (VERSÃO CORRIGIDA)
-# =================================================================
-elif st.session_state.pagina == "historico":
-    import requests
-    from datetime import date
-    import pandas as pd
-
-    # --- Estilização ---
-    st.markdown("""
-        <style>
-        .stApp { background-color: #f8f9fa !important; }
-        .titulo-banco { color: #1a365d; font-weight: bold; font-size: 28px; text-align: center; }
-        [data-testid="stMetricValue"] { font-size: 1.5rem; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # --- Navegação Superior ---
-    col_nav1, col_nav2 = st.columns([1, 4])
-    with col_nav1:
-        if st.button("⬅️ VOLTAR", key="voltar_top"):
-            st.session_state.pagina = "menu"; st.rerun()
-    with col_nav2:
-        st.markdown('<div class="titulo-banco">🗄️ Histórico de Pedidos</div>', unsafe_allow_html=True)
-
-    # --- Permissões ---
-    usuario_atual = st.session_state.get('cozinheiro', 'Usuário')
-    ADMIN_USER = "DONO" 
-
-    # --- Filtros ---
-    with st.container():
-        st.write("### 🔍 Filtros de Consulta")
-        c1, c2, c3 = st.columns([2, 2, 1])
-        data_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
-        data_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
-        btn_buscar = c3.button("🔍 CONSULTAR", use_container_width=True)
-
-    if btn_buscar:
+        # TENTATIVA DE SALVAMENTO NO NOTION
         try:
             headers = {
                 "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
-            url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
-            res = requests.post(url, headers=headers, json={})
+
+            # O payload foi ajustado para os nomes exatos das colunas que vi na sua foto
+            payload = {
+                "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                "properties": {
+                    "RESPONSÁVEL": {"title": [{"text": {"content": resp_nome}}]},
+                    "Navio": {"select": {"name": st.session_state.get('navio', 'JATOBA')}},
+                    "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                    "Validade": {"date": {"start": data_validade.isoformat()}},
+                    "Número de tripulantes ...": {"number": lotacao},
+                    "O navio está com escolt...": {"checkbox": (escolta_check == "SIM")},
+                    "porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
+                }
+            }
+
+            res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
             
             if res.status_code == 200:
-                resultados = res.json().get("results", [])
-                temp_lista = []
-                
-                for item in resultados:
-                    p = item["properties"]
-                    resp = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
-                    navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
-                    dt_p = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
-                    dt_v = p.get("Validade", {}).get("date", {}).get("start", "-")
-                    
-                    # Filtro de Acesso e Data
-                    if dt_p:
-                        dt_obj = date.fromisoformat(dt_p)
-                        if (usuario_atual == ADMIN_USER or resp == usuario_atual):
-                            if data_ini <= dt_obj <= data_fim:
-                                temp_lista.append({
-                                    "Responsável": resp,
-                                    "Navio": navio,
-                                    "Data Pedido": dt_p,
-                                    "Validade": dt_v
-                                })
-                
-                st.session_state.dados_historico = temp_lista
+                st.success("✅ Sucesso! Dados salvos no Notion.")
             else:
-                st.error("Erro na conexão com o Banco de Dados.")
+                st.error(f"❌ Erro {res.status_code}: Verifique se os nomes das colunas no Notion são exatamente: RESPONSÁVEL, Navio, Novo Rancho, Validade, porto de Origem, Porto de Destino.")
+                st.warning("Dica: No Notion, 'porto de Origem' parece estar com 'p' minúsculo.")
+        
         except Exception as e:
-            st.error(f"Erro: {e}")
+            st.error(f"Falha técnica: {e}")
 
-    st.markdown("---")
-
-    # --- Exibição dos Dados (Tabela Limpa) ---
-    if "dados_historico" in st.session_state and st.session_state.dados_historico:
-        # Criamos um DataFrame para exibição bonita e profissional
-        df = pd.DataFrame(st.session_state.dados_historico)
-        
-        # Ajustando formato da data para Brasil
-        df['Data Pedido'] = pd.to_datetime(df['Data Pedido']).dt.strftime('%d/%m/%Y')
-        df['Validade'] = pd.to_datetime(df['Validade']).dt.strftime('%d/%m/%Y')
-        
-        # Exibe a tabela com bordas nativa do Streamlit (Sem erro de código na tela)
-        st.table(df)
-        
-    else:
-        st.info("Nenhum registro encontrado para este período. Clique em CONSULTAR.")
-
-    # --- Navegação Inferior ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="voltar_fim", use_container_width=True):
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
+# =================================================================
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (SEM CÓDIGO EXPOSTO)
+# =================================================================
+elif st.session_state.pagina == "historico":
+    import requests
+    from datetime import date
+    import pandas as pd
+
+    st.markdown("<h2 style='color: #1a365d;'>🗄️ Histórico de Pedidos</h2>", unsafe_allow_html=True)
+    
+    if st.button("⬅️ VOLTAR AO MENU"):
+        st.session_state.pagina = "menu"; st.rerun()
+
+    # Filtros
+    c1, c2, c3 = st.columns([2, 2, 1])
+    d_ini = c1.date_input("Início:", value=date(2026, 1, 1))
+    d_fim = c2.date_input("Fim:", value=date.today())
+    
+    if c3.button("🔍 CONSULTAR"):
+        headers = {
+            "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+        url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
+        res = requests.post(url, headers=headers, json={})
+        
+        if res.status_code == 200:
+            dados = res.json().get("results", [])
+            lista_final = []
+            for item in dados:
+                p = item["properties"]
+                # Extração simples
+                resp = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
+                navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
+                data_p = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
+                
+                if data_p and d_ini <= date.fromisoformat(data_p) <= d_fim:
+                    if st.session_state.cozinheiro == "DONO" or resp == st.session_state.cozinheiro:
+                        lista_final.append({
+                            "Responsável": resp,
+                            "Embarcação": navio,
+                            "Data": data_p,
+                            "Origem": p.get("porto de Origem", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "-") if p.get("porto de Origem", {}).get("rich_text") else "-"
+                        })
+            
+            if lista_final:
+                st.table(pd.DataFrame(lista_final))
+            else:
+                st.info("Nenhum dado encontrado para este filtro.")
+        else:
+            st.error(f"Erro ao conectar com Notion: {res.status_code}")
