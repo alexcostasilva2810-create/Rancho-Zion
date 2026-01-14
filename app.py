@@ -508,7 +508,7 @@ elif st.session_state.pagina == "tripulacao":
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (FORMATO PT-BR)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (VISÃO INDIVIDUAL VS TOTAL)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -517,109 +517,107 @@ elif st.session_state.pagina == "historico":
     st.markdown("""
         <style>
         .stApp { background-color: #f0f5ff !important; }
-        .titulo-banco { color: #0D47A1; font-weight: bold; font-size: 30px; margin-bottom: 20px; }
+        .titulo-banco { color: #0D47A1; font-weight: bold; font-size: 30px; margin-bottom: 5px; }
+        .sub-titulo { color: #555; margin-bottom: 20px; font-style: italic; }
         div.stButton > button { background-color: #0D47A1 !important; color: white !important; border-radius: 5px; }
         </style>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="titulo-banco">🗄️ Banco de Dados - Histórico</div>', unsafe_allow_html=True)
-
-    # --- Filtros de Data com Formatação PT-BR ---
-    c_ini, c_fim, c_btn = st.columns([2, 2, 1])
     
-    # format="DD/MM/YYYY" ajusta a visualização no componente
+    # Identifica o nível de acesso
+    usuario_atual = st.session_state.get('cozinheiro', 'Desconhecido')
+    # Defina aqui o seu nome de login de administrador
+    ADMIN_USER = "DONO" # <-- Mude para o seu nome de login exato
+    
+    if usuario_atual == ADMIN_USER:
+        st.markdown(f'<p class="sub-titulo">🔓 Modo Administrador: Visualizando todos os registros.</p>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<p class="sub-titulo">👤 Usuário: {usuario_atual} (Visualizando apenas seus dados).</p>', unsafe_allow_html=True)
+
+    # --- Filtros de Data ---
+    c_ini, c_fim, c_btn = st.columns([2, 2, 1])
     data_inicio_ref = c_ini.date_input("🗓️ Data Início", value=date(2026, 1, 1), format="DD/MM/YYYY")
     data_fim_ref = c_fim.date_input("🗓️ Data Fim", value=date.today(), format="DD/MM/YYYY")
 
     if c_btn.button("🔍 BUSCAR"):
         try:
-            token = st.secrets["NOTION_TOKEN"]
-            db_id = st.secrets["ID_HISTORICO"]
-            
-            url = f"https://api.notion.com/v1/databases/{db_id}/query"
             headers = {
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
                 "Content-Type": "application/json",
                 "Notion-Version": "2022-06-28"
             }
             
-            # Busca todos os registros (Payload vazio evita erro 400 de nome de coluna)
+            # Busca total (Filtro feito no Python para evitar erro 400)
+            url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
             response = requests.post(url, json={}, headers=headers)
             
             if response.status_code == 200:
-                resultados = response.json().get("results", [])
+                todos_os_dados = response.json().get("results", [])
                 st.session_state.dados_historico = []
                 
-                for item in resultados:
-                    props = item["properties"]
+                for item in todos_os_dados:
+                    p = item["properties"]
                     
-                    # Localiza a data na coluna "Novo Rancho" ou qualquer uma de data
+                    # 1. Captura o responsável da linha no Notion
+                    resp_no_notion = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "")
+                    
+                    # 2. Captura a data para o filtro
                     dt_str = None
-                    for p_name in props:
-                        if props[p_name].get("date"):
-                            dt_str = props[p_name]["date"]["start"]
-                            break
+                    for k in p:
+                        if "Rancho" in k or "Data" in k:
+                            if p[k].get("date"): dt_str = p[k]["date"]["start"]; break
                     
                     if dt_str:
                         dt_obj = date.fromisoformat(dt_str)
-                        # Filtro lógico: se a data estiver no intervalo, adiciona à lista
-                        if data_inicio_ref <= dt_obj <= data_fim_ref:
-                            st.session_state.dados_historico.append(item)
+                        # FILTRO LÓGICO:
+                        # Se for Admin OU se o responsável da linha for o usuário logado...
+                        # ...E se a data estiver no intervalo
+                        if (usuario_atual == ADMIN_USER or resp_no_notion == usuario_atual):
+                            if data_inicio_ref <= dt_obj <= data_fim_ref:
+                                st.session_state.dados_historico.append(item)
                 
                 if not st.session_state.dados_historico:
-                    st.info("Nenhum registro encontrado no Notion para este período.")
+                    st.info("Nenhum registro encontrado para os critérios selecionados.")
             else:
-                st.error(f"Erro {response.status_code}: Verifique a conexão no Notion.")
-                
+                st.error("Erro na conexão com o Notion.")
         except Exception as e:
             st.error(f"Erro: {e}")
 
     st.markdown("---")
 
     # Cabeçalho da Tabela
-    h_cols = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
-    titulos = ["USUÁRIO", "EMPURRADOR", "DATA RECEB.", "VALIDADE", "ESCOLTA", "IMPRIMIR"]
+    h_cols = st.columns([1.5, 1.2, 1.2, 1.2, 0.8, 1])
+    titulos = ["USUÁRIO", "NAVIO", "RECEBIDO", "VALIDADE", "ESCOLTA", "AÇÃO"]
     for col, txt in zip(h_cols, titulos):
         col.markdown(f"**{txt}**")
 
-    # Exibição dos Dados
+    # Exibição dos dados filtrados
     if "dados_historico" in st.session_state and st.session_state.dados_historico:
         for idx, item in enumerate(st.session_state.dados_historico):
             p = item["properties"]
-            r = st.columns([1.5, 1.5, 1.2, 1.2, 0.8, 1])
+            r = st.columns([1.5, 1.2, 1.2, 1.2, 0.8, 1])
             
-            # Formatação da data de ISO (yyyy-mm-dd) para BR (dd/mm/yyyy)
-            def formatar_data_br(data_iso):
-                if data_iso == "-": return "-"
-                partes = data_iso.split("-")
-                return f"{partes[2]}/{partes[1]}/{partes[0]}"
-
             usuario = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
             navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
+            dt_r = "-"
+            for k in p: 
+                if ("Rancho" in k or "Data" in k) and p[k].get("date"): dt_r = p[k]["date"]["start"]
             
-            # Busca as datas originais
-            dt_raw = "-"
-            for k in p:
-                if "Rancho" in k or "Data" in k:
-                    if p[k].get("date"): dt_raw = p[k]["date"]["start"]
-            
-            val_raw = p.get("Validade", {}).get("date", {}).get("start", "-")
-            
-            # Exibe formatado em dd/mm/yyyy
+            val = p.get("Validade", {}).get("date", {}).get("start", "-")
+            escolta = "✅" if any(p[k].get("checkbox") for k in p if "escolt" in k.lower()) else "❌"
+
+            # Formata datas para PT-BR
+            def br(d): return f"{d[8:10]}/{d[5:7]}/{d[0:4]}" if len(d) > 8 else d
+
             r[0].write(usuario)
             r[1].write(navio)
-            r[2].write(formatar_data_br(dt_raw))
-            r[3].write(formatar_data_br(val_raw))
-            
-            # Escolta
-            escolta = "✅" if any(p[k].get("checkbox") for k in p if "escolt" in k.lower()) else "❌"
+            r[2].write(br(dt_r))
+            r[3].write(br(val))
             r[4].write(escolta)
-            r[5].button("🖨️", key=f"btn_h_{idx}")
+            r[5].button("🖨️ PDF", key=f"hist_pdf_{idx}")
 
     # Navegação
     st.markdown("<br>", unsafe_allow_html=True)
-    b1, b2 = st.columns(2)
-    if b1.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
+    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", use_container_width=True):
         st.session_state.pagina = "menu"; st.rerun()
-    if b2.button("🚪 SAIR DO SISTEMA", use_container_width=True):
-        st.session_state.pagina = "login"; st.rerun()
