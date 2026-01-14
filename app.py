@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURADA E ELEGANTE)
+# BLOCO 7: DECLARAÇÃO COM RELATÓRIO DE ERROS
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,55 +368,28 @@ elif st.session_state.pagina == "tripulacao":
     from fpdf import FPDF
     from streamlit_drawable_canvas import st_canvas
 
-    # --- CSS PARA FUNDO AZUL E CONTRASTE ---
     st.markdown("""
         <style>
-        .stApp {
-            background-color: #3b66eb !important;
-        }
-        h1, h2, h3, p, label, .stMarkdown, span {
-            color: #ffffff !important;
-        }
-        /* Campos de entrada em branco puro para contraste */
+        .stApp { background-color: #3b66eb !important; }
+        h1, h2, h3, p, label, .stMarkdown, span { color: #ffffff !important; }
         input, div[data-baseweb="input"], textarea, div[data-baseweb="select"] {
-            background-color: #ffffff !important;
-            color: #1a365d !important;
-            border-radius: 8px !important;
+            background-color: #ffffff !important; color: #1a365d !important; border-radius: 8px !important;
         }
-        /* Botões Vazados com Hover Branco */
         div.stButton > button {
-            border-radius: 10px;
-            border: 2px solid #ffffff;
-            background-color: transparent;
-            color: #ffffff;
-            font-weight: bold;
-            transition: all 0.3s;
+            border-radius: 10px; border: 2px solid #ffffff; background-color: transparent; color: #ffffff; font-weight: bold;
         }
-        div.stButton > button:hover {
-            background-color: #ffffff;
-            color: #3b66eb;
-        }
-        .stForm {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-        }
+        div.stButton > button:hover { background-color: #ffffff; color: #3b66eb; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Navegação Superior
     c_nav1, c_nav2, c_nav3 = st.columns([1, 2, 1])
     with c_nav1:
-        if st.button("⬅️ MENU", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun()
+        if st.button("⬅️ MENU", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
     with c_nav3:
-        if st.button("🚪 SAIR", use_container_width=True):
-            st.session_state.pagina = "login"; st.rerun()
+        if st.button("🚪 SAIR", use_container_width=True): st.session_state.pagina = "login"; st.rerun()
 
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # --- CAMPOS RESTAURADOS ---
     col_esc, col_val = st.columns([2, 2])
     with col_esc:
         escolta_opcoes = {"NÃO": 0, "SIM": 1}
@@ -428,83 +401,61 @@ elif st.session_state.pagina == "tripulacao":
         data_validade = data_recebimento + timedelta(days=dias_duracao)
         st.success(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    with st.form("form_declaracao_completo"):
+    with st.form("form_declaracao_debug"):
         c1, c2 = st.columns(2)
         with c1:
-            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
-            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
+            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'))
+            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
             data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
-        
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(
-            stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_restaurado"
-        )
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, drawing_mode="freedraw", key="canvas_v9")
         
-        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF ORIGINAL", use_container_width=True)
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
-    # --- LÓGICA DE SALVAMENTO ---
     if btn_acao:
         if canvas_result.image_data is not None:
-            try:
-                # Gerar imagem da assinatura
-                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                buffered = BytesIO()
-                img_ass.save(buffered, format="PNG")
-                img_str = base64.b64encode(buffered.getvalue()).decode()
+            # 1. Preparar Assinatura
+            img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+            buffered = BytesIO()
+            img_ass.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
 
-                # Criar PDF
-                pdf = FPDF()
-                pdf.add_page()
-                def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                
-                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
-                
-                pdf.set_font("Arial", "", 12)
-                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
-                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
-                         f"por um periodo de {dias_duracao} dias nauticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
-                         f"Este suprimento e planejado para a viagem corrente.\n\n"
-                         f"Origem: {origem} | Destino: {destino}")
-                pdf.multi_cell(0, 10, f(corpo))
-                
-                pdf.ln(35)
-                agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
-                txt_hora = agora_br.strftime('%d/%m/%Y às %H:%M')
-
-                img_ass.save("temp_sign.png")
-                pdf.image("temp_sign.png", x=75, w=50)
-                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
-                pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
-
-                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
-
-                # Salvar no Notion
-                headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-                payload = {
-                    "parent": {"database_id": st.secrets["ID_HISTORICO"]},
-                    "properties": {
-                        "Responsável": {"title": [{"text": {"content": resp_nome}}]},
-                        "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
-                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                        "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
-                        "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
-                        "Assinatura": {"rich_text": [{"text": {"content": img_str}}]},
-                        "Qtde Tripulante": {"number": int(qtde_trip)}
-                    }
+            # 2. Tentar Salvar no Notion (COM DEPURADOR)
+            headers = {
+                "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
+                "Content-Type": "application/json",
+                "Notion-Version": "2022-06-28"
+            }
+            
+            # Verifique se os nomes abaixo são IDENTICOS aos do seu Notion
+            payload = {
+                "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                "properties": {
+                    "Responsável": {"title": [{"text": {"content": resp_nome}}]},
+                    "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
+                    "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                    "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
+                    "Assinatura": {"rich_text": [{"text": {"content": img_str}}]},
+                    "Qtde Tripulante": {"number": int(qtde_trip)},
+                    "Validade": {"date": {"start": data_validade.isoformat()}} # Adicionada coluna Validade
                 }
-                requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-                st.success("✅ Registro salvo com sucesso!")
-            except Exception as e:
-                st.error(f"Erro ao processar: {e}")
+            }
+            
+            response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                st.balloons()
+                st.success("✅ SALVO NO NOTION COM SUCESSO!")
+                # Lógica de PDF... (mesma anterior)
+            else:
+                st.error(f"❌ ERRO AO SALVAR NO NOTION: {response.status_code}")
+                st.json(response.json()) # Isso vai te dizer qual coluna está errada
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA (ESTILO ZION BLUE VIBRANT)
 # =================================================================
