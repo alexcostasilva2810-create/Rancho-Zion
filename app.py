@@ -365,110 +365,121 @@ elif st.session_state.pagina == "gerar_pdf":
     import base64
     from io import BytesIO
 
-    st.markdown("<h1 style='text-align: center;'>📋 Novo Reabastecimento</h1>", unsafe_allow_html=True)
+    # Estilo para garantir que os textos apareçam no fundo azul
+    st.markdown("""
+        <style>
+        h1, h2, h3, p, label { color: white !important; }
+        .stButton>button { width: 100%; border-radius: 10px; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Botão para voltar
-    if st.button("⬅️ MENU PRINCIPAL"):
+    st.markdown("<h1 style='text-align: center;'>📋 Nova Declaração de Rancho</h1>", unsafe_allow_html=True)
+
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"
         st.rerun()
 
-    with st.container():
+    # Formulário Organizado
+    with st.form("form_declaração"):
         col1, col2 = st.columns(2)
         
         with col1:
-            navio_selecionado = st.selectbox("🚢 Selecione o Navio:", ["ADMINISTRADOR", "JATOBA", "AROEIRA", "OUTRO"])
-            data_rancho = st.date_input("📅 Data do Rancho:", datetime.now())
+            navio_selecionado = st.selectbox("🚢 Navio:", ["ADMINISTRADOR", "JATOBA", "AROEIRA", "OUTRO"])
+            data_rancho = st.date_input("📅 Data de Início:", datetime.now())
             tripulantes = st.number_input("👥 Qtde Tripulantes:", min_value=1, value=9)
-            # Campo Escolta como Texto para o Notion
-            escolta_status = st.selectbox("🛡️ Escolta:", ["sem escolta", "com escolta", "com escolta armada"])
+            escolta_status = st.selectbox("🛡️ Status de Escolta:", ["sem escolta", "com escolta", "com escolta armada"])
 
         with col2:
             porto_origem = st.text_input("📍 Porto de Origem:", value="Porto Velho")
             porto_destino = st.text_input("🏁 Porto de Destino:", value="Novo remanso")
-            # Cálculo automático de validade (15 dias) ou manual
             data_validade = st.date_input("⏳ Validade do Rancho:", data_rancho + timedelta(days=15))
-            observacoes = st.text_area("📝 Considerações / Observações:", placeholder="Digite observações extras aqui...")
+            observacoes = st.text_area("📝 Observações/Considerações:", placeholder="Ex: Necessita de suporte extra...")
 
-    st.divider()
+        st.markdown("---")
+        st.write("🖋️ **Área de Assinatura**")
+        # Aqui você insere o componente de assinatura que você já usa (ex: st_canvas)
+        # O resultado da imagem deve ser salvo em: st.session_state.assinatura_data
+        
+        btn_enviar = st.form_submit_button("🚀 FINALIZAR E SALVAR")
 
-    # Espaço para Assinatura (se você usar o st-canvas ou similar)
-    st.write("🖋️ **Assinatura do Responsável:**")
-    # (Aqui deve estar o seu componente de assinatura que gera o st.session_state.assinatura_data)
-    
-    if st.button("🚀 FINALIZAR E SALVAR NO HISTÓRICO"):
+    if btn_enviar:
         if not st.session_state.get("assinatura_data"):
-            st.error("⚠️ Por favor, assine antes de salvar.")
+            st.warning("⚠️ Por favor, realize a assinatura antes de salvar.")
         else:
-            # 1. PREPARAÇÃO PARA O NOTION
-            headers = {
-                "Authorization": f"Bearer {NOTION_TOKEN}",
-                "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
-            }
-
-            dados_notion = {
-                "parent": {"database_id": ID_HISTORICO_NOTION},
-                "properties": {
-                    "Responsável": {"title": [{"text": {"content": st.session_state.usuario}}]},
-                    "Navio": {"rich_text": [{"text": {"content": navio_selecionado}}]},
-                    "Novo Rancho": {"date": {"start": data_rancho.isoformat()}},
-                    "Validade": {"date": {"start": data_validade.isoformat()}},
-                    "Qtde Tripulante": {"number": tripulantes},
-                    "Escolta": {"rich_text": [{"text": {"content": escolta_status}}]},
-                    "Porto de Origem": {"rich_text": [{"text": {"content": porto_origem}}]},
-                    "Porto de Destino": {"rich_text": [{"text": {"content": porto_destino}}]},
-                    "Considerações": {"rich_text": [{"text": {"content": observacoes}}]},
-                    "Assinatura": {"rich_text": [{"text": {"content": st.session_state.assinatura_data}}]}
+            with st.spinner("Salvando no Notion e gerando documento..."):
+                # 1. SALVAMENTO NO NOTION (Garante que o Bloco 8 funcione depois)
+                headers = {
+                    "Authorization": f"Bearer {NOTION_TOKEN}",
+                    "Content-Type": "application/json",
+                    "Notion-Version": "2022-06-28"
                 }
-            }
 
-            # 2. ENVIO AO NOTION
-            res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=dados_notion)
+                dados_notion = {
+                    "parent": {"database_id": ID_HISTORICO_NOTION},
+                    "properties": {
+                        "Responsável": {"title": [{"text": {"content": st.session_state.usuario}}]},
+                        "Navio": {"rich_text": [{"text": {"content": navio_selecionado}}]},
+                        "Novo Rancho": {"date": {"start": data_rancho.isoformat()}},
+                        "Validade": {"date": {"start": data_validade.isoformat()}},
+                        "Qtde Tripulante": {"number": tripulantes},
+                        "Escolta": {"rich_text": [{"text": {"content": escolta_status}}]},
+                        "Porto de Origem": {"rich_text": [{"text": {"content": porto_origem}}]},
+                        "Porto de Destino": {"rich_text": [{"text": {"content": porto_destino}}]},
+                        "Considerações": {"rich_text": [{"text": {"content": observacoes}}]},
+                        "Assinatura": {"rich_text": [{"text": {"content": st.session_state.assinatura_data}}]}
+                    }
+                }
 
-            if res.status_code == 200:
-                st.success("✅ Documento salvo no Notion com sucesso!")
-                
-                # --- GERAÇÃO DO PDF IMEDIATO (Mesmo modelo da ZION) ---
-                pdf = FPDF()
-                pdf.add_page()
-                def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                
-                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
-                pdf.cell(0, 25, "ZION", ln=True, align="C")
-                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
-                
-                pdf.set_font("Arial", "", 12)
-                dt_r = data_rancho.strftime('%d/%m/%Y')
-                dt_v = data_validade.strftime('%d/%m/%Y')
-                
-                texto = (
-                    f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_selecionado} "
-                    f"({escolta_status}) e de {tripulantes} tripulantes. A provisao de rancho a ser reabastecida "
-                    f"destina-se a cobrir as necessidades nutricionais da tripulacao por um periodo de 15 dias nauticos "
-                    f"a partir de {dt_r}, com validade ate {dt_v}. Este suprimento e planejado para a viagem corrente.\n\n"
-                    f"Origem: {porto_origem} | Destino: {porto_destino}"
-                )
-                pdf.multi_cell(0, 10, f(texto))
-                
-                if observacoes:
-                    pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Observacoes:"), ln=True)
-                    pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(observacoes))
+                res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=dados_notion)
 
-                # Assinatura
-                pdf.ln(15)
-                try:
-                    img_sig = base64.b64decode(st.session_state.assinatura_data.split(",")[-1])
-                    pdf.image(BytesIO(img_sig), x=85, w=40)
-                except: pass
-                
-                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(st.session_state.usuario), ln=True, align="C")
-                pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {dt_r} as {datetime.now().strftime('%H:%M')}"), ln=True, align="C")
-                
-                st.download_button("📥 BAIXAR DECLARAÇÃO (PDF)", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaração_{navio_selecionado}.pdf")
-            else:
-                st.error(f"❌ Erro ao salvar no Notion: {res.text}")
+                if res.status_code == 200:
+                    st.success("✅ Tudo pronto! Dados gravados no histórico.")
+                    
+                    # 2. GERAÇÃO DO PDF (Modelo ZION)
+                    pdf = FPDF()
+                    pdf.add_page()
+                    def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                    
+                    # Cabeçalho
+                    pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
+                    pdf.cell(0, 25, "ZION", ln=True, align="C")
+                    pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
+                    pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
+                    
+                    # Texto Principal
+                    pdf.set_font("Arial", "", 12)
+                    dt_r = data_rancho.strftime('%d/%m/%Y')
+                    dt_v = data_validade.strftime('%d/%m/%Y')
+                    
+                    corpo = (
+                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_selecionado} "
+                        f"({escolta_status}) e de {tripulantes} tripulantes. A provisao de rancho a ser reabastecida "
+                        f"destina-se a cobrir as necessidades nutricionais da tripulacao por um periodo de 15 dias nauticos "
+                        f"a partir de {dt_r}, com validade ate {dt_v}. Este suprimento e planejado para a viagem corrente.\n\n"
+                        f"Origem: {porto_origem} | Destino: {porto_destino}"
+                    )
+                    pdf.multi_cell(0, 10, f(corpo))
+                    
+                    # Considerações
+                    if observacoes:
+                        pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Observacoes:"), ln=True)
+                        pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(observacoes))
+
+                    # Assinatura (Posicionamento corrigido)
+                    pdf.ln(15)
+                    try:
+                        img_sig = base64.b64decode(st.session_state.assinatura_data.split(",")[-1])
+                        pdf.image(BytesIO(img_sig), x=85, w=40)
+                    except: pass
+                    
+                    pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                    pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(st.session_state.usuario), ln=True, align="C")
+                    pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {dt_r} as {datetime.now().strftime('%H:%M')}"), ln=True, align="C")
+                    
+                    # Botão de Download do PDF recém gerado
+                    st.download_button("📥 BAIXAR DECLARAÇÃO AGORA", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Reabastecimento_{navio_selecionado}.pdf")
+                else:
+                    st.error(f"Erro ao salvar: {res.text}")
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA - MAPEAMENTO COMPLETO
 # =================================================================
