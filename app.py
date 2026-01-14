@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO DO PADRÃO OFICIAL ZION)
+# BLOCO 7: TELA DE DECLARAÇÃO (LAYOUT OFICIAL + TEXTO ZION AZUL)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -383,10 +383,9 @@ elif st.session_state.pagina == "tripulacao":
         st.success(f"{data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
     # --- FORMULÁRIO COM CAMPOS DE LOGIN TRAVADOS ---
-    with st.form("form_declaracao_restaurado"):
+    with st.form("form_declaracao_oficial_zion"):
         c1, c2 = st.columns(2)
         with c1:
-            # Pegando dados do login - Campos desabilitados para edição
             resp_nome = c1.text_input("Responsável", value=st.session_state.get('cozinheiro', 'USUÁRIO'), disabled=True)
             navio_nome = c1.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
             origem = c1.text_input("Porto de Origem", value="Porto Velho")
@@ -400,10 +399,10 @@ elif st.session_state.pagina == "tripulacao":
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_restaurado"
+            height=120, drawing_mode="freedraw", key="canvas_zion_azul"
         )
         
-        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF PADRÃO")
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF OFICIAL")
 
     if btn_acao:
         if canvas_result.image_data is not None:
@@ -411,9 +410,15 @@ elif st.session_state.pagina == "tripulacao":
                 # --- GERAÇÃO DO PDF PADRÃO RESTAURADO ---
                 class PDF_ZION(FPDF):
                     def header(self):
-                        if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 95, 8, 20)
-                        self.set_font("Arial", "B", 15); self.ln(25)
+                        # Nome ZION em Azul e Negrito
+                        self.set_font("Arial", "B", 30)
+                        self.set_text_color(0, 51, 153) # Azul Escuro
+                        self.cell(0, 15, "ZION", ln=True, align="C")
+                        
+                        self.set_text_color(0, 0, 0) # Volta para preto
+                        self.set_font("Arial", "B", 14)
                         self.cell(0, 10, "DECLARAÇÃO DE REABASTECIMENTO", ln=True, align="C")
+                        self.ln(5)
                     def footer(self):
                         self.set_y(-15); self.set_font("Arial", "I", 8)
                         self.cell(0, 10, f"Pagina {self.page_no()}", 0, 0, "C")
@@ -421,10 +426,10 @@ elif st.session_state.pagina == "tripulacao":
                 pdf = PDF_ZION(); pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
-                pdf.set_font("Arial", "", 12); pdf.ln(10)
-                # Texto contínuo e limpo conforme padrão anterior
+                pdf.set_font("Arial", "", 12); pdf.ln(5)
+                # Texto corrido oficial
                 texto_corpo = (f"Eu, {resp_nome}, responsável pela embarcação {navio_nome}, declaro que a lotação atual é de {qtde_trip} "
-                               f"tripulantes. O rancho recebido/solicitado em {data_recebimento.strftime('%d/%m/%Y')} terá validade "
+                               f"tripulantes. O rancho solicitado em {data_recebimento.strftime('%d/%m/%Y')} terá validade "
                                f"prevista até {data_validade.strftime('%d/%m/%Y')}, totalizando um período de {dias_duracao} dias.")
                 pdf.multi_cell(0, 10, f(texto_corpo))
                 
@@ -437,20 +442,21 @@ elif st.session_state.pagina == "tripulacao":
                 # Assinatura no PDF
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 img_ass.save("ass_temp.png")
-                pdf.ln(10); pdf.image("ass_temp.png", x=75, w=60)
-                pdf.cell(0, 10, "__________________________________________", ln=True, align="C")
-                pdf.cell(0, 5, f(resp_nome), ln=True, align="C")
+                pdf.ln(15); pdf.image("ass_temp.png", x=75, w=60)
+                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
                 
                 # BOTÃO DE DOWNLOAD PDF IMEDIATO
-                st.download_button(label="📥 BAIXAR DECLARAÇÃO (IMPRIMIR)", 
+                st.download_button(label="📥 BAIXAR DECLARAÇÃO (PDF)", 
                                    data=pdf_bytes, 
-                                   file_name=f"Declaracao_{navio_nome}.pdf", 
+                                   file_name=f"Declaracao_Zion_{navio_nome}.pdf", 
                                    mime="application/pdf", 
                                    use_container_width=True)
 
-                # --- SALVAMENTO NO NOTION (EM SEGUNDO PLANO) ---
+                # --- SALVAMENTO NO NOTION ---
                 headers = {
                     "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
                     "Content-Type": "application/json",
@@ -473,14 +479,14 @@ elif st.session_state.pagina == "tripulacao":
 
                 res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
                 if res.status_code == 200:
-                    st.success("✅ Histórico salvo e PDF pronto para download!")
+                    st.success("✅ Histórico registrado e PDF disponível!")
                 else:
-                    st.warning("⚠️ PDF gerado, mas verifique a conexão com o banco de dados.")
+                    st.warning("⚠️ PDF gerado, mas erro no salvamento do histórico.")
 
             except Exception as e:
                 st.error(f"Erro no processamento: {e}")
         else:
-            st.warning("⚠️ Por favor, realize a assinatura antes de salvar.")
+            st.warning("⚠️ Por favor, realize a assinatura digital.")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
