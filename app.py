@@ -491,13 +491,16 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (RESTAURADO E SEM ERROS)
+# BLOCO 8: HISTÓRICO E 2ª VIA - MODELO FINAL ZION
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date, datetime
     import unicodedata
     from fpdf import FPDF
+    import base64
+    from io import BytesIO
+    from PIL import Image
 
     st.markdown("""
         <style>
@@ -513,7 +516,6 @@ elif st.session_state.pagina == "historico":
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
     
-    # Filtros de data que estavam funcionando
     c1, c2, c3 = st.columns([2, 2, 1])
     d_ini = c1.date_input("De:", value=date(2025, 12, 15))
     d_fim = c2.date_input("Até:", value=date.today())
@@ -525,76 +527,83 @@ elif st.session_state.pagina == "historico":
         
         if res.status_code == 200:
             results = res.json().get("results", [])
-            lista = []
+            dados = []
             for page in results:
                 p = page.get("properties", {})
                 
-                # Funções de segurança para evitar KeyError (restaurando a estabilidade)
-                def g_txt(prop): 
-                    res = p.get(prop, {}).get("rich_text", [])
-                    return res[0].get("plain_text", "N/A") if res else "N/A"
-                
-                def g_title(prop):
-                    res = p.get(prop, {}).get("title", [])
-                    return res[0].get("plain_text", "N/A") if res else "N/A"
+                # Funções de extração segura para evitar erros de tela
+                def g_t(n): return p.get(n, {}).get("rich_text", [{}])[0].get("plain_text", "N/A") if p.get(n) and p.get(n).get("rich_text") else "N/A"
+                def g_tit(n): return p.get(n, {}).get("title", [{}])[0].get("plain_text", "N/A") if p.get(n) and p.get(n).get("title") else "N/A"
+                def g_dt(n): return p.get(n, {}).get("date", {}).get("start", "S/D") if p.get(n) and p.get(n).get("date") else "S/D"
+                def g_num(n): return p.get(n, {}).get("number", 0) if p.get(n) else 0
 
-                lista.append({
-                    "navio": g_txt("Navio"),
-                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D") if p.get("Novo Rancho", {}).get("date") else "S/D",
-                    "validade": p.get("Validade", {}).get("date", {}).get("start", "S/D") if p.get("Validade") and p.get("Validade").get("date") else "S/D",
-                    "resp": g_title("Responsável"),
-                    "origem": g_txt("Porto de Origem"),
-                    "destino": g_txt("Porto de Destino"),
-                    "tripulantes": p.get("Qtde Tripulante", {}).get("number", 0),
-                    "escolta": p.get("Escolta", {}).get("number", 0) if p.get("Escolta") else 0,
-                    "consideracoes": g_txt("Considerações")
+                dados.append({
+                    "navio": g_t("Navio"),
+                    "data": g_dt("Novo Rancho"),
+                    "resp": g_tit("Responsável"),
+                    "origem": g_t("Porto de Origem"),
+                    "destino": g_t("Porto de Destino"),
+                    "tripulantes": g_num("Qtde Tripulante"),
+                    "consideracoes": g_t("Considerações"),
+                    "assinatura_base64": g_t("Assinatura") # Pega a string base64 salva
                 })
-            st.session_state.dados_busca = lista
+            st.session_state.dados_busca = dados
             st.rerun()
 
-    # Exibição dos cards
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
             with st.expander(f"🚢 {r['navio']} | 📅 {r['data']} | 👤 {r['resp']}"):
-                
-                # Informações extras lidas do Notion
-                col_inf1, col_inf2 = st.columns(2)
-                col_inf1.write(f"**Escolta:** {'SIM' if r['escolta'] == 1 else 'NÃO'}")
-                col_inf2.write(f"**Validade:** {r['validade']}")
-                
                 if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"b_{idx}"):
                     pdf = FPDF()
                     pdf.add_page()
                     def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                     
-                    # Layout ZION fiel à sua imagem
+                    # --- CABEÇALHO ZION ---
                     pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
                     pdf.cell(0, 25, "ZION", ln=True, align="C")
                     
                     pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
                     pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(15)
                     
+                    # --- CORPO DO TEXTO (CONFORME SOLICITADO) ---
                     pdf.set_font("Arial", "", 12)
-                    dt_pdf = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] != "S/D" else "S/D"
+                    dt_f = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] != "S/D" else r['data']
                     
-                    # Texto da Declaração
-                    txt = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']} e de {r['tripulantes']} "
-                           f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                           f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_pdf}. Este "
-                           f"suprimento e planejado para a viagem corrente.\n\n"
-                           f"Origem: {r['origem']} | Destino: {r['destino']}")
-                    pdf.multi_cell(0, 10, f(txt))
+                    texto_corpo = (
+                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']} e de {r['tripulantes']} "
+                        f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
+                        f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_f}. Este "
+                        f"suprimento e planejado para a viagem corrente.\n\n"
+                        f"Origem: {r['origem']} | Destino: {r['destino']}"
+                    )
+                    pdf.multi_cell(0, 10, f(texto_corpo))
                     
-                    # Campo de Considerações (se houver)
-                    if r['consideracoes'] != "N/A":
+                    if r['consideracoes'] != "N/A" and r['consideracoes'].strip() != "":
                         pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, "Consideracoes:", ln=True)
                         pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(r['consideracoes']))
 
-                    # Rodapé de Assinatura
-                    pdf.ln(35)
-                    pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                    pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(r['resp']), ln=True, align="C")
-                    pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {dt_pdf}"), ln=True, align="C")
+                    # --- ASSINATURA E RODAPÉ ---
+                    pdf.ln(20)
                     
-                    pdf_out = pdf.output(dest='S').encode('latin-1')
-                    st.download_button("⬇️ BAIXAR PDF", data=pdf_out, file_name=f"2via_{r['navio']}.pdf", key=f"dl_{idx}")
+                    # Tenta carregar a assinatura se houver base64
+                    if r['assinatura_base64'] != "N/A" and len(r['assinatura_base64']) > 100:
+                        try:
+                            # Limpa o prefixo se existir
+                            base64_data = r['assinatura_base64'].split(",")[-1]
+                            img_data = base64.b64decode(base64_data)
+                            img_file = BytesIO(img_data)
+                            pdf.image(img_file, x=80, w=50) # Assinatura acima da linha
+                        except: pass
+
+                    # Linha e Nome (Aproximados)
+                    pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                    pdf.set_font("Arial", "B", 11)
+                    pdf.cell(0, 7, f(r['resp']), ln=True, align="C")
+                    
+                    # Data e Hora do Registro
+                    pdf.set_font("Arial", "I", 9)
+                    pdf.cell(0, 5, f(f"Assinado em: {dt_f} as {datetime.now().strftime('%H:%M')}"), ln=True, align="C")
+                    
+                    # Saída do PDF
+                    pdf_output = pdf.output(dest='S').encode('latin-1')
+                    st.download_button("⬇️ BAIXAR PDF", data=pdf_output, file_name=f"2via_{r['navio']}.pdf", key=f"dl_{idx}")
