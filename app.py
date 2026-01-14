@@ -355,75 +355,121 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO CORRIGIDO)
+# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL COM PDF E SALVAMENTO COMPLETO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
     from datetime import datetime, timedelta
+    import unicodedata
+    import os
+    from PIL import Image
 
-    st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px black;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Configuração de Datas (Corrigindo a posição da data)
+    # --- Configuração de Datas (Formato BR) ---
     escolta_check = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
     dias_duracao = 12 if escolta_check == "SIM" else 15
     
-    # Data que o usuário seleciona (Esta é a data que irá para o campo 'Novo Rancho')
-    data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
+    col_data_1, col_data_2 = st.columns(2)
+    with col_data_1:
+        data_recebimento = st.date_input("Data prevista para o novo rancho:", datetime.now(), format="DD/MM/YYYY")
+    
     data_validade = data_recebimento + timedelta(days=dias_duracao)
+    with col_data_2:
+        st.markdown(f"**📅 Validade Calculada:**")
+        st.success(f"{data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    with st.form("form_declaracao"):
-        col1, col2 = st.columns(2)
-        with col1:
-            # Pegando o nome do responsável logado
+    with st.form("form_declaracao_oficial"):
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
-            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=10)
+            lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=16)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
-        with col2:
-            data_ultimo = st.date_input("Data do último rancho recebido:")
-            destino = st.text_input("Porto de Destino", value="Novo remanso")
-            # Navio como texto simples para evitar erro de 'Select'
+        with col_f2:
             navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
+            data_ultimo_rancho = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
+            destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações:")
-        enviar = st.form_submit_button("💾 SALVAR NO NOTION")
+        consideracoes = st.text_area("Considerações / Necessidades Extras:", value="Cota de água extra pela baixa do rio...")
+        
+        st.write("Assinatura Digital:")
+        canvas_result = st_canvas(
+            stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
+            height=120, drawing_mode="freedraw", key="ass_final_oficial"
+        )
+        
+        # O botão que salva e libera o PDF
+        enviar = st.form_submit_button("💾 SALVAR E PREPARAR PDF")
 
     if enviar:
-        try:
-            headers = {
-                "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
-                "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
-            }
-
-            # Payload montado exatamente como as colunas que vi no seu vídeo
-            payload = {
-                "parent": {"database_id": st.secrets["ID_HISTORICO"]},
-                "properties": {
-                    # A coluna 'Responsável' é o Título (Aa)
-                    "Responsável": {"title": [{"text": {"content": resp_nome}}]},
-                    
-                    # Colunas de Texto (Rich Text)
-                    "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
-                    "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
-                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
-                    
-                    # Colunas de Data (Date)
-                    "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                    "Validade": {"date": {"start": data_validade.isoformat()}}
+        if canvas_result.image_data is None:
+            st.error("❌ Por favor, assine antes de continuar.")
+        else:
+            try:
+                # 1. SALVAMENTO COMPLETO NO NOTION (Incluindo Tripulantes e Escolta)
+                headers = {
+                    "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
+                    "Content-Type": "application/json",
+                    "Notion-Version": "2022-06-28"
                 }
-            }
 
-            res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-            
-            if res.status_code == 200:
-                st.success("✅ SUCESSO! Dados salvos no Notion.")
-            else:
-                # Se der erro, ele vai te dizer exatamente qual coluna está errada
-                detalhe = res.json().get('message', 'Erro desconhecido')
-                st.error(f"❌ Erro {res.status_code}: {detalhe}")
-        
-        except Exception as e:
-            st.error(f"Falha técnica: {e}")
+                payload = {
+                    "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                    "properties": {
+                        "Responsável": {"title": [{"text": {"content": resp_nome}}]},
+                        "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
+                        "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                        "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
+                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                        "Validade": {"date": {"start": data_validade.isoformat()}},
+                        "Número de tripulantes": {"number": int(lotacao)}, # Salvando número
+                        "Escolta": {"checkbox": (escolta_check == "SIM")}     # Salvando sim/não
+                    }
+                }
+
+                res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+                
+                if res.status_code == 200:
+                    st.success("✅ Registro salvo com sucesso no Banco de Dados!")
+                    
+                    # 2. GERAÇÃO DO PDF (O BOTÃO DE IMPRIMIR)
+                    class PDF_Oficial(FPDF):
+                        def header(self):
+                            if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 95, 8, 20)
+                            self.set_font("Arial", "B", 15); self.ln(25)
+                            self.cell(0, 10, "DECLARAÇÃO DE REABASTECIMENTO", ln=True, align="C")
+                        def footer(self):
+                            self.set_y(-15); self.set_font("Arial", "I", 8)
+                            self.cell(0, 10, f"Pagina {self.page_no()}", 0, 0, "C")
+
+                    pdf = PDF_Oficial(); pdf.add_page()
+                    def p(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+                    
+                    pdf.set_font("Arial", "", 12)
+                    pdf.multi_cell(0, 10, p(f"Eu, {resp_nome}, responsável pela embarcação {navio_nome}, declaro que a lotação atual é de {lotacao} tripulantes. O rancho recebido em {data_recebimento.strftime('%d/%m/%Y')} tem validade prevista até {data_validade.strftime('%d/%m/%Y')}."))
+                    pdf.ln(5)
+                    pdf.cell(0, 10, p(f"Porto de Origem: {origem} | Porto de Destino: {destino}"), ln=True)
+                    pdf.ln(5); pdf.set_font("Arial", "B", 11); pdf.cell(0, 10, "CONSIDERAÇÕES:", ln=True)
+                    pdf.set_font("Arial", "", 10); pdf.multi_cell(0, 7, p(consideracoes))
+                    
+                    # Assinatura no PDF
+                    img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                    img_ass.save("ass_temp.png")
+                    pdf.ln(10); pdf.image("ass_temp.png", x=75, w=60)
+                    pdf.cell(0, 10, "__________________________________________", ln=True, align="C")
+                    pdf.cell(0, 5, p(resp_nome), ln=True, align="C")
+
+                    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                    st.download_button(label="📥 CLIQUE AQUI PARA BAIXAR O PDF (IMPRIMIR)", 
+                                       data=pdf_bytes, 
+                                       file_name=f"Declaracao_{navio_nome}.pdf", 
+                                       mime="application/pdf", 
+                                       use_container_width=True)
+                else:
+                    st.error(f"❌ Falha ao salvar no Notion: {res.json().get('message')}")
+
+            except Exception as e:
+                st.error(f"Erro no processamento: {e}")
 
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
