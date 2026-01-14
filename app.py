@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO TOTAL E PROTEÇÃO)
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO TOTAL)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -365,18 +365,7 @@ elif st.session_state.pagina == "tripulacao":
     from PIL import Image
     from streamlit_drawable_canvas import st_canvas
 
-    # Estilo Azul (conforme solicitado)
-    st.markdown("""
-        <style>
-        .stApp { background-color: #3b66eb !important; }
-        h1, h2, h3, p, label, span { color: #ffffff !important; }
-        input, textarea, div[data-baseweb="input"] { background-color: #ffffff !important; color: #1a365d !important; }
-        div.stButton > button { border: 2px solid #ffffff; background-color: transparent; color: #ffffff; font-weight: bold; }
-        div.stButton > button:hover { background-color: #ffffff; color: #3b66eb; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
     col_esc, col_val = st.columns(2)
     with col_esc:
@@ -385,43 +374,37 @@ elif st.session_state.pagina == "tripulacao":
     with col_val:
         data_recebimento = st.date_input("Data prevista para o novo rancho:", datetime.now())
         data_validade = data_recebimento + timedelta(days=dias)
-        st.success(f"📅 Validade Calculada: {data_validade.strftime('%d/%m/%Y')} ({dias} dias)")
+        st.success(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')}")
 
-    with st.form("form_restaurado_v12"):
+    with st.form("form_final_ajustado"):
         c1, c2 = st.columns(2)
         with c1:
-            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'))
-            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
+            resp_nome = st.text_input("Responsável", value="CZA AUGUSTO")
+            navio_nome = st.text_input("Navio", value="JATOBA")
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
-            data_ultimo = st.date_input("Data do último rancho:")
+            data_ultimo = st.date_input("Data do último rancho:", datetime.now())
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        # --- CAMPO DE CONSIDERAÇÕES RESTAURADO ---
+        # CAMPO DE CONSIDERAÇÕES RESTAURADO
         consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
         
         st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="canvas_v12")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, key="canvas_v20")
         
-        btn_acao = st.form_submit_button("💾 SALVAR REGISTRO", use_container_width=True)
+        btn_acao = st.form_submit_button("💾 SALVAR REGISTRO")
 
     if btn_acao:
         if canvas_result.image_data is not None:
-            # Converter Assinatura
             img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
             buffered = BytesIO()
             img_ass.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode()
 
-            # Enviar para o Notion
-            headers = {
-                "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
-                "Content-Type": "application/json",
-                "Notion-Version": "2022-06-28"
-            }
+            headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
             
-            # ATENÇÃO: Os nomes abaixo devem ser IGUAIS aos do Notion
+            # SINCRONIZADO EXATAMENTE COM image_18befe.png
             payload = {
                 "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                 "properties": {
@@ -435,20 +418,13 @@ elif st.session_state.pagina == "tripulacao":
                     "Assinatura": {"rich_text": [{"text": {"content": img_str}}]}
                 }
             }
-            
             res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-            
             if res.status_code == 200:
                 st.balloons()
-                st.success("✅ REGISTRO ENVIADO AO NOTION!")
+                st.success("✅ Salvo com sucesso no Notion!")
             else:
-                st.error(f"Erro {res.status_code} ao salvar no Notion.")
-                st.json(res.json()) # Se der erro, o Notion dirá o motivo aqui
-
-
-# =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (ESTILO ZION BLUE VIBRANT)
-# =================================================================
+                st.error(f"Erro {res.status_code}: Verifique os nomes das colunas.")
+                st.json(res.json())
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date, datetime
