@@ -491,7 +491,7 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA - MODELO ZION COM TODOS OS CAMPOS
+# BLOCO 8: HISTÓRICO E 2ª VIA - MAPEAMENTO TOTAL E TEXTO DINÂMICO
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -530,21 +530,28 @@ elif st.session_state.pagina == "historico":
             for page in results:
                 p = page.get("properties", {})
                 
-                # Funções de extração segura para evitar erros das imagens 1, 4, 12 e 14
-                def g_t(n): return p.get(n, {}).get("rich_text", [{}])[0].get("plain_text", "N/A") if p.get(n) and p.get(n).get("rich_text") else "N/A"
-                def g_tit(n): return p.get(n, {}).get("title", [{}])[0].get("plain_text", "N/A") if p.get(n) and p.get(n).get("title") else "N/A"
-                def g_dt(n): return p.get(n, {}).get("date", {}).get("start", "S/D") if p.get(n) and p.get(n).get("date") else "S/D"
+                # Funções de extração segura para evitar erros de tela (AttributeError/KeyError)
+                def g_t(n): 
+                    prop = p.get(n, {})
+                    tipo = prop.get("type", "")
+                    if tipo == "rich_text":
+                        return prop.get("rich_text", [{}])[0].get("plain_text", "") if prop.get("rich_text") else ""
+                    elif tipo == "title":
+                        return prop.get("title", [{}])[0].get("plain_text", "") if prop.get("title") else ""
+                    return ""
+
+                def g_dt(n): return p.get(n, {}).get("date", {}).get("start", "") if p.get(n) and p.get(n).get("date") else ""
                 def g_num(n): return p.get(n, {}).get("number", 0) if p.get(n) else 0
 
                 dados.append({
                     "navio": g_t("Navio"),
                     "data": g_dt("Novo Rancho"),
                     "validade": g_dt("Validade"),
-                    "resp": g_tit("Responsável"),
+                    "resp": g_t("Responsável"),
                     "origem": g_t("Porto de Origem"),
                     "destino": g_t("Porto de Destino"),
                     "tripulantes": g_num("Qtde Tripulante"),
-                    "escolta": g_t("Escolta"), # Lê como texto se estiver assim no Notion
+                    "escolta": g_t("Escolta"), # Agora mapeado como Texto conforme sua mudança
                     "consideracoes": g_t("Considerações"),
                     "assinatura_base64": g_t("Assinatura")
                 })
@@ -559,23 +566,23 @@ elif st.session_state.pagina == "historico":
                     pdf.add_page()
                     def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                     
-                    # Cabeçalho ZION
+                    # --- CABEÇALHO ---
                     pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
                     pdf.cell(0, 25, "ZION", ln=True, align="C")
-                    
                     pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
                     pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
                     
-                    # Corpo do Texto com Escolta e Validade
+                    # --- TRATAMENTO DE VARIÁVEIS DO CORPO ---
                     pdf.set_font("Arial", "", 12)
-                    dt_r = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] != "S/D" else r['data']
-                    dt_v = datetime.strptime(r['validade'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['validade'] != "S/D" else "nao informada"
+                    dt_r = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] else "S/D"
+                    dt_v = datetime.strptime(r['validade'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['validade'] else "nao informada"
                     
-                    # Lógica da Escolta
-                    txt_escolta = "com escolta" if "sim" in str(r['escolta']).lower() or r['escolta'] == "1" else "sem escolta"
+                    # Texto de Escolta dinâmico (com base no que você escreveu no Notion)
+                    txt_escolta = f" ({r['escolta']})" if r['escolta'] else ""
                     
+                    # --- CORPO DO TEXTO (INCLUSÃO DE VALIDADE E ESCOLTA) ---
                     texto_corpo = (
-                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']} ({txt_escolta}) e de {r['tripulantes']} "
+                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']}{txt_escolta} e de {r['tripulantes']} "
                         f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                         f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_r}, com validade ate {dt_v}. "
                         f"Este suprimento e planejado para a viagem corrente.\n\n"
@@ -583,14 +590,14 @@ elif st.session_state.pagina == "historico":
                     )
                     pdf.multi_cell(0, 10, f(texto_corpo))
                     
-                    # Campo Considerações no corpo do arquivo
-                    if r['consideracoes'] != "N/A" and r['consideracoes'].strip() != "":
-                        pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, "Consideracoes:", ln=True)
+                    # --- CAMPO OBSERVAÇÕES / CONSIDERAÇÕES ---
+                    if r['consideracoes']:
+                        pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Observacoes:"), ln=True)
                         pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(r['consideracoes']))
 
-                    # Assinatura (Aproximada da linha)
+                    # --- ASSINATURA ---
                     pdf.ln(20)
-                    if r['assinatura_base64'] != "N/A" and len(r['assinatura_base64']) > 100:
+                    if r['assinatura_base64']:
                         try:
                             img_data = base64.b64decode(r['assinatura_base64'].split(",")[-1])
                             pdf.image(BytesIO(img_data), x=80, w=50)
