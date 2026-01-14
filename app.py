@@ -508,52 +508,70 @@ elif st.session_state.pagina == "tripulacao":
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (TABELA COM GRADES)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (VERSÃO INTEGRAL COM GRADES)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date
 
-    # --- Estilização Avançada (Grades e Layout) ---
+    # --- Configuração de Estilo CSS ---
     st.markdown("""
         <style>
         .stApp { background-color: #f8f9fa !important; }
         .titulo-banco { color: #1a365d; font-weight: bold; font-size: 28px; text-align: center; margin-bottom: 20px; }
         
-        /* Estilo da Tabela com Grades */
-        .tabela-container { background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #1a365d; color: white; border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        td { border: 1px solid #dee2e6; padding: 10px; color: #333; font-size: 14px; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        tr:hover { background-color: #e9ecef; }
+        /* Estilização da Tabela HTML com Grades */
+        .tabela-historico {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .tabela-historico th {
+            background-color: #1a365d;
+            color: white;
+            text-align: left;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+        }
+        .tabela-historico td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            color: #333;
+        }
+        .tabela-historico tr:nth-child(even) { background-color: #f2f4f7; }
+        .tabela-historico tr:hover { background-color: #e2e6ea; }
         
         div.stButton > button { border-radius: 5px; font-weight: bold; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- BOTÃO VOLTAR (TOPO) ---
-    col_topo1, col_topo2 = st.columns([1, 4])
-    with col_topo1:
-        if st.button("⬅️ VOLTAR", key="btn_voltar_topo"):
+    # --- Navegação Superior ---
+    col_t1, col_t2 = st.columns([1, 4])
+    with col_t1:
+        if st.button("⬅️ VOLTAR", key="voltar_top"):
             st.session_state.pagina = "menu"; st.rerun()
-    with col_topo2:
-        st.markdown('<div class="titulo-banco">🗄️ Histórico Geral de Pedidos</div>', unsafe_allow_html=True)
+    with col_t2:
+        st.markdown('<div class="titulo-banco">🗄️ Histórico de Reabastecimento</div>', unsafe_allow_html=True)
 
-    # --- Configurações de Acesso ---
+    # --- Definição de Permissões ---
     usuario_atual = st.session_state.get('cozinheiro', 'Usuário')
-    ADMIN_USER = "DONO" # <-- Certifique-se que seu login seja exatamente este
+    ADMIN_USER = "DONO" # <-- Mude para o seu login exato de administrador
 
-    # --- FILTROS ---
+    # --- Área de Filtros ---
     with st.container():
-        st.markdown('<div style="background-color:white; padding:15px; border-radius:10px; margin-bottom:20px;">', unsafe_allow_html=True)
-        col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
-        data_ini = col_f1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
-        data_fim = col_f2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
-        btn_busca = col_f3.button("🔍 BUSCAR", use_container_width=True)
+        st.markdown('<div style="background-color:white; padding:20px; border-radius:10px; border:1px solid #ddd;">', unsafe_allow_html=True)
+        f_col1, f_col2, f_col3 = st.columns([2, 2, 1])
+        data_ini = f_col1.date_input("Filtrar De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
+        data_fim = f_col2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
+        btn_buscar = f_col3.button("🔍 CONSULTAR", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if btn_busca:
+    # --- Lógica de Busca no Notion ---
+    if btn_buscar:
         try:
             headers = {
                 "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
@@ -561,84 +579,88 @@ elif st.session_state.pagina == "historico":
                 "Notion-Version": "2022-06-28"
             }
             url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
-            res = requests.post(url, headers=headers, json={})
             
-            if res.status_code == 200:
-                dados_brutos = res.json().get("results", [])
-                lista_filtrada = []
+            response = requests.post(url, headers=headers, json={})
+            
+            if response.status_code == 200:
+                resultados = response.json().get("results", [])
+                st.session_state.dados_historico = []
                 
-                for item in dados_brutos:
+                for item in resultados:
                     p = item["properties"]
-                    resp = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "")
-                    dt_str = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
+                    # Extração de dados segura
+                    resp = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
+                    navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
+                    dt_p_str = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
+                    dt_v_str = p.get("Validade", {}).get("date", {}).get("start", "-")
                     
-                    if dt_str:
-                        dt_obj = date.fromisoformat(dt_str)
-                        # REGRA: Dono vê tudo | Usuário vê o dele
+                    orig_list = p.get("Porto de Origem", {}).get("rich_text", [{}])
+                    origem = orig_list[0].get("text", {}).get("content", "-") if orig_list else "-"
+                    
+                    dest_list = p.get("Porto de Destino", {}).get("rich_text", [{}])
+                    destino = dest_list[0].get("text", {}).get("content", "-") if dest_list else "-"
+
+                    if dt_p_str:
+                        dt_obj = date.fromisoformat(dt_p_str)
+                        # Aplicação do Filtro de Acesso (Dono vê tudo, Usuário vê o próprio)
                         if (usuario_atual == ADMIN_USER or resp == usuario_atual):
+                            # Filtro de Data
                             if data_ini <= dt_obj <= data_fim:
-                                lista_filtrada.append(item)
-                
-                st.session_state.dados_historico = lista_filtrada
+                                st.session_state.dados_historico.append({
+                                    "resp": resp, "navio": navio, "data": dt_p_str, 
+                                    "validade": dt_v_str, "origem": origem, "destino": destino
+                                })
             else:
-                st.error("Erro na comunicação com o Banco de Dados.")
+                st.error(f"Erro na conexão com Notion: {response.status_code}")
         except Exception as e:
-            st.error(f"Erro: {e}")
+            st.error(f"Erro ao carregar dados: {e}")
 
-    # --- EXIBIÇÃO EM TABELA COM GRADES ---
+    # --- Renderização da Tabela com Grades ---
+    st.markdown("---")
+    
+    # Início da estrutura da tabela
+    tabela_html = """
+    <table class="tabela-historico">
+        <thead>
+            <tr>
+                <th>Responsável</th>
+                <th>Navio</th>
+                <th>Data Pedido</th>
+                <th>Validade</th>
+                <th>Origem</th>
+                <th>Destino</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+
     if "dados_historico" in st.session_state and st.session_state.dados_historico:
+        def format_br(d): return f"{d[8:10]}/{d[5:7]}/{d[0:4]}" if len(str(d)) > 8 else d
         
-        # Início da Tabela HTML
-        conteudo_tabela = """
-        <table>
-            <thead>
-                <tr>
-                    <th>Responsável</th>
-                    <th>Embarcação</th>
-                    <th>Data Pedido</th>
-                    <th>Validade</th>
-                    <th>Origem</th>
-                    <th>Destino</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-        
-        for row in st.session_state.dados_historico:
-            p = row["properties"]
-            
-            # Extração segura dos dados
-            user = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "-")
-            navio = p.get("Navio", {}).get("select", {}).get("name", "-")
-            d_ped = p.get("Novo Rancho", {}).get("date", {}).get("start", "-")
-            d_val = p.get("Validade", {}).get("date", {}).get("start", "-")
-            
-            orig = p.get("Porto de Origem", {}).get("rich_text", [{}])
-            orig_txt = orig[0].get("text", {}).get("content", "-") if orig else "-"
-            
-            dest = p.get("Porto de Destino", {}).get("rich_text", [{}])
-            dest_txt = dest[0].get("text", {}).get("content", "-") if dest else "-"
-
-            # Formatação Data BR
-            def br(d): return f"{d[8:10]}/{d[5:7]}/{d[0:4]}" if len(d) > 8 else d
-
-            conteudo_tabela += f"""
-                <tr>
-                    <td>{user}</td>
-                    <td>{navio}</td>
-                    <td>{br(d_ped)}</td>
-                    <td>{br(d_val)}</td>
-                    <td>{orig_txt}</td>
-                    <td>{dest_txt}</td>
-                </tr>
+        for dado in st.session_state.dados_historico:
+            tabela_html += f"""
+            <tr>
+                <td>{dado['resp']}</td>
+                <td>{dado['navio']}</td>
+                <td>{format_br(dado['data'])}</td>
+                <td>{format_br(dado['validade'])}</td>
+                <td>{dado['origem']}</td>
+                <td>{dado['destino']}</td>
+            </tr>
             """
-        
-        conteudo_tabela += "</tbody></table>"
-        st.markdown(conteudo_tabela, unsafe_allow_html=True)
     else:
-        st.info("Nenhum registro carregado. Clique em BUSCAR.")
+        tabela_html += """
+        <tr>
+            <td colspan="6" style="text-align:center; color: #888;">
+                Nenhum registro encontrado. Clique em CONSULTAR para atualizar.
+            </td>
+        </tr>
+        """
 
-    # --- BOTÃO VOLTAR (RODAPÉ) ---
+    tabela_html += "</tbody></table>"
+    st.markdown(tabela_html, unsafe_allow_html=True)
+
+    # --- Navegação Inferior ---
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="btn_voltar_fim", use_container_width=True):
+    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="voltar_fim", use_container_width=True):
         st.session_state.pagina = "menu"; st.rerun()
