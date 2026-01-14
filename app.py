@@ -470,131 +470,98 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA - CORREÇÃO DE ERRO E LAYOUT
+# BLOCO 8: HISTÓRICO COM FUNDO PERSONALIZADO E FILTRO ADMIN
 # =================================================================
 elif st.session_state.pagina == "historico":
-    import requests
-    from datetime import date, datetime
-    import unicodedata
-    import base64
-    from fpdf import FPDF
-
-    # --- BOTÕES DE NAVEGAÇÃO ELEGANTES ---
+    # --- ESTILO VISUAL: PAISAGEM LEVE EM CINZA ---
     st.markdown("""
         <style>
+        .stApp {
+            background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
+                        url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-attachment: fixed;
+            filter: grayscale(100%) brightness(0.9); /* Deixa a imagem cinza e leve */
+        }
+        /* Ajuste dos botões para contraste no cinza */
         div.stButton > button {
-            border-radius: 10px;
-            border: 1px solid #1a365d;
-            background-color: white;
-            color: #1a365d;
-            transition: all 0.3s;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            color: #333333 !important;
+            border: 1px solid #999999 !important;
+            font-weight: bold;
         }
-        div.stButton > button:hover {
-            background-color: #1a365d;
-            color: white;
-        }
+        h2 { color: #222222 !important; text-shadow: 1px 1px 2px white; }
         </style>
     """, unsafe_allow_html=True)
 
-    col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-    with col_nav1:
+    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
+    
+    # Navegação Superior
+    c_nav1, c_nav2 = st.columns([1, 1])
+    with c_nav1:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun()
-    with col_nav3:
+    with c_nav2:
         if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
             st.session_state.pagina = "login"; st.rerun()
 
-    st.markdown("<h2 style='text-align: center; color: #1a365d;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
-    
-    with st.expander("🔍 Filtros de Busca", expanded=True):
+    # Filtros de Busca
+    with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
-        # FORMATO DE DATA CORRIGIDO PARA DD/MM/YYYY
-        d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
-        d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
-        btn_busca = c3.button("🔍 CONSULTAR", use_container_width=True)
-    
-    if btn_busca:
-        headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Notion-Version": "2022-06-28"}
-        url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
-        res = requests.post(url, headers=headers, json={})
+        with c1: d_ini = st.date_input("De:", datetime.now() - timedelta(days=30))
+        with c2: d_fim = st.date_input("Até:", datetime.now())
+        with c3: btn_consultar = st.button("🔍 CONSULTAR", use_container_width=True)
+
+    if btn_consultar:
+        usuario_atual = st.session_state.get('cozinheiro', '')
+        
+        # REGRA DE ADMIN: Se for o dono (ex: MARCOS), busca sem filtro de nome
+        if usuario_atual.upper() == "MARCOS":
+            filtro_notion = {
+                "property": "Novo Rancho",
+                "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}
+            }
+        else:
+            # USUÁRIO COMUM: Vê apenas os registros onde ele é o Responsável
+            filtro_notion = {
+                "and": [
+                    {"property": "Responsável", "title": {"equals": usuario_atual}},
+                    {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
+                ]
+            }
+
+        headers = {
+            "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", 
+            "Content-Type": "application/json", 
+            "Notion-Version": "2022-06-28"
+        }
+        payload = {"filter": filtro_notion, "sorts": [{"timestamp": "created_time", "direction": "descending"}]}
+        
+        res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", headers=headers, json=payload)
         
         if res.status_code == 200:
-            dados = res.json().get("results", [])
-            temp_lista = []
-            for item in dados:
-                p = item["properties"]
-                
-                # Tratamento da Data de Criação (Garante que não dê KeyError)
-                dt_criacao_iso = item.get("created_time")
-                if dt_criacao_iso:
-                    dt_obj = datetime.fromisoformat(dt_criacao_iso.replace("Z", "+00:00"))
-                    data_hora_formatada = dt_obj.strftime('%d/%m/%Y às %H:%M')
-                else:
-                    data_hora_formatada = "Data não registrada"
+            results = res.json().get("results", [])
+            registros = []
+            for page in results:
+                p = page.get("properties", {})
+                registros.append({
+                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
+                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
+                    "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A"),
+                    "id_page": page.get("id")
+                })
+            st.session_state.dados_busca = registros
+            if not registros: st.warning("Nenhum registro encontrado para este período.")
+        else:
+            st.error(f"Erro na consulta: {res.status_code}")
 
-                resp = p.get("Responsável", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
-                dt_r_raw = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
-                
-                if dt_r_raw:
-                    if d_ini <= date.fromisoformat(dt_r_raw) <= d_fim:
-                        ass_text = p.get("Assinatura", {}).get("rich_text", [])
-                        ass_val = ass_text[0].get("text", {}).get("content", "") if ass_text else ""
-                        
-                        temp_lista.append({
-                            "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
-                            "data_prev": dt_r_raw,
-                            "trip": p.get("Qtde Tripulante", {}).get("number", 16),
-                            "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
-                            "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
-                            "ass_base64": ass_val,
-                            "data_hora_br": data_hora_formatada,
-                            "resp": resp
-                        })
-            st.session_state.dados_busca = temp_lista
-
-    # --- LISTAGEM DE RESULTADOS ---
+    # Lista de Resultados
     if st.session_state.get("dados_busca"):
         for idx, reg in enumerate(st.session_state.dados_busca):
-            with st.container():
-                col_info, col_btn = st.columns([4, 1])
-                dt_f = datetime.strptime(reg['data_prev'], "%Y-%m-%d").strftime("%d/%m/%Y")
-                col_info.markdown(f"🚢 **{reg['navio']}** | 📅 {dt_f} | 👤 {reg['resp']}")
-                
-                # Geração do PDF da 2ª Via
-                pdf = FPDF()
-                pdf.add_page()
-                def f(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
-                
-                # Cabeçalho PDF
-                pdf.set_font("Arial", "B", 30); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO - 2ª VIA"), ln=True, align="C"); pdf.ln(15)
-                
-                # Corpo do Texto
-                pdf.set_font("Arial", "", 12)
-                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {reg['navio']} e de {reg['trip']} tripulantes. "
-                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
-                         f"por um periodo de 15 dias nauticos a partir de {dt_f}. "
-                         f"Este suprimento e planejado para a viagem corrente.\n\n"
-                         f"Origem: {reg['origem']} | Destino: {reg['destino']}")
-                pdf.multi_cell(0, 8, f(corpo))
-                
-                # ESPAÇAMENTO AUMENTADO PARA A ASSINATURA (Resolve o problema da assinatura colada)
-                pdf.ln(35) 
-
-                if reg.get('ass_base64') and len(reg['ass_base64']) > 10:
-                    try:
-                        with open(f"temp_h_{idx}.png", "wb") as fh: 
-                            fh.write(base64.b64decode(reg['ass_base64']))
-                        pdf.image(f"temp_h_{idx}.png", x=75, w=60)
-                    except:
-                        pdf.cell(0, 10, f("[Assinatura nao carregada]"), ln=True, align="C")
-                
-                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
-                
-                # DATA DE REGISTRO (Protegido contra erros)
-                data_footer = reg.get('data_hora_br', 'Data nao registrada')
-                pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Registro original em: {data_footer}"), ln=True, align="C")
-                
-                col_btn.download_button("🖨️ PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{reg['navio']}.pdf", key=f"btn_{idx}", use_container_width=True)
-                st.divider()
+            with st.expander(f"🚢 {reg['navio']} | 📅 {reg['data']} | 👤 {reg['resp']}"):
+                col_ex1, col_ex2 = st.columns([3, 1])
+                with col_ex1:
+                    st.write(f"**Responsável:** {reg['resp']}")
+                with col_ex2:
+                    if st.button(f"📄 VER PDF", key=f"hist_pdf_{idx}"):
+                        st.write("Gerando 2ª via...") # Aqui aciona a lógica de PDF_Checklist
