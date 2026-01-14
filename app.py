@@ -491,68 +491,116 @@ elif st.session_state.pagina == "tripulacao":
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (TABELA GRADEADA)
+# BLOCO 8: HISTÓRICO COM BOTÃO DE IMPRESSÃO (2ª VIA)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
-    from datetime import date
-    import pandas as pd
+    from datetime import date, datetime
+    import unicodedata
+    from fpdf import FPDF
 
-    st.markdown("<h2 style='color: #1a365d;'>🗄️ Histórico de Pedidos</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico e 2ª Via de Documentos</h2>", unsafe_allow_html=True)
     
-    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="btn_voltar_topo"):
+    if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 
-    # Área de Filtros
-    with st.expander("🔍 Filtros de Busca", expanded=True):
-        c1, c2, c3 = st.columns([2, 2, 1])
-        d_ini = c1.date_input("De:", value=date(2025, 1, 1))
-        d_fim = c2.date_input("Até:", value=date.today())
-        btn_consulta = c3.button("🔍 CONSULTAR", use_container_width=True)
+    c1, c2, c3 = st.columns([2, 2, 1])
+    d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
+    d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
     
-    if btn_consulta:
+    if "dados_busca" not in st.session_state:
+        st.session_state.dados_busca = []
+
+    if c3.button("🔍 CONSULTAR"):
         headers = {
             "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
             "Content-Type": "application/json",
             "Notion-Version": "2022-06-28"
         }
         url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
+        
         res = requests.post(url, headers=headers, json={})
         
         if res.status_code == 200:
             dados = res.json().get("results", [])
-            lista_final = []
-            
+            temp_lista = []
             for item in dados:
                 p = item["properties"]
-                
-                # Coleta os dados respeitando os novos nomes
                 resp = p.get("Responsável", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
-                navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
-                data_p = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
-                data_v = p.get("Validade", {}).get("date", {}).get("start", "-")
+                dt_r_raw = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
                 
-                # Filtro de Data e Usuário
-                if data_p:
-                    dt_obj = date.fromisoformat(data_p)
+                # Filtro de Segurança
+                pode_ver = (st.session_state.get('cozinheiro') == "DONO" or resp == st.session_state.get('cozinheiro'))
+                
+                if dt_r_raw and pode_ver:
+                    dt_obj = date.fromisoformat(dt_r_raw)
                     if d_ini <= dt_obj <= d_fim:
-                        if st.session_state.cozinheiro == "DONO" or resp == st.session_state.cozinheiro:
-                            # Formatação para a tabela
-                            lista_final.append({
-                                "Responsável": resp,
-                                "Embarcação": navio,
-                                "Data Pedido": f"{data_p[8:10]}/{data_p[5:7]}/{data_p[0:4]}",
-                                "Validade": f"{data_v[8:10]}/{data_v[5:7]}/{data_v[0:4]}" if len(data_v) > 8 else data_v
-                            })
-            
-            if lista_final:
-                # Exibe em formato de tabela com grades nativa
-                st.table(pd.DataFrame(lista_final))
-            else:
-                st.warning("Nenhum registro encontrado para este período.")
+                        temp_lista.append({
+                            "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
+                            "data_prev": dt_r_raw,
+                            "validade": p.get("Validade", {}).get("date", {}).get("start", "N/A"),
+                            "trip": p.get("Qtde Tripulante", {}).get("number", 0),
+                            "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
+                            "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
+                            "resp": resp
+                        })
+            st.session_state.dados_busca = temp_lista
         else:
-            st.error(f"Erro ao conectar: {res.status_code}")
+            st.error("Erro ao acessar banco de dados.")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ SAIR DO HISTÓRICO", key="btn_voltar_fim", use_container_width=True):
-        st.session_state.pagina = "menu"; st.rerun()
+    # --- EXIBIÇÃO DOS RESULTADOS COM BOTÃO DE IMPRESSÃO ---
+    if st.session_state.dados_busca:
+        st.markdown("---")
+        # Cabeçalho da "Tabela"
+        h_col1, h_col2, h_col3, h_col4 = st.columns([2, 2, 1, 2])
+        h_col1.write("**Navio / Data**")
+        h_col2.write("**Validade**")
+        h_col3.write("**Trip.**")
+        h_col4.write("**Ação**")
+
+        for idx, reg in enumerate(st.session_state.dados_busca):
+            with st.container():
+                r_col1, r_col2, r_col3, r_col4 = st.columns([2, 2, 1, 2])
+                
+                dt_f = datetime.strptime(reg['data_prev'], "%Y-%m-%d").strftime("%d/%m/%Y")
+                vd_f = datetime.strptime(reg['validade'], "%Y-%m-%d").strftime("%d/%m/%Y") if reg['validade'] != "N/A" else "N/A"
+                
+                r_col1.write(f"{reg['navio']}\n{dt_f}")
+                r_col2.write(vd_f)
+                r_col3.write(str(reg['trip']))
+                
+                # Gerador de PDF para a 2ª Via
+                def gerar_segunda_via(d):
+                    pdf = FPDF()
+                    pdf.add_page()
+                    def t(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
+                    
+                    pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
+                    pdf.cell(0, 20, "ZION", ln=True, align="C")
+                    pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
+                    pdf.cell(0, 10, t("DECLARAÇÃO DE REABASTECIMENTO - 2ª VIA"), ln=True, align="C"); pdf.ln(10)
+                    
+                    pdf.set_font("Arial", "", 12)
+                    corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {d['navio']} e de {d['trip']} tripulantes. "
+                             f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                             f"por um periodo de 15 dias nauticos a partir de {dt_f}. "
+                             f"Este suprimento e planejado para a viagem corrente.\n\n"
+                             f"Origem: {d['origem']} | Destino: {d['destino']}\n"
+                             f"Responsável: {d['resp']}")
+                    pdf.multi_cell(0, 10, t(corpo))
+                    pdf.ln(20)
+                    pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                    pdf.cell(0, 7, t(d['resp']), ln=True, align="C")
+                    return pdf.output(dest='S').encode('latin-1')
+
+                pdf_data = gerar_segunda_via(reg)
+                r_col4.download_button(
+                    label=f"🖨️ PDF {idx+1}",
+                    data=pdf_data,
+                    file_name=f"2via_{reg['navio']}_{reg['data_prev']}.pdf",
+                    mime="application/pdf",
+                    key=f"btn_{idx}"
+                )
+                st.divider()
+    else:
+        st.info("Clique em Consultar para ver os dados.")
