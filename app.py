@@ -355,16 +355,15 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO CORRIGIDO)
+# BLOCO 7: TELA DE DECLARAÇÃO (SALVAMENTO DEFINITIVO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
     from datetime import datetime, timedelta
-    import unicodedata
 
     st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Lógica de Escolta
+    # Lógica de Escolta e Validade
     escolta_check = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
     dias_duracao = 12 if escolta_check == "SIM" else 15
     data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
@@ -373,7 +372,7 @@ elif st.session_state.pagina == "tripulacao":
     with st.form("form_declaracao"):
         col1, col2 = st.columns(2)
         with col1:
-            resp_nome = st.text_input("Responsável (Login)", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
+            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
             lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=10)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with col2:
@@ -388,7 +387,6 @@ elif st.session_state.pagina == "tripulacao":
         enviar = st.form_submit_button("💾 SALVAR E GERAR PDF")
 
     if enviar:
-        # TENTATIVA DE SALVAMENTO NO NOTION
         try:
             headers = {
                 "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
@@ -396,17 +394,15 @@ elif st.session_state.pagina == "tripulacao":
                 "Notion-Version": "2022-06-28"
             }
 
-            # O payload foi ajustado para os nomes exatos das colunas que vi na sua foto
+            # Montagem do JSON com nomes EXATOS da sua imagem e tipos de campo corretos
             payload = {
                 "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                 "properties": {
-                    "RESPONSÁVEL": {"title": [{"text": {"content": resp_nome}}]},
+                    "Responsável": {"title": [{"text": {"content": resp_nome}}]},
                     "Navio": {"select": {"name": st.session_state.get('navio', 'JATOBA')}},
                     "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                     "Validade": {"date": {"start": data_validade.isoformat()}},
-                    "Número de tripulantes ...": {"number": lotacao},
-                    "O navio está com escolt...": {"checkbox": (escolta_check == "SIM")},
-                    "porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                    "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
                     "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
                 }
             }
@@ -414,10 +410,12 @@ elif st.session_state.pagina == "tripulacao":
             res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
             
             if res.status_code == 200:
-                st.success("✅ Sucesso! Dados salvos no Notion.")
+                st.success("✅ SUCESSO! Dados registrados no Notion.")
             else:
-                st.error(f"❌ Erro {res.status_code}: Verifique se os nomes das colunas no Notion são exatamente: RESPONSÁVEL, Navio, Novo Rancho, Validade, porto de Origem, Porto de Destino.")
-                st.warning("Dica: No Notion, 'porto de Origem' parece estar com 'p' minúsculo.")
+                # Exibe o erro exato do Notion para sabermos qual coluna está incomodando
+                erro_detalhado = res.json().get('message', 'Erro desconhecido')
+                st.error(f"❌ Erro {res.status_code}: {erro_detalhado}")
+                st.info("Verifique se as colunas no Notion são do tipo 'Texto' (Rich Text), exceto Navio (Select) e Datas (Date).")
         
         except Exception as e:
             st.error(f"Falha técnica: {e}")
@@ -425,7 +423,7 @@ elif st.session_state.pagina == "tripulacao":
     if st.button("⬅️ VOLTAR AO MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 # =================================================================
-# BLOCO 8: BANCO DE DADOS - HISTÓRICO (SEM CÓDIGO EXPOSTO)
+# BLOCO 8: BANCO DE DADOS - HISTÓRICO (TABELA GRADEADA)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -434,15 +432,17 @@ elif st.session_state.pagina == "historico":
 
     st.markdown("<h2 style='color: #1a365d;'>🗄️ Histórico de Pedidos</h2>", unsafe_allow_html=True)
     
-    if st.button("⬅️ VOLTAR AO MENU"):
+    if st.button("⬅️ VOLTAR AO MENU PRINCIPAL", key="btn_voltar_topo"):
         st.session_state.pagina = "menu"; st.rerun()
 
-    # Filtros
-    c1, c2, c3 = st.columns([2, 2, 1])
-    d_ini = c1.date_input("Início:", value=date(2026, 1, 1))
-    d_fim = c2.date_input("Fim:", value=date.today())
+    # Área de Filtros
+    with st.expander("🔍 Filtros de Busca", expanded=True):
+        c1, c2, c3 = st.columns([2, 2, 1])
+        d_ini = c1.date_input("De:", value=date(2025, 1, 1))
+        d_fim = c2.date_input("Até:", value=date.today())
+        btn_consulta = c3.button("🔍 CONSULTAR", use_container_width=True)
     
-    if c3.button("🔍 CONSULTAR"):
+    if btn_consulta:
         headers = {
             "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
             "Content-Type": "application/json",
@@ -454,25 +454,37 @@ elif st.session_state.pagina == "historico":
         if res.status_code == 200:
             dados = res.json().get("results", [])
             lista_final = []
+            
             for item in dados:
                 p = item["properties"]
-                # Extração simples
-                resp = p.get("RESPONSÁVEL", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
+                
+                # Coleta os dados respeitando os novos nomes
+                resp = p.get("Responsável", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
                 navio = p.get("Navio", {}).get("select", {}).get("name", "N/A")
                 data_p = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
+                data_v = p.get("Validade", {}).get("date", {}).get("start", "-")
                 
-                if data_p and d_ini <= date.fromisoformat(data_p) <= d_fim:
-                    if st.session_state.cozinheiro == "DONO" or resp == st.session_state.cozinheiro:
-                        lista_final.append({
-                            "Responsável": resp,
-                            "Embarcação": navio,
-                            "Data": data_p,
-                            "Origem": p.get("porto de Origem", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "-") if p.get("porto de Origem", {}).get("rich_text") else "-"
-                        })
+                # Filtro de Data e Usuário
+                if data_p:
+                    dt_obj = date.fromisoformat(data_p)
+                    if d_ini <= dt_obj <= d_fim:
+                        if st.session_state.cozinheiro == "DONO" or resp == st.session_state.cozinheiro:
+                            # Formatação para a tabela
+                            lista_final.append({
+                                "Responsável": resp,
+                                "Embarcação": navio,
+                                "Data Pedido": f"{data_p[8:10]}/{data_p[5:7]}/{data_p[0:4]}",
+                                "Validade": f"{data_v[8:10]}/{data_v[5:7]}/{data_v[0:4]}" if len(data_v) > 8 else data_v
+                            })
             
             if lista_final:
+                # Exibe em formato de tabela com grades nativa
                 st.table(pd.DataFrame(lista_final))
             else:
-                st.info("Nenhum dado encontrado para este filtro.")
+                st.warning("Nenhum registro encontrado para este período.")
         else:
-            st.error(f"Erro ao conectar com Notion: {res.status_code}")
+            st.error(f"Erro ao conectar: {res.status_code}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("⬅️ SAIR DO HISTÓRICO", key="btn_voltar_fim", use_container_width=True):
+        st.session_state.pagina = "menu"; st.rerun()
