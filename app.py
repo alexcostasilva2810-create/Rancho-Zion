@@ -470,7 +470,7 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (PDF AJUSTADO + BOTÕES)
+# BLOCO 8: HISTÓRICO E 2ª VIA - CORREÇÃO DE ERRO E LAYOUT
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -479,22 +479,41 @@ elif st.session_state.pagina == "historico":
     import base64
     from fpdf import FPDF
 
-    # --- BOTÕES DE NAVEGAÇÃO SUPERIORES ---
+    # --- BOTÕES DE NAVEGAÇÃO ELEGANTES ---
+    st.markdown("""
+        <style>
+        div.stButton > button {
+            border-radius: 10px;
+            border: 1px solid #1a365d;
+            background-color: white;
+            color: #1a365d;
+            transition: all 0.3s;
+        }
+        div.stButton > button:hover {
+            background-color: #1a365d;
+            color: white;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
     with col_nav1:
-        if st.button("⬅️ MENU", use_container_width=True):
+        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun()
     with col_nav3:
-        if st.button("🚪 SAIR", use_container_width=True):
+        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
             st.session_state.pagina = "login"; st.rerun()
 
-    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico e 2ª Via</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1a365d;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
     
-    c1, c2, c3 = st.columns([2, 2, 1])
-    d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
-    d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
+    with st.expander("🔍 Filtros de Busca", expanded=True):
+        c1, c2, c3 = st.columns([2, 2, 1])
+        # FORMATO DE DATA CORRIGIDO PARA DD/MM/YYYY
+        d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
+        d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
+        btn_busca = c3.button("🔍 CONSULTAR", use_container_width=True)
     
-    if c3.button("🔍 CONSULTAR", use_container_width=True):
+    if btn_busca:
         headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Notion-Version": "2022-06-28"}
         url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
         res = requests.post(url, headers=headers, json={})
@@ -504,10 +523,14 @@ elif st.session_state.pagina == "historico":
             temp_lista = []
             for item in dados:
                 p = item["properties"]
-                # Puxa a data exata em que o registro foi criado no Notion
+                
+                # Tratamento da Data de Criação (Garante que não dê KeyError)
                 dt_criacao_iso = item.get("created_time")
-                dt_obj = datetime.fromisoformat(dt_criacao_iso.replace("Z", "+00:00"))
-                data_hora_formatada = dt_obj.strftime('%d/%m/%Y as %H:%M:%S')
+                if dt_criacao_iso:
+                    dt_obj = datetime.fromisoformat(dt_criacao_iso.replace("Z", "+00:00"))
+                    data_hora_formatada = dt_obj.strftime('%d/%m/%Y às %H:%M')
+                else:
+                    data_hora_formatada = "Data não registrada"
 
                 resp = p.get("Responsável", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
                 dt_r_raw = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
@@ -529,39 +552,49 @@ elif st.session_state.pagina == "historico":
                         })
             st.session_state.dados_busca = temp_lista
 
+    # --- LISTAGEM DE RESULTADOS ---
     if st.session_state.get("dados_busca"):
         for idx, reg in enumerate(st.session_state.dados_busca):
-            col_info, col_btn = st.columns([4, 1])
-            dt_f = datetime.strptime(reg['data_prev'], "%Y-%m-%d").strftime("%d/%m/%Y")
-            col_info.write(f"🚢 **{reg['navio']}** | {dt_f} | {reg['resp']}")
-            
-            # --- GERADOR PDF 2ª VIA ---
-            pdf = FPDF()
-            pdf.add_page()
-            def f(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
-            
-            pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-            pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO - 2ª VIA"), ln=True, align="C"); pdf.ln(10)
-            
-            pdf.set_font("Arial", "", 12)
-            corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {reg['navio']} e de {reg['trip']} tripulantes. "
-                     f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
-                     f"por um periodo de 15 dias nauticos a partir de {dt_f}. "
-                     f"Este suprimento e planejado para a viagem corrente.\n\n"
-                     f"Origem: {reg['origem']} | Destino: {reg['destino']}")
-            pdf.multi_cell(0, 10, f(corpo))
-            
-            pdf.ln(20) # ESPAÇO AUMENTADO PARA NÃO COLAR NO TEXTO
+            with st.container():
+                col_info, col_btn = st.columns([4, 1])
+                dt_f = datetime.strptime(reg['data_prev'], "%Y-%m-%d").strftime("%d/%m/%Y")
+                col_info.markdown(f"🚢 **{reg['navio']}** | 📅 {dt_f} | 👤 {reg['resp']}")
+                
+                # Geração do PDF da 2ª Via
+                pdf = FPDF()
+                pdf.add_page()
+                def f(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
+                
+                # Cabeçalho PDF
+                pdf.set_font("Arial", "B", 30); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO - 2ª VIA"), ln=True, align="C"); pdf.ln(15)
+                
+                # Corpo do Texto
+                pdf.set_font("Arial", "", 12)
+                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {reg['navio']} e de {reg['trip']} tripulantes. "
+                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                         f"por um periodo de 15 dias nauticos a partir de {dt_f}. "
+                         f"Este suprimento e planejado para a viagem corrente.\n\n"
+                         f"Origem: {reg['origem']} | Destino: {reg['destino']}")
+                pdf.multi_cell(0, 8, f(corpo))
+                
+                # ESPAÇAMENTO AUMENTADO PARA A ASSINATURA (Resolve o problema da assinatura colada)
+                pdf.ln(35) 
 
-            if reg.get('ass_base64'):
-                try:
-                    with open(f"temp_h_{idx}.png", "wb") as fh: fh.write(base64.b64decode(reg['ass_base64']))
-                    pdf.image(f"temp_h_{idx}.png", x=80, w=50) # Assinatura centralizada
-                except: pass
-            
-            pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-            pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
-            pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Data original do registro: {reg['data_hora_br']}"), ln=True, align="C")
-            
-            col_btn.download_button("🖨️ PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{reg['navio']}.pdf", key=f"btn_{idx}", use_container_width=True)
-            st.divider()
+                if reg.get('ass_base64') and len(reg['ass_base64']) > 10:
+                    try:
+                        with open(f"temp_h_{idx}.png", "wb") as fh: 
+                            fh.write(base64.b64decode(reg['ass_base64']))
+                        pdf.image(f"temp_h_{idx}.png", x=75, w=60)
+                    except:
+                        pdf.cell(0, 10, f("[Assinatura nao carregada]"), ln=True, align="C")
+                
+                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
+                
+                # DATA DE REGISTRO (Protegido contra erros)
+                data_footer = reg.get('data_hora_br', 'Data nao registrada')
+                pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Registro original em: {data_footer}"), ln=True, align="C")
+                
+                col_btn.download_button("🖨️ PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{reg['navio']}.pdf", key=f"btn_{idx}", use_container_width=True)
+                st.divider()
