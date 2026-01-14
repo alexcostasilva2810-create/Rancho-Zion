@@ -363,35 +363,29 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center; color: white;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Configuração de Datas
+    # Configuração de Datas (Corrigindo a posição da data)
     escolta_check = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
     dias_duracao = 12 if escolta_check == "SIM" else 15
     
-    # Data que o usuário seleciona
+    # Data que o usuário seleciona (Esta é a data que irá para o campo 'Novo Rancho')
     data_recebimento = st.date_input("Data prevista para receber o novo rancho:", datetime.now())
     data_validade = data_recebimento + timedelta(days=dias_duracao)
-
-    # Exibição da validade na tela para conferência
-    st.info(f"📅 Validade calculada: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
     with st.form("form_declaracao"):
         col1, col2 = st.columns(2)
         with col1:
+            # Pegando o nome do responsável logado
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
             lotacao = st.number_input("Número de tripulantes a bordo:", min_value=1, value=10)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with col2:
             data_ultimo = st.date_input("Data do último rancho recebido:")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
-            # Campo Navio como texto simples para evitar erro de 'Select'
+            # Navio como texto simples para evitar erro de 'Select'
             navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
         
         consideracoes = st.text_area("Considerações:")
-        
-        st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000", background_color="#EEE", height=100, key="canvas_dec")
-        
-        enviar = st.form_submit_button("💾 SALVAR E GERAR PDF")
+        enviar = st.form_submit_button("💾 SALVAR NO NOTION")
 
     if enviar:
         try:
@@ -401,16 +395,21 @@ elif st.session_state.pagina == "tripulacao":
                 "Notion-Version": "2022-06-28"
             }
 
-            # Payload corrigido com nomes e tipos EXATOS da sua imagem
+            # Payload montado exatamente como as colunas que vi no seu vídeo
             payload = {
                 "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                 "properties": {
+                    # A coluna 'Responsável' é o Título (Aa)
                     "Responsável": {"title": [{"text": {"content": resp_nome}}]},
+                    
+                    # Colunas de Texto (Rich Text)
                     "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
-                    "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                    "Validade": {"date": {"start": data_validade.isoformat()}},
                     "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
-                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]}
+                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
+                    
+                    # Colunas de Data (Date)
+                    "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
+                    "Validade": {"date": {"start": data_validade.isoformat()}}
                 }
             }
 
@@ -419,7 +418,9 @@ elif st.session_state.pagina == "tripulacao":
             if res.status_code == 200:
                 st.success("✅ SUCESSO! Dados salvos no Notion.")
             else:
-                st.error(f"❌ Erro {res.status_code}: {res.json().get('message')}")
+                # Se der erro, ele vai te dizer exatamente qual coluna está errada
+                detalhe = res.json().get('message', 'Erro desconhecido')
+                st.error(f"❌ Erro {res.status_code}: {detalhe}")
         
         except Exception as e:
             st.error(f"Falha técnica: {e}")
