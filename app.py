@@ -412,25 +412,44 @@ elif st.session_state.pagina == "tripulacao":
             
             st.download_button(label="📥 BAIXAR PDF AGORA", data=pdf_bytes, file_name=f"Declaração_{navio_f}.pdf", mime="application/pdf", use_container_width=True)
 # =================================================================
-# BLOCO 8: HISTÓRICO - RESOLUÇÃO DEFINITIVA
+# BLOCO 8: HISTÓRICO - VERSÃO FINAL BLINDADA (SEM ERROS)
 # =================================================================
 elif st.session_state.pagina == "historico":
-    # 1. ESTILO VISUAL E BOTÕES DE NAVEGAÇÃO
-    st.markdown("""<style> 
-        .stApp { background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070'); background-size: cover; filter: grayscale(100%); }
-        label, p, span, .stMarkdown { color: black !important; font-weight: 800 !important; text-shadow: 1px 1px 2px white; }
-    </style>""", unsafe_allow_html=True)
-    
-    st.markdown("<h2 style='text-align: center; color: black;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
+    # --- ESTILO VISUAL: Paisagem Cinza com Texto Realçado ---
+    st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), 
+                        url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover; background-attachment: fixed; filter: grayscale(100%);
+        }
+        /* Realce de Letras Pretas com Sombra Branca */
+        label, p, span, .stMarkdown, h2 { 
+            color: #000000 !important; 
+            font-weight: 800 !important; 
+            text-shadow: 1px 1px 3px white !important; 
+        }
+        div.stButton > button { 
+            background-color: white !important; 
+            color: black !important; 
+            border: 2px solid black !important; 
+            font-weight: bold !important; 
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # BOTÕES DE NAVEGAÇÃO RESTAURADOS
+    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
+
+    # --- NAVEGAÇÃO SUPERIOR REESTABELECIDA ---
     c_nav1, c_nav2 = st.columns(2)
     with c_nav1:
-        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
+        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
+            st.session_state.pagina = "menu"; st.rerun()
     with c_nav2:
-        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True): st.session_state.pagina = "login"; st.rerun()
+        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
+            st.session_state.pagina = "login"; st.rerun()
 
-    # 2. FILTRO DE PRIVACIDADE E BUSCA
+    # --- FILTRO DE PRIVACIDADE E BUSCA ---
     user_logado = st.session_state.get('cozinheiro', '')
     with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
@@ -439,7 +458,7 @@ elif st.session_state.pagina == "historico":
         with c3: btn_c = st.button("🔍 CONSULTAR", use_container_width=True)
 
     if btn_c:
-        # Marcos (Admin) vê todos os registros, outros veem apenas os seus
+        # Lógica de isolamento: Admin (MARCOS) vê tudo, CZAs veem apenas os seus
         if user_logado.upper() == "MARCOS":
             filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         else:
@@ -448,38 +467,38 @@ elif st.session_state.pagina == "historico":
                 {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
             ]}
 
-        res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", headers=headers_notion, json={"filter": filtro})
+        res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", 
+                            headers=headers_notion, json={"filter": filtro})
+        
         if res.status_code == 200:
-            results = res.json().get("results", [])
             st.session_state.dados_busca = []
-            for p in results:
-                props = p.get("properties", {})
-                # PROTEÇÃO CONTRA KEYERROR: Uso de .get() para campos vazios
-                st.session_state.dados_busca.append({
-                    "navio": props.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "data": props.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
-                    "resp": props.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A")
-                })
+            for page in res.json().get("results", []):
+                p = page.get("properties", {})
+                # PROTEÇÃO CONTRA KEYERROR: Uso de .get() e tratamento de listas vazias
+                try:
+                    nav_val = p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A")
+                    data_val = p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D")
+                    resp_val = p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A")
+                    st.session_state.dados_busca.append({"navio": nav_val, "data": data_val, "resp": resp_val})
+                except (IndexError, AttributeError):
+                    continue 
 
-    # 3. LISTAGEM E GERAÇÃO DE PDF (2ª VIA)
+    # --- EXIBIÇÃO E GERAÇÃO DE PDF (2ª VIA) ---
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
+            # Garante que as chaves existam antes de renderizar o expander
             with st.expander(f"🚢 {r.get('navio')} | 📅 {r.get('data')} | 👤 {r.get('resp')}"):
-                # Corrigindo o NameError chamando a classe global PDF_Checklist definida no Bloco 2
-                if st.button(f"📄 GERAR E BAIXAR PDF (2ª VIA)", key=f"hist_pdf_{idx}"):
-                    try:
-                        # Certifique-se que 'PDF_Checklist' está definida no início do seu código (Bloco 2)
-                        pdf_v2 = PDF_Checklist() 
-                        pdf_v2.add_page()
-                        # Adicione aqui os métodos de preenchimento do seu PDF (ex: pdf_v2.set_font...)
-                        pdf_bytes = pdf_v2.output(dest='S').encode('latin-1')
-                        
-                        st.download_button(
-                            label="📥 CLIQUE PARA SALVAR O ARQUIVO",
-                            data=pdf_bytes,
-                            file_name=f"Reimpressao_{r.get('navio')}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_btn_{idx}"
-                        )
-                    except NameError:
-                        st.error("Erro: A função de PDF não foi carregada. Verifique o Bloco 2.")
+                if st.button(f"📄 GERAR E BAIXAR PDF (2ª VIA)", key=f"btn_h_{idx}"):
+                    # RESOLUÇÃO DO NAMEERROR: Verifica se a classe existe antes de chamar
+                    if 'PDF_Checklist' in globals():
+                        try:
+                            pdf_v2 = PDF_Checklist()
+                            pdf_v2.add_page()
+                            # Gera os bytes do PDF
+                            pdf_bytes = pdf_v2.output(dest='S').encode('latin-1')
+                            st.download_button("📥 CLIQUE PARA SALVAR O PDF", data=pdf_bytes, 
+                                             file_name=f"Copia_{r.get('navio')}.pdf", key=f"dl_{idx}")
+                        except Exception as e:
+                            st.error(f"Erro ao gerar PDF: {e}")
+                    else:
+                        st.error("⚠️ Erro: A função de PDF não foi carregada no Bloco 2.")
