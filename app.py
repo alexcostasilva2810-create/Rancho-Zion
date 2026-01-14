@@ -412,34 +412,33 @@ elif st.session_state.pagina == "tripulacao":
             
             st.download_button(label="📥 BAIXAR PDF AGORA", data=pdf_bytes, file_name=f"Declaração_{navio_f}.pdf", mime="application/pdf", use_container_width=True)
 # =================================================================
-# BLOCO 8: HISTÓRICO - RESOLUÇÃO DO ERRO DE PDF E PRIVACIDADE
+# BLOCO 8: HISTÓRICO - RESOLUÇÃO DEFINITIVA DE ERROS
 # =================================================================
 elif st.session_state.pagina == "historico":
-    from fpdf import FPDF  # Garante que a biblioteca está disponível
-
-    # --- DEFINIÇÃO LOCAL DA CLASSE PARA EVITAR NAMEERROR ---
-    class PDF_Reimpressao(FPDF):
+    from fpdf import FPDF
+    
+    # Criamos a classe aqui dentro para garantir que ela sempre exista
+    class PDF_Hist(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
-            self.cell(0, 10, '⚓ SEGUNDA VIA - DECLARAÇÃO DE RANCHO', 0, 1, 'C')
-            self.ln(5)
+            self.cell(0, 10, '⚓ SEGUNDA VIA - DECLARAÇÃO', 0, 1, 'C')
 
     # Estilo Visual Realçado
     st.markdown("""<style> 
-        .stApp { background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070'); background-size: cover; filter: grayscale(100%); }
+        .stApp { background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e'); background-size: cover; filter: grayscale(100%); }
         label, p, span, .stMarkdown { color: black !important; font-weight: 800 !important; text-shadow: 1px 1px 2px white; }
     </style>""", unsafe_allow_html=True)
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
 
-    # --- NAVEGAÇÃO REESTABELECIDA ---
+    # NAVEGAÇÃO SUPERIOR REESTABELECIDA
     c_nav1, c_nav2 = st.columns(2)
     with c_nav1:
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True): st.session_state.pagina = "menu"; st.rerun()
     with c_nav2:
         if st.button("🚪 SAIR DO SISTEMA", use_container_width=True): st.session_state.pagina = "login"; st.rerun()
 
-    # --- FILTRO DE PRIVACIDADE E BUSCA ---
+    # BUSCA E PRIVACIDADE
     user_logado = st.session_state.get('cozinheiro', '')
     with st.container():
         c1, c2, c3 = st.columns([2, 2, 1])
@@ -448,7 +447,7 @@ elif st.session_state.pagina == "historico":
         with c3: btn_c = st.button("🔍 CONSULTAR", use_container_width=True)
 
     if btn_c:
-        # Marcos vê tudo, outros veem apenas o que é deles
+        # Filtro: MARCOS vê tudo, outros veem apenas o seu
         if user_logado.upper() == "MARCOS":
             filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         else:
@@ -457,39 +456,33 @@ elif st.session_state.pagina == "historico":
                 {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
             ]}
 
-        res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", 
-                            headers=headers_notion, json={"filter": filtro})
+        res = requests.post(f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query", headers=headers_notion, json={"filter": filtro})
         
         if res.status_code == 200:
             st.session_state.dados_busca = []
             for page in res.json().get("results", []):
                 p = page.get("properties", {})
-                # PROTEÇÃO CONTRA KEYERROR
+                # AQUI ESTÁ A BLINDAGEM: Usamos .get() para evitar o KeyError
                 st.session_state.dados_busca.append({
-                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
-                    "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A"),
-                    "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("plain_text", "P. Velho")
+                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "Não Informado"),
+                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "Sem Data"),
+                    "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A")
                 })
 
-    # --- LISTAGEM E DOWNLOAD DE PDF ---
+    # LISTA DE REGISTROS
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
-            with st.expander(f"🚢 {r['navio']} | 📅 {r['data']} | 👤 {r['resp']}"):
-                # O botão agora gera o PDF usando a classe local definida acima
-                if st.button(f"📄 GERAR 2ª VIA PDF", key=f"btn_h_{idx}"):
-                    pdf = PDF_Reimpressao()
+            # Acesso seguro aos dados para renderizar a tela
+            n_exibir = r.get('navio', 'N/A')
+            d_exibir = r.get('data', 'S/D')
+            
+            with st.expander(f"🚢 {n_exibir} | 📅 {d_exibir}"):
+                if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"btn_pdf_{idx}"):
+                    pdf = PDF_Hist()
                     pdf.add_page()
                     pdf.set_font('Arial', '', 12)
-                    pdf.cell(0, 10, f"Navio: {r['navio']}", 0, 1)
-                    pdf.cell(0, 10, f"Responsável: {r['resp']}", 0, 1)
-                    pdf.cell(0, 10, f"Data: {r['data']}", 0, 1)
-                    
+                    pdf.cell(0, 10, f"Navio: {n_exibir}", 0, 1)
+                    pdf.cell(0, 10, f"Data: {d_exibir}", 0, 1)
                     pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                    st.download_button(
-                        label="📥 BAIXAR AGORA",
-                        data=pdf_bytes,
-                        file_name=f"Reimpressao_{r['navio']}.pdf",
-                        mime="application/pdf",
-                        key=f"dl_{idx}"
-                    )
+                    
+                    st.download_button("📥 BAIXAR AGORA", data=pdf_bytes, file_name=f"Copia_{n_exibir}.pdf", key=f"dl_{idx}")
