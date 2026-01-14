@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL CORRIGIDA)
+# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO INFALÍVEL PARA PDF)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,7 +368,7 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # 1. Definições de Escolta e Datas
+    # 1. Lógica de Escolta e Datas
     escolta_opcoes = {"NÃO": 0, "SIM": 1}
     escolta_selecionada = st.radio("O navio está com escolta?", list(escolta_opcoes.keys()), horizontal=True)
     dias_duracao = 12 if escolta_selecionada == "SIM" else 15
@@ -382,11 +382,11 @@ elif st.session_state.pagina == "tripulacao":
         st.write("**📅 Validade Calculada:**")
         st.success(f"{data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    # Formulário de entrada
-    with st.form("form_declaracao_final"):
+    with st.form("form_pdf_garantido"):
         c1, c2 = st.columns(2)
         with c1:
-            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'Usuário'), disabled=True)
+            # Pegando o nome do usuário logado para o campo Responsável
+            resp_nome = st.text_input("Responsável", value=st.session_state.get('usuario_nome', 'CZA AUGUSTO'))
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
@@ -399,23 +399,58 @@ elif st.session_state.pagina == "tripulacao":
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_v3"
+            height=120, drawing_mode="freedraw", key="canvas_final_v1"
         )
         
-        # O botão do formulário
-        submetido = st.form_submit_button("💾 SALVAR E GERAR PDF")
+        btn_gerar = st.form_submit_button("🚀 GERAR DECLARAÇÃO AGORA")
 
-    # Lógica de processamento APÓS o clique
-    if submetido:
+    if btn_gerar:
         if canvas_result.image_data is not None:
+            # --- PASSO 1: GERAR O PDF PRIMEIRO (Para não falhar nunca) ---
             try:
-                # A. Salvar no Notion com os nomes que você padronizou (image_15e6c1.png)
+                pdf = FPDF()
+                pdf.add_page()
+                def t(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
+                
+                if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 90, 10, 30)
+                pdf.set_font("Arial", "B", 16); pdf.ln(35)
+                pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
+                
+                pdf.set_font("Arial", "", 12); pdf.ln(10)
+                corpo = (f"Embarcacao: {navio_nome}\nResponsavel: {resp_nome}\n"
+                         f"Qtde Tripulante: {qtde_trip} | Escolta: {escolta_selecionada}\n"
+                         f"Data do Pedido: {data_recebimento.strftime('%d/%m/%Y')}\n"
+                         f"Validade ate: {data_validade.strftime('%d/%m/%Y')}\n"
+                         f"Trajeto: {origem} para {destino}\n\n"
+                         f"Observacoes: {consideracoes}")
+                pdf.multi_cell(0, 8, t(corpo))
+                
+                # Assinatura no PDF
+                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                img_ass.save("temp_sign.png")
+                pdf.ln(10); pdf.image("temp_sign.png", x=75, w=60)
+                pdf.cell(0, 10, "________________________________", ln=True, align="C")
+                pdf.cell(0, 5, t(resp_nome), ln=True, align="C")
+
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                
+                # Exibe o botão de download IMEDIATAMENTE
+                st.download_button(
+                    label="📥 CLIQUE AQUI PARA BAIXAR SEU PDF",
+                    data=pdf_bytes,
+                    file_name=f"Declaracao_{navio_nome}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                
+                # --- PASSO 2: TENTAR SALVAR NO NOTION (Em segundo plano) ---
                 headers = {
                     "Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}",
                     "Content-Type": "application/json",
                     "Notion-Version": "2022-06-28"
                 }
 
+                # Ajustei os nomes para baterem com sua imagem image_15f8ca.png
                 payload = {
                     "parent": {"database_id": st.secrets["ID_HISTORICO"]},
                     "properties": {
@@ -433,56 +468,20 @@ elif st.session_state.pagina == "tripulacao":
                 res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
                 
                 if res.status_code == 200:
-                    st.balloons()
-                    st.success("✅ Tudo pronto! O banco de dados foi atualizado.")
-                    
-                    # B. Gerar o PDF
-                    pdf = FPDF()
-                    pdf.add_page()
-                    def t(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
-                    
-                    # Título e Logo
-                    if os.path.exists("ZION.jpg"): pdf.image("ZION.jpg", 90, 10, 30)
-                    pdf.set_font("Arial", "B", 16); pdf.ln(35)
-                    pdf.cell(0, 10, "DECLARACAO DE REABASTECIMENTO", ln=True, align="C")
-                    
-                    # Corpo do Texto
-                    pdf.set_font("Arial", "", 12); pdf.ln(10)
-                    corpo = (f"Embarcacao: {navio_nome}\nResponsavel: {resp_nome}\n"
-                             f"Qtde Tripulante: {qtde_trip} | Escolta: {escolta_selecionada}\n"
-                             f"Data Prevista: {data_recebimento.strftime('%d/%m/%Y')}\n"
-                             f"Validade estimada: {data_validade.strftime('%d/%m/%Y')}\n"
-                             f"Trajeto: {origem} para {destino}\n\n"
-                             f"Observacoes: {consideracoes}")
-                    pdf.multi_cell(0, 8, t(corpo))
-                    
-                    # Assinatura
-                    img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                    img_ass.save("assinatura_doc.png")
-                    pdf.ln(10)
-                    pdf.image("assinatura_doc.png", x=75, w=60)
-                    pdf.cell(0, 10, "________________________________", ln=True, align="C")
-                    pdf.cell(0, 5, t(resp_nome), ln=True, align="C")
-
-                    # Botão de Download PDF (Agora fora de qualquer trava)
-                    pdf_data = pdf.output(dest='S').encode('latin-1')
-                    st.download_button(
-                        label="📥 BAIXAR DECLARAÇÃO (PDF)",
-                        data=pdf_data,
-                        file_name=f"Declaracao_{navio_nome}_{data_recebimento.strftime('%d_%m')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
+                    st.success("✅ PDF Gerado e Histórico Salvo no Notion!")
                 else:
-                    st.error(f"Erro no Notion ({res.status_code}): {res.json().get('message')}")
-            
+                    # Se o Notion falhar, o PDF já apareceu acima, então o usuário não fica na mão
+                    st.warning(f"⚠️ PDF gerado, mas houve um erro ao salvar no Notion (Erro {res.status_code}). Verifique os nomes das colunas.")
+
             except Exception as e:
-                st.error(f"Erro ao processar: {e}")
+                st.error(f"Erro ao gerar documento: {e}")
         else:
-            st.warning("⚠️ Por favor, assine o documento antes de salvar.")
+            st.warning("⚠️ Assine o campo de assinatura digital primeiro!")
 
     if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"; st.rerun()# =================================================================
+        st.session_state.pagina = "menu"; st.rerun()
+
+# =================================================================
 # BLOCO 8: BANCO DE DADOS - HISTÓRICO (TABELA GRADEADA)
 # =================================================================
 elif st.session_state.pagina == "historico":
