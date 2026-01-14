@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL COM ASSINATURA)
+# BLOCO 7: TELA DE DECLARAÇÃO (FORMATO BR + BOTÕES ELEGANTES)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,15 +368,24 @@ elif st.session_state.pagina == "tripulacao":
     from fpdf import FPDF
     from streamlit_drawable_canvas import st_canvas
 
+    # --- BOTÕES DE NAVEGAÇÃO SUPERIORES ---
+    col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+    with col_nav1:
+        if st.button("⬅️ MENU", use_container_width=True):
+            st.session_state.pagina = "menu"; st.rerun()
+    with col_nav3:
+        if st.button("🚪 SAIR", use_container_width=True):
+            st.session_state.pagina = "login"; st.rerun()
+
     st.markdown("<h1 style='text-align: center; color: #1a365d;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # 1. Configurações de Escolta
     escolta_opcoes = {"NÃO": 0, "SIM": 1}
     escolta_selecionada = st.radio("O navio está com escolta?", list(escolta_opcoes.keys()), horizontal=True)
     dias_duracao = 12 if escolta_selecionada == "SIM" else 15
     
     col_d1, col_d2 = st.columns(2)
     with col_d1:
+        # DATA NO FORMATO DD/MM/YYYY
         data_recebimento = st.date_input("Data prevista para o novo rancho:", datetime.now(), format="DD/MM/YYYY")
     
     data_validade = data_recebimento + timedelta(days=dias_duracao)
@@ -392,6 +401,7 @@ elif st.session_state.pagina == "tripulacao":
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
+            # DATA NO FORMATO DD/MM/YYYY
             data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
@@ -400,15 +410,14 @@ elif st.session_state.pagina == "tripulacao":
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_v5"
+            height=120, drawing_mode="freedraw", key="canvas_final_v2"
         )
         
-        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF")
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # Converter Assinatura para Base64
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 buffered = BytesIO()
                 img_ass.save(buffered, format="PNG")
@@ -419,29 +428,29 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
-                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
-                pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
+                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
                 
                 pdf.set_font("Arial", "", 12)
                 corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
                          f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
                          f"por um periodo de {dias_duracao} dias nauticos a partir de {data_recebimento.strftime('%d/%m/%Y')}. "
                          f"Este suprimento e planejado para a viagem corrente.\n\n"
-                         f"Origem: {origem} | Destino: {destino}")
+                         f"Origem: {origem} | Destino: {destino}\n"
+                         f"Ultimo Rancho: {data_ultimo.strftime('%d/%m/%Y')}")
                 pdf.multi_cell(0, 10, f(corpo))
                 
+                pdf.ln(10) # Espaço aumentado para a assinatura
                 agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
                 txt_hora = agora_br.strftime('%d/%m/%Y as %H:%M:%S')
 
                 img_ass.save("temp_sign.png")
-                pdf.ln(10); pdf.image("temp_sign.png", x=75, w=60)
+                pdf.image("temp_sign.png", x=75, w=50) # Assinatura
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                 pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
 
-                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaracao_{navio_nome}.pdf")
+                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
 
                 # --- SALVAR NO NOTION ---
                 headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
@@ -451,11 +460,9 @@ elif st.session_state.pagina == "tripulacao":
                         "Responsável": {"title": [{"text": {"content": resp_nome}}]},
                         "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
                         "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                        "Validade": {"date": {"start": data_validade.isoformat()}},
-                        "Qtde Tripulante": {"number": int(qtde_trip)},
                         "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
                         "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
-                        "Assinatura": {"rich_text": [{"text": {"content": img_str}}]} # Coluna Nova
+                        "Assinatura": {"rich_text": [{"text": {"content": img_str}}]}
                     }
                 }
                 requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
@@ -463,7 +470,7 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (PROTEGIDO)
+# BLOCO 8: HISTÓRICO E 2ª VIA (PDF AJUSTADO + BOTÕES)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -472,16 +479,22 @@ elif st.session_state.pagina == "historico":
     import base64
     from fpdf import FPDF
 
+    # --- BOTÕES DE NAVEGAÇÃO SUPERIORES ---
+    col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+    with col_nav1:
+        if st.button("⬅️ MENU", use_container_width=True):
+            st.session_state.pagina = "menu"; st.rerun()
+    with col_nav3:
+        if st.button("🚪 SAIR", use_container_width=True):
+            st.session_state.pagina = "login"; st.rerun()
+
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico e 2ª Via</h2>", unsafe_allow_html=True)
     
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.pagina = "menu"; st.rerun()
-
     c1, c2, c3 = st.columns([2, 2, 1])
-    d_ini = c1.date_input("De:", value=date(2025, 1, 1))
-    d_fim = c2.date_input("Até:", value=date.today())
+    d_ini = c1.date_input("De:", value=date(2025, 1, 1), format="DD/MM/YYYY")
+    d_fim = c2.date_input("Até:", value=date.today(), format="DD/MM/YYYY")
     
-    if c3.button("🔍 CONSULTAR"):
+    if c3.button("🔍 CONSULTAR", use_container_width=True):
         headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Notion-Version": "2022-06-28"}
         url = f"https://api.notion.com/v1/databases/{st.secrets['ID_HISTORICO']}/query"
         res = requests.post(url, headers=headers, json={})
@@ -491,26 +504,27 @@ elif st.session_state.pagina == "historico":
             temp_lista = []
             for item in dados:
                 p = item["properties"]
-                # Pega a data de criação do Notion
-                dt_criacao = datetime.fromisoformat(item.get("created_time").replace("Z", "+00:00"))
-                
+                # Puxa a data exata em que o registro foi criado no Notion
+                dt_criacao_iso = item.get("created_time")
+                dt_obj = datetime.fromisoformat(dt_criacao_iso.replace("Z", "+00:00"))
+                data_hora_formatada = dt_obj.strftime('%d/%m/%Y as %H:%M:%S')
+
                 resp = p.get("Responsável", {}).get("title", [{}])[0].get("text", {}).get("content", "N/A")
                 dt_r_raw = p.get("Novo Rancho", {}).get("date", {}).get("start", None)
                 
                 if dt_r_raw:
                     if d_ini <= date.fromisoformat(dt_r_raw) <= d_fim:
-                        # PROTEÇÃO: Se a coluna Assinatura não existir no registro, retorna vazio
                         ass_text = p.get("Assinatura", {}).get("rich_text", [])
                         ass_val = ass_text[0].get("text", {}).get("content", "") if ass_text else ""
                         
                         temp_lista.append({
                             "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
                             "data_prev": dt_r_raw,
-                            "trip": p.get("Qtde Tripulante", {}).get("number", 0),
+                            "trip": p.get("Qtde Tripulante", {}).get("number", 16),
                             "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
                             "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("text", {}).get("content", "N/A"),
                             "ass_base64": ass_val,
-                            "data_hora_br": dt_criacao.strftime('%d/%m/%Y as %H:%M:%S'),
+                            "data_hora_br": data_hora_formatada,
                             "resp": resp
                         })
             st.session_state.dados_busca = temp_lista
@@ -521,7 +535,7 @@ elif st.session_state.pagina == "historico":
             dt_f = datetime.strptime(reg['data_prev'], "%Y-%m-%d").strftime("%d/%m/%Y")
             col_info.write(f"🚢 **{reg['navio']}** | {dt_f} | {reg['resp']}")
             
-            # Gerador de PDF 2ª Via
+            # --- GERADOR PDF 2ª VIA ---
             pdf = FPDF()
             pdf.add_page()
             def f(texto): return unicodedata.normalize('NFKD', str(texto)).encode('latin-1', 'ignore').decode('latin-1')
@@ -537,19 +551,17 @@ elif st.session_state.pagina == "historico":
                      f"Origem: {reg['origem']} | Destino: {reg['destino']}")
             pdf.multi_cell(0, 10, f(corpo))
             
-            # Só coloca a assinatura se ela existir no banco
+            pdf.ln(20) # ESPAÇO AUMENTADO PARA NÃO COLAR NO TEXTO
+
             if reg.get('ass_base64'):
                 try:
                     with open(f"temp_h_{idx}.png", "wb") as fh: fh.write(base64.b64decode(reg['ass_base64']))
-                    pdf.ln(10); pdf.image(f"temp_h_{idx}.png", x=75, w=60)
+                    pdf.image(f"temp_h_{idx}.png", x=80, w=50) # Assinatura centralizada
                 except: pass
             
             pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
             pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
+            pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Data original do registro: {reg['data_hora_br']}"), ln=True, align="C")
             
-            # Uso de .get() para evitar o erro de data_hora_br em itens antigos
-            hora_doc = reg.get('data_hora_br', 'Data não registrada')
-            pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Data original: {hora_doc}"), ln=True, align="C")
-            
-            col_btn.download_button("🖨️ PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{reg['navio']}.pdf", key=f"btn_{idx}")
+            col_btn.download_button("🖨️ PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{reg['navio']}.pdf", key=f"btn_{idx}", use_container_width=True)
             st.divider()
