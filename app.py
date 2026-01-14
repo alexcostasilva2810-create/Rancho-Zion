@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO DE BOTÕES E PDF)
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURAÇÃO VISUAL + PDF)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -365,24 +365,20 @@ elif st.session_state.pagina == "tripulacao":
     from PIL import Image
     from streamlit_drawable_canvas import st_canvas
 
-    # --- BOTÕES DE NAVEGAÇÃO SUPERIOR (RESTAURADOS) ---
-    c_nav1, c_nav2, c_nav3 = st.columns([1, 1, 1])
+    # --- NAVEGAÇÃO SUPERIOR ORIGINAL ---
+    c_nav1, c_nav2 = st.columns([1, 1])
     with c_nav1:
-        if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
+        if st.button("⬅️ VOLTAR", use_container_width=True):
             st.session_state.pagina = "menu"
             st.rerun()
     with c_nav2:
-        if st.button("🏠 TELA INICIAL", use_container_width=True):
-            st.session_state.pagina = "home" # ou "login" dependendo da sua estrutura
-            st.rerun()
-    with c_nav3:
         if st.button("🚪 SAIR", use_container_width=True):
             st.session_state.pagina = "login"
             st.rerun()
 
     st.markdown("<h1 style='text-align: center; color: white;'>⚓ Nova Declaração</h1>", unsafe_allow_html=True)
 
-    # Lógica de Escolta e Validade
+    # Lógica de Escolta e Validade (Visual original)
     col_esc, col_val = st.columns(2)
     with col_esc:
         escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
@@ -390,9 +386,9 @@ elif st.session_state.pagina == "tripulacao":
     with col_val:
         data_recebimento = st.date_input("Data do novo rancho:", datetime.now())
         data_validade = data_recebimento + timedelta(days=dias)
-        st.success(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')}")
+        st.info(f"📅 Validade Calculada: {data_validade.strftime('%d/%m/%Y')} ({dias} dias)")
 
-    with st.form("form_final_completo"):
+    with st.form("form_declaracao_oficial"):
         c1, c2 = st.columns(2)
         with c1:
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'))
@@ -400,22 +396,22 @@ elif st.session_state.pagina == "tripulacao":
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulantes:", min_value=1, value=16)
-            data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
+            data_ultimo = st.date_input("Data do último rancho:", datetime.now())
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        # Campo de Considerações
+        # Campo de Considerações (Mantido)
         consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
         
-        st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, width=600, key="canvas_v60")
+        st.write("Assinatura Digital (use o mouse ou o dedo):")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, width=600, key="canvas_final_v100")
         
-        # Botão de submissão do formulário
+        # Botão de submissão (Visual Original)
         btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # 1. Processar Assinatura (Compactada para o Notion)
+                # 1. Processar Assinatura para o Notion (Compactada para evitar Erro 400)
                 img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 img_raw.thumbnail((200, 80), Image.Resampling.LANCZOS)
                 buffered = BytesIO()
@@ -424,7 +420,7 @@ elif st.session_state.pagina == "tripulacao":
                 img_white.save(buffered, format="JPEG", quality=40)
                 img_str = base64.b64encode(buffered.getvalue()).decode()
 
-                # 2. Envio ao Notion (Já está funcionando conforme seu feedback)
+                # 2. Envio ao Notion (Lógica que já está funcionando)
                 headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
                 payload = {
                     "parent": {"database_id": st.secrets["ID_HISTORICO"]},
@@ -443,30 +439,32 @@ elif st.session_state.pagina == "tripulacao":
                 if res.status_code == 200:
                     st.success("✅ Registro salvo no Notion!")
                     
-                    # 3. LÓGICA DE GERAÇÃO DE PDF (RESTAURADA)
-                    # Criamos um dicionário com os dados para o PDF
-                    dados_pdf = {
-                        "responsavel": resp_nome,
-                        "navio": navio_nome,
-                        "data_rancho": data_recebimento.strftime('%d/%m/%Y'),
-                        "validade": data_validade.strftime('%d/%m/%Y'),
-                        "tripulantes": qtde_trip,
-                        "origem": origem,
-                        "destino": destino,
-                        "consideracoes": consideracoes,
-                        "assinatura": img_str
-                    }
-                    
-                    # Aqui você chama a sua função de gerar PDF. Exemplo:
-                    # pdf_bytes = sua_funcao_pdf(dados_pdf)
-                    # st.download_button("📥 BAIXAR DECLARAÇÃO PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf")
-                    
-                    st.info("🔄 O PDF foi processado. Se o botão de download não aparecer, verifique a função de geração de PDF no Bloco 2.")
-                    st.balloons()
+                    # 3. GERAÇÃO DO PDF (Acionando sua função do Bloco 2)
+                    # Preparando dados para a classe PDF_Rancho ou similar
+                    try:
+                        # Aqui chamamos a função PDF que você já tem no código
+                        pdf = PDF_Rancho() # Nome da classe que aparece no seu vídeo
+                        pdf.add_page()
+                        # Adicionando os dados preenchidos no formulário ao PDF
+                        pdf.corpo_declaracao(resp_nome, navio_nome, data_recebimento, data_validade, qtde_trip, origem, destino, consideracoes, img_white)
+                        
+                        pdf_output = pdf.output(dest='S').encode('latin-1')
+                        
+                        # Botão de Download que aparece automaticamente
+                        st.download_button(
+                            label="📥 BAIXAR DECLARAÇÃO PDF",
+                            data=pdf_output,
+                            file_name=f"Declaracao_{navio_nome}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                        st.balloons()
+                    except Exception as pdf_err:
+                        st.warning(f"O registro foi salvo, mas houve um problema ao gerar o PDF: {pdf_err}")
                 else:
-                    st.error(f"Erro ao salvar: {res.json().get('message')}")
+                    st.error(f"Erro ao salvar no Notion: {res.json().get('message')}")
             except Exception as e:
-                st.error(f"Erro no processamento: {e}")
+                st.error(f"Erro geral: {e}")
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA (PROTEÇÃO CONTRA KEYERROR)
 # =================================================================
