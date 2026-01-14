@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (TEXTO REALÇADO)
+# BLOCO 7: TELA DE DECLARAÇÃO (SEGURANÇA E REALCE)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -365,40 +365,46 @@ elif st.session_state.pagina == "tripulacao":
     from PIL import Image
     from streamlit_drawable_canvas import st_canvas
 
-    # Estilo Paisagem Cinza com Texto Ultra Realçado
+    # Estilo Paisagem Cinza com Texto Realçado
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), 
+            background: linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), 
                         url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop');
             background-size: cover;
             background-attachment: fixed;
             filter: grayscale(100%);
         }
-        /* Realce de Textos */
-        label, p, span, .stMarkdown { 
+        /* Realce das Letras: Preto com Sombra Branca */
+        label, p, span, .stMarkdown, .stSelectbox, .stTextInput { 
             color: #000000 !important; 
-            font-weight: 900 !important; 
-            text-shadow: 2px 2px 4px rgba(255,255,255,1) !important;
-            font-size: 1.05rem !important;
+            font-weight: 800 !important; 
+            text-shadow: 1px 1px 3px white !important;
         }
         h1 { color: #000000 !important; font-weight: 900 !important; text-shadow: 2px 2px 5px white !important; }
-        div.stButton > button { background-color: #ffffff !important; color: #000000 !important; border: 2px solid #000000 !important; font-weight: bold !important; }
+        
+        /* Botões brancos com contorno preto */
+        div.stButton > button { 
+            background-color: white !important; 
+            color: black !important; 
+            border: 2px solid black !important; 
+            font-weight: bold !important; 
+        }
         </style>
     """, unsafe_allow_html=True)
 
-    # Navegação
+    # Navegação Superior Original
     c_nav1, c_nav2 = st.columns([1, 1])
     with c_nav1:
         if st.button("⬅️ VOLTAR AO MENU", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun()
     with c_nav2:
-        if st.button("🏠 TELA INICIAL", use_container_width=True):
-            st.session_state.pagina = "home"; st.rerun()
+        if st.button("🚪 SAIR", use_container_width=True):
+            st.session_state.pagina = "login"; st.rerun()
 
-    st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>⚓ Nova Declaração</h1>", unsafe_allow_html=True)
 
-    # Restante do formulário (Lógica de salvamento mantida igual)
+    # Lógica de Validade
     col_esc, col_val = st.columns(2)
     with col_esc:
         escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
@@ -406,13 +412,14 @@ elif st.session_state.pagina == "tripulacao":
     with col_val:
         data_p = st.date_input("Data prevista:", datetime.now())
         data_v = data_p + timedelta(days=dias)
-        st.success(f"📅 Validade Calculada: {data_v.strftime('%d/%m/%Y')}")
+        st.success(f"📅 Validade Calculada: {data_v.strftime('%d/%m/%Y')} ({dias} dias)")
 
-    with st.form("form_final_v2"):
+    with st.form("form_seguro_v3"):
         c1, c2 = st.columns(2)
         with c1:
-            resp = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'))
-            navio = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'))
+            # CAMPOS BLOQUEADOS (disabled=True) conforme o login
+            resp_fixo = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
+            navio_fixo = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
@@ -420,14 +427,44 @@ elif st.session_state.pagina == "tripulacao":
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
         consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
-        st.write("Assinatura Digital:")
-        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, width=600, key="canvas_realce")
         
-        btn_salvar = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
+        st.write("Assinatura Digital:")
+        canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=120, width=600, key="canvas_v3_secure")
+        
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
-    if btn_salvar:
-        # Lógica de compactação e envio ao Notion aqui...
-        pass
+    if btn_acao:
+        if canvas_result.image_data is not None:
+            # 1. Compactação da Assinatura para evitar Erro 400
+            img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+            img_raw.thumbnail((150, 60))
+            buf = BytesIO()
+            img_white = Image.new("RGB", img_raw.size, (255, 255, 255))
+            img_white.paste(img_raw, mask=img_raw.split()[3])
+            img_white.save(buf, format="JPEG", quality=50)
+            img_str = base64.b64encode(buf.getvalue()).decode()
+
+            # 2. Envio ao Notion
+            headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+            payload = {
+                "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                "properties": {
+                    "Responsável": {"title": [{"text": {"content": resp_fixo}}]},
+                    "Navio": {"rich_text": [{"text": {"content": navio_fixo}}]},
+                    "Novo Rancho": {"date": {"start": data_p.isoformat()}},
+                    "Qtde Tripulante": {"number": int(trip)},
+                    "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
+                    "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
+                    "Assinatura": {"rich_text": [{"text": {"content": img_str}}]}
+                }
+            }
+            res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
+            if res.status_code == 200:
+                st.success("✅ Registro salvo no Notion!")
+                # Aqui você pode chamar a sua função de PDF que já existe no Bloco 2
+                st.balloons()
+            else:
+                st.error(f"Erro ao salvar: {res.status_code}")
 # =================================================================
 # BLOCO 8: HISTÓRICO (TEXTO REALÇADO E CORREÇÃO KEYERROR)
 # =================================================================
