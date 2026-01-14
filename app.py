@@ -491,7 +491,7 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (MAPEAMENTO COMPLETO NOTION)
+# BLOCO 8: HISTÓRICO E 2ª VIA (RESTAURAÇÃO DO PDF E CONEXÃO NOTION)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -499,12 +499,13 @@ elif st.session_state.pagina == "historico":
     import unicodedata
     from fpdf import FPDF
 
+    # CSS Original
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
         h1, h2, p, label, .stMarkdown { color: #ffffff !important; }
         div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        div.stButton > button { border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; color: #ffffff; }
+        div.stButton > button { border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; color: #ffffff; font-weight: bold; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -527,26 +528,34 @@ elif st.session_state.pagina == "historico":
             lista = []
             for page in results:
                 p = page.get("properties", {})
-                # Capturando todos os campos conforme Imagem 11
+                
+                # Extração segura para evitar os erros das imagens 1, 4 e 12
+                def get_txt(prop): return p.get(prop, {}).get("rich_text", [{}])[0].get("plain_text", "N/A") if p.get(prop) else "N/A"
+                def get_title(prop): return p.get(prop, {}).get("title", [{}])[0].get("plain_text", "N/A") if p.get(prop) else "N/A"
+                def get_date(prop): return p.get(prop, {}).get("date", {}).get("start", "S/D") if p.get(prop) and p.get(prop).get("date") else "S/D"
+                def get_num(prop): return p.get(prop, {}).get("number", 0) if p.get(prop) else 0
+
                 lista.append({
-                    "navio": p.get("Navio", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "data": p.get("Novo Rancho", {}).get("date", {}).get("start", "S/D"),
-                    "validade": p.get("Validade", {}).get("date", {}).get("start", "S/D") if p.get("Validade") else "S/D",
-                    "resp": p.get("Responsável", {}).get("title", [{}])[0].get("plain_text", "N/A"),
-                    "origem": p.get("Porto de Origem", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "destino": p.get("Porto de Destino", {}).get("rich_text", [{}])[0].get("plain_text", "N/A"),
-                    "tripulantes": p.get("Qtde Tripulante", {}).get("number", 0),
-                    "escolta": p.get("Escolta", {}).get("rich_text", [{}])[0].get("plain_text", "NÃO") if p.get("Escolta") else "NÃO",
-                    "consideracoes": p.get("Considerações", {}).get("rich_text", [{}])[0].get("plain_text", "") if p.get("Considerações") else ""
+                    "navio": get_txt("Navio"),
+                    "data": get_date("Novo Rancho"),
+                    "validade": get_date("Validade"), # Campo solicitado (Imagem 11)
+                    "resp": get_title("Responsável"),
+                    "origem": get_txt("Porto de Origem"),
+                    "destino": get_txt("Porto de Destino"),
+                    "tripulantes": get_num("Qtde Tripulante"),
+                    "escolta": get_num("Escolta"), # Campo solicitado (Imagem 11)
+                    "consideracoes": get_txt("Considerações"), # Campo solicitado
+                    "assinatura": get_txt("Assinatura") # Campo solicitado (Imagem 11)
                 })
             st.session_state.dados_busca = lista
             st.rerun()
 
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
+            # Título do expander corrigido para evitar KeyError (Imagens 1 e 4)
             with st.expander(f"🚢 {r['navio']} | 📅 {r['data']} | 👤 {r['resp']}"):
-                st.write(f"**Escolta:** {r['escolta']} | **Validade:** {r['validade']}")
-                if r['consideracoes']:
+                st.write(f"**Escolta:** {'SIM' if r['escolta'] == 1 else 'NÃO'} | **Validade:** {r['validade']}")
+                if r['consideracoes'] != "N/A":
                     st.info(f"**Considerações:** {r['consideracoes']}")
                 
                 if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"b_{idx}"):
@@ -554,7 +563,7 @@ elif st.session_state.pagina == "historico":
                     pdf.add_page()
                     def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                     
-                    # Cabeçalho ZION (Imagem 8 e 10)
+                    # Cabeçalho ZION (Imagem 10)
                     pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
                     pdf.cell(0, 25, "ZION", ln=True, align="C")
                     
@@ -564,26 +573,30 @@ elif st.session_state.pagina == "historico":
                     pdf.set_font("Arial", "", 12)
                     dt_pdf = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] != "S/D" else "S/D"
                     
-                    # Corpo do Texto conforme Imagem 10
+                    # Texto fiel ao modelo oficial (Imagem 10)
                     txt = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']} e de {r['tripulantes']} "
                            f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                            f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_pdf}. Este "
                            f"suprimento e planejado para a viagem corrente.\n\n"
                            f"Origem: {r['origem']} | Destino: {r['destino']}")
                     pdf.multi_cell(0, 10, f(txt))
-
-                    # Campo de Considerações incluído no PDF
-                    if r['consideracoes']:
-                        pdf.ln(5)
-                        pdf.set_font("Arial", "B", 12)
+                    
+                    # Considerações no PDF
+                    if r['consideracoes'] != "N/A":
+                        pdf.ln(5); pdf.set_font("Arial", "B", 12)
                         pdf.cell(0, 10, f("Consideracoes:"), ln=True)
                         pdf.set_font("Arial", "", 12)
-                        pdf.multi_cell(0, 10, f(r['consideracoes']))
-                    
+                        pdf.multi_cell(0, 8, f(r['consideracoes']))
+
                     # Assinatura (Imagem 10)
                     pdf.ln(30)
                     pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                     pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(r['resp']), ln=True, align="C")
                     pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {dt_pdf}"), ln=True, align="C")
                     
-                    st.download_button("⬇️ BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{r['navio']}.pdf", key=f"dl_{idx}")
+                    # Botão de Download (Evitando erro da Imagem 6)
+                    try:
+                        pdf_out = pdf.output(dest='S').encode('latin-1')
+                        st.download_button("⬇️ BAIXAR PDF", data=pdf_out, file_name=f"2via_{r['navio']}.pdf", key=f"dl_{idx}")
+                    except Exception as e:
+                        st.error(f"Erro na exportação: {e}")
