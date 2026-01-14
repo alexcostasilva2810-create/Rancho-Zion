@@ -491,20 +491,19 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA (COM PDF MODELO ORIGINAL)
+# BLOCO 8: HISTÓRICO E 2ª VIA (RESTAURADO CONFORME IMAGEM)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
     from datetime import date, datetime
     import unicodedata
-    import pytz
     from fpdf import FPDF
 
     # --- CSS: MANTER FUNDO AZUL E BOTÕES VAZADOS ---
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
-        h1, h2, p, label, .stMarkdown, .stInfo { color: #ffffff !important; }
+        h1, h2, p, label, .stMarkdown { color: #ffffff !important; }
         div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; }
         div.stButton > button { 
             border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; 
@@ -515,13 +514,8 @@ elif st.session_state.pagina == "historico":
     """, unsafe_allow_html=True)
 
     # Navegação
-    c_nav1, c_nav2, c_nav3 = st.columns([1, 2, 1])
-    with c_nav1:
-        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun()
-    with c_nav3:
-        if st.button("🚪 SAIR DO SISTEMA", use_container_width=True):
-            st.session_state.pagina = "login"; st.rerun()
+    if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
+        st.session_state.pagina = "menu"; st.rerun()
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
     
@@ -534,17 +528,9 @@ elif st.session_state.pagina == "historico":
 
     if btn_b:
         headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-        user_logado = st.session_state.get('cozinheiro', '')
+        # Filtro de data no banco de dados do Notion
+        filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
         
-        # Filtro de acesso: MARCOS vê tudo, outros veem apenas o seu
-        if user_logado.upper() == "MARCOS":
-            filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
-        else:
-            filtro = {"and": [
-                {"property": "Responsável", "title": {"equals": user_logado}},
-                {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
-            ]}
-
         res = requests.post(f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query", headers=headers_n, json={"filter": filtro})
         
         if res.status_code == 200:
@@ -563,7 +549,7 @@ elif st.session_state.pagina == "historico":
             st.session_state.dados_busca = dados_temp
             st.rerun()
 
-    # --- EXIBIÇÃO E GERADOR DE PDF FIEL AO MODELO ---
+    # --- LISTAGEM E GERAÇÃO DE PDF ---
     if st.session_state.get("dados_busca"):
         for idx, reg in enumerate(st.session_state.dados_busca):
             with st.expander(f"🚢 {reg['navio']} | 📅 {reg['data']} | 👤 {reg['resp']}"):
@@ -573,32 +559,35 @@ elif st.session_state.pagina == "historico":
                         pdf.add_page()
                         def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
 
-                        # Cabeçalho ZION
-                        pdf.set_font("Arial", "B", 30)
-                        pdf.set_text_color(0, 51, 153)
-                        pdf.cell(0, 20, "ZION", ln=True, align="C")
+                        # Cabeçalho ZION conforme imagem
+                        pdf.set_font("Arial", "B", 35)
+                        pdf.set_text_color(0, 51, 153) # Azul ZION
+                        pdf.cell(0, 25, "ZION", ln=True, align="C")
                         
-                        # Título Documento
+                        # Título do Documento
                         pdf.set_text_color(0, 0, 0)
                         pdf.set_font("Arial", "B", 14)
                         pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C")
                         pdf.ln(15)
 
-                        # Corpo do Texto fiel ao modelo da imagem
+                        # Conteúdo do PDF (Texto da Imagem 2)
                         pdf.set_font("Arial", "", 12)
-                        data_dt = datetime.strptime(reg['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
-                        
-                        texto_corpo = (
+                        try:
+                            data_formatada = datetime.strptime(reg['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
+                        except:
+                            data_formatada = reg['data']
+
+                        texto = (
                             f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {reg['navio']} e de {reg['tripulantes']} "
                             f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                            f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {data_dt}. Este "
+                            f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {data_formatada}. Este "
                             f"suprimento e planejado para a viagem corrente.\n\n\n"
                             f"Origem: {reg['origem']} | Destino: {reg['destino']}"
                         )
-                        pdf.multi_cell(0, 8, f(texto_corpo), align="L")
+                        pdf.multi_cell(0, 10, f(texto))
                         
-                        # Rodapé de Assinatura
-                        pdf.ln(40)
+                        # Assinatura
+                        pdf.ln(45)
                         pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                         pdf.set_font("Arial", "B", 11)
                         pdf.cell(0, 7, f(reg['resp']), ln=True, align="C")
@@ -606,6 +595,6 @@ elif st.session_state.pagina == "historico":
                         pdf.cell(0, 5, f("Assinado em: " + datetime.now().strftime('%d/%m/%Y as %H:%M')), ln=True, align="C")
 
                         pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                        st.download_button("⬇️ CLIQUE AQUI PARA BAIXAR", data=pdf_bytes, file_name=f"2via_{reg['navio']}.pdf", key=f"dl_{idx}")
+                        st.download_button("⬇️ BAIXAR PDF", data=pdf_bytes, file_name=f"2via_{reg['navio']}.pdf", key=f"dl_{idx}")
                     except Exception as e:
-                        st.error(f"Erro ao gerar PDF: {e}")
+                        st.error(f"Erro ao gerar o PDF: {e}")
