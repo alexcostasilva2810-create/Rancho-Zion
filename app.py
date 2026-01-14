@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURADA E ELEGANTE)
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURADA E CONECTADA AO NOTION)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -371,37 +371,17 @@ elif st.session_state.pagina == "tripulacao":
     # --- CSS PARA FUNDO AZUL E CONTRASTE ---
     st.markdown("""
         <style>
-        .stApp {
-            background-color: #3b66eb !important;
-        }
-        h1, h2, h3, p, label, .stMarkdown, span {
-            color: #ffffff !important;
-        }
-        /* Campos de entrada em branco puro para contraste */
+        .stApp { background-color: #3b66eb !important; }
+        h1, h2, h3, p, label, .stMarkdown, span { color: #ffffff !important; }
         input, div[data-baseweb="input"], textarea, div[data-baseweb="select"] {
-            background-color: #ffffff !important;
-            color: #1a365d !important;
-            border-radius: 8px !important;
+            background-color: #ffffff !important; color: #1a365d !important; border-radius: 8px !important;
         }
-        /* Botões Vazados com Hover Branco */
         div.stButton > button {
-            border-radius: 10px;
-            border: 2px solid #ffffff;
-            background-color: transparent;
-            color: #ffffff;
-            font-weight: bold;
-            transition: all 0.3s;
+            border-radius: 10px; border: 2px solid #ffffff; background-color: transparent;
+            color: #ffffff; font-weight: bold; transition: all 0.3s;
         }
-        div.stButton > button:hover {
-            background-color: #ffffff;
-            color: #3b66eb;
-        }
-        .stForm {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            padding: 20px;
-        }
+        div.stButton > button:hover { background-color: #ffffff; color: #3b66eb; }
+        .stForm { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 20px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -416,7 +396,7 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # --- CAMPOS RESTAURADOS ---
+    # --- LOGICA DE ESCOLTA ---
     col_esc, col_val = st.columns([2, 2])
     with col_esc:
         escolta_opcoes = {"NÃO": 0, "SIM": 1}
@@ -449,17 +429,17 @@ elif st.session_state.pagina == "tripulacao":
         
         btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF ORIGINAL", use_container_width=True)
 
-    # --- LÓGICA DE SALVAMENTO ---
+    # --- LÓGICA DE SALVAMENTO E PDF ---
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # Gerar imagem da assinatura
+                # 1. Gerar imagem da assinatura
                 img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 buffered = BytesIO()
                 img_ass.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode()
 
-                # Criar PDF
+                # 2. Criar PDF (Sua lógica que já funciona)
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
@@ -485,29 +465,33 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.set_font("Arial", "B", 11); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 pdf.set_font("Arial", "I", 9); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
 
-                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf.output(dest='S').encode('latin-1'), file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
+                # Botão de Download
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                st.download_button("📥 BAIXAR PDF ORIGINAL", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
 
-                # Salvar no Notion
-                headers = {"Authorization": f"Bearer {st.secrets['NOTION_TOKEN']}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-                payload = {
-                    "parent": {"database_id": st.secrets["ID_HISTORICO"]},
+                # 3. SALVAR NO NOTION (USANDO SUAS VARIÁVEIS DO BLOCO 1)
+                headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
+                payload_n = {
+                    "parent": {"database_id": ID_HISTORICO_NOTION},
                     "properties": {
                         "Responsável": {"title": [{"text": {"content": resp_nome}}]},
                         "Navio": {"rich_text": [{"text": {"content": navio_nome}}]},
                         "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                         "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
                         "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
-                        "Assinatura": {"rich_text": [{"text": {"content": img_str}}]},
                         "Qtde Tripulante": {"number": int(qtde_trip)}
                     }
                 }
-                requests.post("https://api.notion.com/v1/pages", headers=headers, json=payload)
-                st.success("✅ Registro salvo com sucesso!")
+                res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
+                if res_n.status_code == 200:
+                    st.success("✅ Registro salvo no Notion!")
+                else:
+                    st.warning(f"PDF Gerado, mas erro ao salvar no Notion: {res_n.status_code}")
+
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
-
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA - MAPEAMENTO COMPLETO
+# BLOCO 8: HISTÓRICO E 2ª VIA - MAPEAMENTO TOTAL E TEXTO DINÂMICO
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
@@ -526,11 +510,8 @@ elif st.session_state.pagina == "historico":
         </style>
     """, unsafe_allow_html=True)
 
-    col_menu, col_sair = st.columns([1, 1])
-    if col_menu.button("⬅️ MENU PRINCIPAL"):
+    if st.button("⬅️ MENU PRINCIPAL"):
         st.session_state.pagina = "menu"; st.rerun()
-    if col_sair.button("🚪 SAIR DO SISTEMA"):
-        st.session_state.pagina = "login"; st.rerun()
 
     st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
     
@@ -549,13 +530,16 @@ elif st.session_state.pagina == "historico":
             for page in results:
                 p = page.get("properties", {})
                 
-                # Extração segura de campos
+                # Funções de extração segura para evitar erros de tela (AttributeError/KeyError)
                 def g_t(n): 
                     prop = p.get(n, {})
                     tipo = prop.get("type", "")
-                    if tipo == "rich_text": return prop.get("rich_text", [{}])[0].get("plain_text", "") if prop.get("rich_text") else ""
-                    if tipo == "title": return prop.get("title", [{}])[0].get("plain_text", "") if prop.get("title") else ""
+                    if tipo == "rich_text":
+                        return prop.get("rich_text", [{}])[0].get("plain_text", "") if prop.get("rich_text") else ""
+                    elif tipo == "title":
+                        return prop.get("title", [{}])[0].get("plain_text", "") if prop.get("title") else ""
                     return ""
+
                 def g_dt(n): return p.get(n, {}).get("date", {}).get("start", "") if p.get(n) and p.get(n).get("date") else ""
                 def g_num(n): return p.get(n, {}).get("number", 0) if p.get(n) else 0
 
@@ -567,7 +551,7 @@ elif st.session_state.pagina == "historico":
                     "origem": g_t("Porto de Origem"),
                     "destino": g_t("Porto de Destino"),
                     "tripulantes": g_num("Qtde Tripulante"),
-                    "escolta": g_t("Escolta"),
+                    "escolta": g_t("Escolta"), # Agora mapeado como Texto conforme sua mudança
                     "consideracoes": g_t("Considerações"),
                     "assinatura_base64": g_t("Assinatura")
                 })
@@ -576,47 +560,47 @@ elif st.session_state.pagina == "historico":
 
     if st.session_state.get("dados_busca"):
         for idx, r in enumerate(st.session_state.dados_busca):
-            # Layout do expander igual à Imagem 13
             with st.expander(f"🚢 {r['navio']} | 📅 {r['data']} | 👤 {r['resp']}"):
-                if st.button(f"📄 GERAR E BAIXAR PDF (2ª VIA)", key=f"b_{idx}"):
+                if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"b_{idx}"):
                     pdf = FPDF()
                     pdf.add_page()
                     def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                     
-                    # CABEÇALHO ZION
+                    # --- CABEÇALHO ---
                     pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
                     pdf.cell(0, 25, "ZION", ln=True, align="C")
                     pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
                     pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
                     
-                    # DATAS FORMATADAS
-                    dt_r = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] else "S/D"
-                    dt_v = datetime.strptime(r['validade'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['validade'] else "S/D"
-                    
-                    # CORPO DO TEXTO DINÂMICO
+                    # --- TRATAMENTO DE VARIÁVEIS DO CORPO ---
                     pdf.set_font("Arial", "", 12)
-                    escolta_txt = f" ({r['escolta']})" if r['escolta'] else ""
+                    dt_r = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] else "S/D"
+                    dt_v = datetime.strptime(r['validade'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['validade'] else "nao informada"
                     
-                    texto = (
-                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']}{escolta_txt} e de {r['tripulantes']} "
+                    # Texto de Escolta dinâmico (com base no que você escreveu no Notion)
+                    txt_escolta = f" ({r['escolta']})" if r['escolta'] else ""
+                    
+                    # --- CORPO DO TEXTO (INCLUSÃO DE VALIDADE E ESCOLTA) ---
+                    texto_corpo = (
+                        f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']}{txt_escolta} e de {r['tripulantes']} "
                         f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
                         f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_r}, com validade ate {dt_v}. "
                         f"Este suprimento e planejado para a viagem corrente.\n\n"
                         f"Origem: {r['origem']} | Destino: {r['destino']}"
                     )
-                    pdf.multi_cell(0, 10, f(texto))
+                    pdf.multi_cell(0, 10, f(texto_corpo))
                     
-                    # CONSIDERAÇÕES / OBSERVAÇÕES
+                    # --- CAMPO OBSERVAÇÕES / CONSIDERAÇÕES ---
                     if r['consideracoes']:
                         pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Observacoes:"), ln=True)
                         pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(r['consideracoes']))
 
-                    # ASSINATURA E RODAPÉ
-                    pdf.ln(15)
-                    if r['assinatura_base64'] and len(r['assinatura_base64']) > 100:
+                    # --- ASSINATURA ---
+                    pdf.ln(20)
+                    if r['assinatura_base64']:
                         try:
                             img_data = base64.b64decode(r['assinatura_base64'].split(",")[-1])
-                            pdf.image(BytesIO(img_data), x=85, w=40)
+                            pdf.image(BytesIO(img_data), x=80, w=50)
                         except: pass
 
                     pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
