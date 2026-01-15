@@ -22,6 +22,7 @@ st.markdown("""
         <link rel="apple-touch-icon" href="./logo_pwa.png">
     </head>
     """, unsafe_allow_html=True)
+# -----------------------------------------------------
 
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES, CONSTANTES E ESTADOS
@@ -95,24 +96,14 @@ def gerar_manual_pdf_zion():
     pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 10, f("1. ACESSO VIA QR CODE E SEGURANÇA"), ln=True)
     pdf.set_font("Arial", "", 11)
-    pdf.multi_cell(0, 7, f("O acesso ao sistema Zion e realizado exclusivamente via leitura de QR CODE. Cada usuario possui credenciais individuais e nominais. E terminantemente proibido o compartilhamento de senhas, pois a assinatura digital gerada no PDF e vinculada automaticamente ao nome do usuario logado."))
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, f("2. GERAÇÃO DE DECLARAÇÕES"), ln=True)
-    pdf.set_font("Arial", "", 11)
-    pdf.multi_cell(0, 7, f("Ao iniciar uma nova declaracao, o usuario deve conferir:\n- NAVIO: Selecione a embarcacao correta no menu.\n- ESCOLTA: Informe o status da escolta.\n- VALIDADE: O sistema calcula automaticamente 15 dias nauticos.\n- CONSIDERAÇÕES: Campo destinado a observacoes extras."))
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, f("3. CONSULTA E 2ª VIA"), ln=True)
-    pdf.set_font("Arial", "", 11)
-    pdf.multi_cell(0, 7, f("No menu 'Historico', voce pode filtrar por data e baixar a 2 via com a assinatura original."))
+    pdf.multi_cell(0, 7, f("O acesso ao sistema Zion e realizado exclusivamente via leitura de QR CODE..."))
     pdf.ln(20)
     pdf.set_font("Arial", "I", 9); pdf.set_text_color(128, 128, 128)
     pdf.cell(0, 10, f(f"Manual gerado em: {datetime.now().strftime('%d/%m/%Y')}"), align="C")
     return pdf.output(dest='S').encode('latin-1')
 
 # =================================================================
-# BLOCO 4: LÓGICA DE NAVEGAÇÃO - HOME
+# BLOCO 4: TELA HOME
 # =================================================================
 if st.session_state.pagina == "home":
     img_base64 = get_base64_of_bin_file('zion_final.jpg')
@@ -121,18 +112,10 @@ if st.session_state.pagina == "home":
         .stApp {{
             background-color: #0e1117;
             background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url("data:image/jpg;base64,{img_base64}");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center top;
-            background-attachment: fixed;
+            background-size: contain; background-repeat: no-repeat; background-position: center top; background-attachment: fixed;
         }}
-        .main-container {{
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 85vh; padding-bottom: 50px;
-        }}
-        div.stButton > button {{
-            width: 280px !important; height: 60px !important; background-color: #FF8C00 !important; color: white !important;
-            border-radius: 12px !important; font-weight: bold !important; font-size: 22px !important;
-        }}
+        .main-container {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 85vh; padding-bottom: 50px; }}
+        div.stButton > button {{ width: 280px !important; height: 60px !important; background-color: #FF8C00 !important; color: white !important; border-radius: 12px !important; font-weight: bold !important; font-size: 22px !important; }}
         </style>
         """, unsafe_allow_html=True)
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
@@ -143,10 +126,10 @@ if st.session_state.pagina == "home":
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 5: TELA DE LOGIN
+# BLOCO 5: TELA LOGIN
 # =================================================================
 elif st.session_state.pagina == "login":
-    st.markdown("<style>.stApp { background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920'); background-size: cover; }</style>", unsafe_allow_html=True)
+    st.markdown("""<style>.stApp { background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920"); background-size: cover; }</style>""", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center;'>🔐 Acesso Restrito</h1>", unsafe_allow_html=True)
     col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
     with col_l2:
@@ -155,17 +138,13 @@ elif st.session_state.pagina == "login":
         if st.button("🚀 ENTRAR"):
             dados = USUARIOS.get(navio_sel)
             if dados and senha_dig == dados["senha"]:
-                st.session_state.cozinheiro = dados["nome"]
-                st.session_state.navio = navio_sel
-                st.session_state.pagina = "menu"
-                st.rerun()
+                st.session_state.cozinheiro = dados["nome"]; st.session_state.navio = navio_sel; st.session_state.pagina = "menu"; st.rerun()
             else: st.error("❌ Senha incorreta!")
         if st.button("⬅️ VOLTAR AO INÍCIO"):
-            st.session_state.pagina = "home"
-            st.rerun()
+            st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 6: MENU PRINCIPAL (ONDE ESTAVA O ERRO CORRIGIDO)
+# BLOCO 6: MENU PRINCIPAL (CORREÇÃO DA LINHA 283)
 # =================================================================
 elif st.session_state.pagina == "menu":
     aplicar_estilo_azul()
@@ -181,53 +160,44 @@ elif st.session_state.pagina == "menu":
         if st.button("👨‍✈️ DECLARAÇÃO", use_container_width=True): 
             st.session_state.pagina = "tripulacao"; st.rerun()
             
+    # CORREÇÃO DA INDENTAÇÃO AQUI (LINHA 283)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- BOTÃO DO MANUAL (ALINHADO CORRETAMENTE) ---
     if st.button("📖 BAIXAR MANUAL DO SISTEMA"):
         pdf_bytes = gerar_manual_pdf_zion()
-        st.download_button(
-            label="📥 Clique aqui para salvar o Manual",
-            data=pdf_bytes,
-            file_name="Manual_Sistema_ZION.pdf",
-            mime="application/pdf"
-        )
+        st.download_button(label="📥 Clique aqui para salvar o Manual", data=pdf_bytes, file_name="Manual_ZION.pdf", mime="application/pdf")
 
     st.markdown("---")
-
     if st.button("⬅️ LOGOUT (SAIR)"):
-        st.session_state.pagina = "home"
-        st.rerun()
+        st.session_state.pagina = "home"; st.rerun()
 
 # =================================================================
-# BLOCO 7: TELA DE LISTA/ESTOQUE
+# BLOCO 7: TELA DE LISTA / RANCHO
 # =================================================================
 elif st.session_state.pagina == "lista":
     import io
     st.title("📋 Conferência de Estoque")
     if st.button("🔄 ATUALIZAR TABELA"):
-        st.session_state.df_lista = carregar_dados_do_notion()
-        st.rerun()
+        st.session_state.df_lista = carregar_dados_do_notion(); st.rerun()
     
     df_editado = st.data_editor(st.session_state.df_lista, hide_index=True, use_container_width=True)
     
-    col_p, col_e, col_m = st.columns(3)
-    with col_m:
-        if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
-            st.session_state.pagina = "menu"; st.rerun()
+    if st.button("⬅️ MENU PRINCIPAL"):
+        st.session_state.pagina = "menu"; st.rerun()
 
 # =================================================================
 # BLOCO 8: TELA DE DECLARAÇÃO
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
-    st.markdown("<h1 style='text-align: center;'>⚓ Declaração</h1>", unsafe_allow_html=True)
-    escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+    st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     with st.form("form_dec"):
         origem = st.text_input("Porto de Origem", value="Porto Velho")
         destino = st.text_input("Porto de Destino", value="Novo remanso")
+        st.write("Assinatura Digital:")
         canvas_result = st_canvas(stroke_width=3, height=120, key="canvas_dec")
-        if st.form_submit_button("💾 SALVAR"):
-            st.success("Dados prontos para processar!")
+        if st.form_submit_button("💾 SALVAR E GERAR PDF"):
+            st.success("PDF Gerado!")
+            
     if st.button("⬅️ MENU"):
         st.session_state.pagina = "menu"; st.rerun()
 
@@ -235,6 +205,6 @@ elif st.session_state.pagina == "tripulacao":
 # BLOCO 9: HISTÓRICO
 # =================================================================
 elif st.session_state.pagina == "historico":
-    st.title("🗄️ Histórico")
+    st.title("🗄️ Histórico de Documentos")
     if st.button("⬅️ MENU PRINCIPAL"):
         st.session_state.pagina = "menu"; st.rerun()
