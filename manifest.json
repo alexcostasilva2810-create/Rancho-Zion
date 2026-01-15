@@ -2,8 +2,9 @@
   "name": "Zion Tecnologia",
   "short_name": "Zion",
   "description": "Sistema de Gestão Rancho Zion",
-  "start_url": "https://rancho-zion.onrender.com/",
+  "start_url": "/?standalone=true",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0e1117",
   "theme_color": "#FF8C00",
   "icons": [
