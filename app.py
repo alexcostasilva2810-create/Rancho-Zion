@@ -11,10 +11,10 @@ import requests
 # --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
 st.markdown(f"""
     <head>
-        <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json">
+        <link rel="manifest" href="./manifest.json">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
+        <link rel="apple-touch-icon" href="./logo_pwa.png">
     </head>
     """, unsafe_allow_html=True)
 
