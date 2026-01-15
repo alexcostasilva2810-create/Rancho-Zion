@@ -8,6 +8,27 @@ from PIL import Image
 import os
 import requests
 
+# --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
+st.markdown(f"""
+    <head>
+        <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
+    </head>
+    """, unsafe_allow_html=True)
+
+# CSS PARA ESCONDER O MENU DO STREAMLIT E DEIXAR O APP LIMPO
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .block-container {padding-top: 1rem;}
+    </style>
+    """, unsafe_allow_html=True)
+# -----------------------------------------------------
+
 # =================================================================
 # BLOCO 1: CONFIGURAÇÕES, CONSTANTES E ESTADOS
 # =================================================================
