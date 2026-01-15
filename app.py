@@ -474,104 +474,127 @@ elif st.session_state.pagina == "tripulacao":
             except Exception as e:
                 st.error(f"Erro: {e}")
 # =================================================================
-# BLOCO 8: HISTÓRICO E 2ª VIA
+# BLOCO 8: TELA DE HISTÓRICO (DATAS EM PT-BR E GERADOR DE 2ª VIA)
 # =================================================================
 elif st.session_state.pagina == "historico":
     import requests
-    from datetime import date, datetime
+    from datetime import datetime
     import unicodedata
-    from fpdf import FPDF
+    import pytz
     import base64
     from io import BytesIO
+    from PIL import Image
+    from fpdf import FPDF
 
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
-        h1, h2, p, label, .stMarkdown { color: #ffffff !important; }
-        div[data-testid="stExpander"] { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        div.stButton > button { border-radius: 8px; border: 2px solid #ffffff; background-color: transparent; color: #ffffff; font-weight: bold; }
+        h1, h2, h3, p, label, .stMarkdown, span { color: #ffffff !important; }
+        .stDateInput div[data-baseweb="input"] { background-color: #ffffff !important; color: #1a365d !important; }
+        div.stButton > button {
+            border-radius: 10px; border: 2px solid #ffffff; background-color: transparent;
+            color: #ffffff; font-weight: bold; transition: all 0.3s;
+        }
+        div.stButton > button:hover { background-color: #ffffff; color: #3b66eb; }
+        .expander-card { background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px; margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.2); }
         </style>
     """, unsafe_allow_html=True)
 
     if st.button("⬅️ MENU PRINCIPAL"):
-        st.session_state.pagina = "menu"; st.rerun()
+        st.session_state.pagina = "menu"
+        st.rerun()
 
-    st.markdown("<h2 style='text-align: center;'>🗄️ Histórico de Documentos</h2>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🗄️ Histórico de Documentos</h1>", unsafe_allow_html=True)
+
+    # Filtros de Data com padrão DD/MM/YYYY
+    col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
+    with col_f1:
+        data_de = st.date_input("De:", datetime.now() - timedelta(days=30), format="DD/MM/YYYY")
+    with col_f2:
+        data_ate = st.date_input("Até:", datetime.now(), format="DD/MM/YYYY")
     
-    c1, c2, c3 = st.columns([2, 2, 1])
-    d_ini = c1.date_input("De:", value=date(2025, 12, 15))
-    d_fim = c2.date_input("Até:", value=date.today())
-    
-    if c3.button("🔍 CONSULTAR"):
+    if col_f3.button("🔍 CONSULTAR", use_container_width=True):
         headers = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-        filtro = {"property": "Novo Rancho", "date": {"on_or_after": d_ini.isoformat(), "on_or_before": d_fim.isoformat()}}
-        res = requests.post(f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query", headers=headers, json={"filter": filtro})
+        query = {
+            "filter": {
+                "and": [
+                    {"property": "Novo Rancho", "date": {"on_or_after": data_de.isoformat()}},
+                    {"property": "Novo Rancho", "date": {"on_or_before": data_ate.isoformat()}}
+                ]
+            },
+            "sorts": [{"property": "Novo Rancho", "direction": "descending"}]
+        }
+        res = requests.post(f"https://api.notion.com/v1/databases/{ID_HISTORICO_NOTION}/query", headers=headers, json=query)
         
         if res.status_code == 200:
-            results = res.json().get("results", [])
-            dados = []
-            for page in results:
-                p = page.get("properties", {})
-                def g_t(n): 
-                    prop = p.get(n, {})
-                    tipo = prop.get("type", "")
-                    if tipo == "rich_text": return prop.get("rich_text", [{}])[0].get("plain_text", "") if prop.get("rich_text") else ""
-                    elif tipo == "title": return prop.get("title", [{}])[0].get("plain_text", "") if prop.get("title") else ""
-                    return ""
-                def g_dt(n): return p.get(n, {}).get("date", {}).get("start", "") if p.get(n) and p.get(n).get("date") else ""
-                def g_num(n): return p.get(n, {}).get("number", 0) if p.get(n) else 0
+            st.session_state.dados_historico = res.json().get("results", [])
+        else:
+            st.error("Erro ao buscar dados no Notion.")
 
-                dados.append({
-                    "navio": g_t("Navio"),
-                    "data": g_dt("Novo Rancho"),
-                    "validade": g_dt("Validade"),
-                    "resp": g_t("Responsável"),
-                    "origem": g_t("Porto de Origem"),
-                    "destino": g_t("Porto de Destino"),
-                    "tripulantes": g_num("Qtde Tripulante"),
-                    "escolta": g_t("Escolta"),
-                    "consideracoes": g_t("Considerações"),
-                    "assinatura_base64": g_t("Assinatura")
-                })
-            st.session_state.dados_busca = dados
-            st.rerun()
+    # Exibição dos Resultados
+    if "dados_historico" in st.session_state:
+        for p in st.session_state.dados_historico:
+            props = p.get("properties", {})
+            
+            # Extração segura dos dados
+            try:
+                h_resp = props["Responsável"]["title"][0]["text"]["content"]
+                h_navio = props["Navio"]["rich_text"][0]["text"]["content"]
+                h_data_raw = props["Novo Rancho"]["date"]["start"]
+                h_data_f = datetime.strptime(h_data_raw, "%Y-%m-%d").strftime("%d/%m/%Y")
+                h_validade = props["Validade"]["date"]["start"] if props["Validade"]["date"] else "N/A"
+                h_validade_f = datetime.strptime(h_validade, "%Y-%m-%d").strftime("%d/%m/%Y") if h_validade != "N/A" else "N/A"
+                h_trip = props["Qtde Tripulante"]["number"]
+                h_origem = props["Porto de Origem"]["rich_text"][0]["text"]["content"]
+                h_destino = props["Porto de Destino"]["rich_text"][0]["text"]["content"]
+                h_escolta = props["Escolta"]["rich_text"][0]["text"]["content"] if props["Escolta"]["rich_text"] else "NÃO"
+                h_sign_base64 = props["Assinatura"]["rich_text"][0]["text"]["content"]
+            except:
+                continue
 
-    if st.session_state.get("dados_busca"):
-        for idx, r in enumerate(st.session_state.dados_busca):
-            with st.expander(f"🚢 {r['navio']} | 📅 {r['data']} | 👤 {r['resp']}"):
-                if st.button(f"📄 GERAR PDF (2ª VIA)", key=f"b_{idx}"):
-                    pdf = FPDF()
-                    pdf.add_page()
-                    def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
-                    
-                    pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 25, "ZION", ln=True, align="C")
-                    pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
-                    
-                    pdf.set_font("Arial", "", 12)
-                    dt_r = datetime.strptime(r['data'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['data'] else "S/D"
-                    dt_v = datetime.strptime(r['validade'], '%Y-%m-%d').strftime('%d/%m/%Y') if r['validade'] else "nao informada"
-                    txt_escolta = f" ({r['escolta']})" if r['escolta'] else ""
-                    
-                    texto_corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {r['navio']}{txt_escolta} e de {r['tripulantes']} "
-                                 f"tripulantes. A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades "
-                                 f"nutricionais da tripulacao por um periodo de 15 dias nauticos a partir de {dt_r}, com validade ate {dt_v}. "
-                                 f"Este suprimento e planejado para a viagem corrente.\n\n"
-                                 f"Origem: {r['origem']} | Destino: {r['destino']}")
-                    pdf.multi_cell(0, 10, f(texto_corpo))
-                    
-                    if r['consideracoes']:
-                        pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Observacoes:"), ln=True)
-                        pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(r['consideracoes']))
+            with st.expander(f"🚢 {h_navio} | 📅 {h_data_f} | 👤 {h_resp}"):
+                st.write(f"**Origem:** {h_origem} | **Destino:** {h_destino}")
+                st.write(f"**Tripulantes:** {h_trip} | **Escolta:** {h_escolta}")
+                st.write(f"**Validade:** {h_validade_f}")
+                
+                # BOTÃO DE SEGUNDA VIA (GERA O PDF NA HORA)
+                if st.button(f"📄 GERAR PDF (2ª VIA) - {p['id'][:5]}", key=p['id']):
+                    try:
+                        # Reconstituir imagem da assinatura
+                        sign_data = base64.b64decode(h_sign_base64)
+                        img_sig = Image.open(BytesIO(sign_data))
+                        img_sig.save("temp_2via_sign.png")
 
-                    pdf.ln(20)
-                    if r['assinatura_base64']:
-                        try:
-                            img_data = base64.b64decode(r['assinatura_base64'].split(",")[-1])
-                            pdf.image(BytesIO(img_data), x=80, w=50)
-                        except: pass
+                        # Lógica do PDF (Idêntica ao Bloco 7)
+                        pdf = FPDF()
+                        pdf.add_page()
+                        def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
+                        
+                        pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                        pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO (2a VIA)"), ln=True, align="C"); pdf.ln(10)
+                        
+                        pdf.set_font("Arial", "", 12)
+                        corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {h_navio} e de {h_trip} tripulantes. "
+                                 f"A provisao de rancho refere-se ao pedido de {h_data_f}, com validade ate {h_validade_f}.")
+                        pdf.multi_cell(0, 10, f(corpo))
+                        
+                        pdf.ln(5)
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.cell(0, 8, f(f"Origem: {h_origem} | Destino: {h_destino}"), ln=True)
+                        pdf.cell(0, 8, f(f"Escolta no Navio: {h_escolta}"), ln=True)
+                        
+                        pdf.ln(25)
+                        pdf.image("temp_2via_sign.png", x=75, w=60) 
+                        pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
+                        pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(h_resp), ln=True, align="C")
+                        
+                        # Data de emissão da 2ª via (Brasil)
+                        fuso = pytz.timezone('America/Sao_Paulo')
+                        agora = datetime.now(fuso)
+                        pdf.set_font("Arial", "I", 9)
+                        pdf.cell(0, 5, f(f"2a Via emitida em: {agora.strftime('%d/%m/%Y as %H:%M:%S')}"), ln=True, align="C")
 
-                    pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                    pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(r['resp']), ln=True, align="C")
-                    pdf.set_font("Arial", "I", 10); pdf.cell(0, 5, f(f"Assinado em: {dt_r}"), ln=True, align="C")
-                    
-                    st.download_button("⬇️ BAIXAR PDF", data=pdf.output(dest='S').encode('latin-1'), file_name=f"2via_{r['navio']}.pdf", key=f"dl_{idx}")
+                        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                        st.download_button("📥 BAIXAR 2ª VIA PDF", data=pdf_bytes, file_name=f"2via_{h_navio}.pdf", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Erro ao gerar 2ª via: {e}")
