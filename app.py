@@ -11,7 +11,7 @@ import requests
 # --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
 st.markdown("""
     <head>
-        <link rel="manifest" href="./manifest.json?v=10">
+        <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json?v=20">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
