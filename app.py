@@ -351,7 +351,7 @@ elif st.session_state.pagina == "lista":
 # =================================================================
 # BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL COMPLETA E RESTAURADA)
 # =================================================================
-elif st.session_state.pagina == "TRIPULAÇÃO":
+elif st.session_state.pagina == "tripulacao":
     import requests
     from datetime import datetime, timedelta
     import unicodedata
