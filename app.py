@@ -327,7 +327,7 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL - ESCOLTA COMO TEXTO)
+# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL COM ASSINATURA AJUSTADA)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,7 +368,6 @@ elif st.session_state.pagina == "tripulacao":
     
     col_esc, col_val = st.columns([2, 2])
     with col_esc:
-        # Lógica: Se não marcar nada, o padrão é NÃO
         escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], index=0, horizontal=True)
         dias_duracao = 12 if escolta_sel == "SIM" else 15
     
@@ -377,7 +376,7 @@ elif st.session_state.pagina == "tripulacao":
         data_validade = data_recebimento + timedelta(days=dias_duracao)
         st.info(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    with st.form("form_declaracao_v9_texto"):
+    with st.form("form_declaracao_v10_final"):
         c1, c2 = st.columns(2)
         with c1:
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
@@ -392,7 +391,7 @@ elif st.session_state.pagina == "tripulacao":
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_v9_final"
+            height=120, drawing_mode="freedraw", key="canvas_v10_prod"
         )
         
         btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
@@ -400,7 +399,7 @@ elif st.session_state.pagina == "tripulacao":
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # 1. PROCESSAR ASSINATURA (COMPRESSÃO PARA O NOTION)
+                # 1. PROCESSAR ASSINATURA
                 img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 img_notion = img_raw.resize((80, 30), Image.LANCZOS)
                 buf_n = BytesIO()
@@ -408,7 +407,7 @@ elif st.session_state.pagina == "tripulacao":
                 img_str_curta = base64.b64encode(buf_n.getvalue()).decode()
                 img_raw.save("temp_sign.png")
 
-                # 2. GERAR PDF COM LÓGICA DE ESCOLTA
+                # 2. GERAR PDF COM AJUSTES DE CENTRALIZAÇÃO
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
@@ -424,23 +423,33 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 8, f(f"Origem: {origem} | Destino: {destino}"), ln=True)
-                # LÓGICA SOLICITADA: Escolta abaixo de origem/destino
                 pdf.cell(0, 8, f(f"Escolta no Navio: {escolta_sel}"), ln=True)
                 
                 if campo_consideracoes:
                     pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Consideracoes:"), ln=True)
                     pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(campo_consideracoes))
                 
-                pdf.ln(20)
-                pdf.image("temp_sign.png", x=75, w=50)
+                # --- RODAPÉ COM ASSINATURA E DATA/HORA ---
+                pdf.ln(25)
+                # Centraliza a imagem (PDF tem 210mm de largura, imagem tem 60mm -> (210-60)/2 = 75)
+                pdf.image("temp_sign.png", x=75, w=60) 
+                
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
+                
+                # Data e Hora do Brasil
+                fuso = pytz.timezone('America/Sao_Paulo')
+                agora = datetime.now(fuso)
+                txt_data_hora = agora.strftime('%d/%m/%Y às %H:%M:%S')
+                
+                pdf.set_font("Arial", "I", 9)
+                pdf.cell(0, 5, f(f"Data e Hora do Registro: {txt_data_hora}"), ln=True, align="C")
 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-                # 3. NOTION (ENVIANDO TUDO COMO TEXTO/NÚMERO SIMPLES)
+                # 3. NOTION
                 headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
-                
                 payload_n = {
                     "parent": {"database_id": ID_HISTORICO_NOTION},
                     "properties": {
@@ -449,7 +458,7 @@ elif st.session_state.pagina == "tripulacao":
                         "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                         "Validade": {"date": {"start": data_validade.isoformat()}},
                         "Qtde Tripulante": {"number": int(qtde_trip)},
-                        "Escolta": {"rich_text": [{"text": {"content": str(escolta_sel)}}]}, # ENVIANDO COMO TEXTO
+                        "Escolta": {"rich_text": [{"text": {"content": str(escolta_sel)}}]},
                         "Porto de Origem": {"rich_text": [{"text": {"content": str(origem)}}]},
                         "Porto de Destino": {"rich_text": [{"text": {"content": str(destino)}}]},
                         "Assinatura": {"rich_text": [{"text": {"content": str(img_str_curta)}}]}
@@ -459,14 +468,14 @@ elif st.session_state.pagina == "tripulacao":
                 res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
                 
                 if res_n.status_code == 200:
-                    st.success("✅ Salvo com sucesso no Notion!")
-                    st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
+                    st.success("✅ Documento assinado e salvo com sucesso!")
+                    st.download_button("📥 BAIXAR DECLARAÇÃO PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
                 else:
                     st.error(f"Erro Notion: {res_n.json().get('message')}")
-                    st.download_button("📥 BAIXAR PDF (Mesmo com erro)", data=pdf_bytes, file_name="Declaracao.pdf", use_container_width=True)
+                    st.download_button("📥 BAIXAR PDF (Mesmo com erro no Banco)", data=pdf_bytes, file_name="Declaracao.pdf", use_container_width=True)
 
             except Exception as e:
-                st.error(f"Erro Geral: {e}")
+                st.error(f"Erro ao gerar documento: {e}")
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA
 # =================================================================
