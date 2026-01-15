@@ -60,14 +60,15 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELA HOME (INICIAL) - AJUSTE OFFSHORE E LOGO
+# BLOCO 3: TELA HOME (INICIAL) - COM SUA NOVA IMAGEM DE FUNDO
 # =================================================================
 if st.session_state.pagina == "home":
     st.markdown("""
         <style>
         .stApp {
-            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
-                        url("https://images.unsplash.com/photo-1574689049868-e94ed5301745?q=80&w=1920");
+            /* Aqui substituímos o link da internet pela sua imagem personalizada */
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+                        url("app/static/zion_final.jpg"); 
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -78,52 +79,48 @@ if st.session_state.pagina == "home":
             align-items: center;
             justify-content: center;
             text-align: center;
-            margin-top: -50px;
+            height: 80vh; /* Centraliza melhor o conteúdo verticalmente */
         }
         .titulo-zion {
             color: white !important;
-            font-size: 50px !important;
+            font-size: 60px !important;
             font-weight: 800 !important;
-            text-shadow: 4px 4px 15px rgba(0,0,0,0.9);
-            margin-bottom: -15px !important;
-            font-family: 'Helvetica', sans-serif;
+            text-shadow: 4px 4px 15px rgba(0,0,0,1);
+            margin-bottom: 20px !important;
+            font-family: 'Arial Black', sans-serif;
         }
         div.stButton > button {
-            width: 200px !important;
-            height: 45px !important;
+            width: 250px !important;
+            height: 55px !important;
             background-color: #FF8C00 !important;
             color: white !important;
-            border-radius: 25px !important;
+            border-radius: 30px !important;
             font-weight: bold !important;
-            border: none !important;
+            font-size: 20px !important;
+            border: 2px solid white !important;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
             transition: 0.3s;
         }
         div.stButton > button:hover {
             background-color: #e67e00 !important;
-            transform: scale(1.05);
+            transform: scale(1.1);
         }
         </style>
         """, unsafe_allow_html=True)
 
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    st.markdown("<h1 class='titulo-zion'>Zion Tecnologia</h1>", unsafe_allow_html=True)
+    # Título estilizado por cima da imagem de fundo
+    st.markdown("<h1 class='titulo-zion'>ZION TECNOLOGIA</h1>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 0.6, 1])
-    with col2:
-        # ALTERAÇÃO REALIZADA AQUI: zion3.jpg
-        if os.path.exists("zion3.jpg"): 
-            st.image("zion3.jpg", use_container_width=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_btn1, col_btn2, col_btn3 = st.columns([1.4, 1, 1.4])
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
     with col_btn2:
-        if st.button("🚀 ACESSAR"): 
+        if st.button("🚀 ACESSAR SISTEMA"): 
             st.session_state.pagina = "login"
             st.rerun()
             
     st.markdown("</div>", unsafe_allow_html=True)
-
 elif st.session_state.pagina == "login":
     st.markdown("""
         <style>
