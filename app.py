@@ -110,8 +110,9 @@ if st.session_state.pagina == "home":
     
     col1, col2, col3 = st.columns([1, 0.6, 1])
     with col2:
-        if os.path.exists("ZION.jpg"): 
-            st.image("ZION.jpg", use_container_width=True)
+        # ALTERAÇÃO REALIZADA AQUI: zion3.jpg
+        if os.path.exists("zion3.jpg"): 
+            st.image("zion3.jpg", use_container_width=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -270,7 +271,7 @@ elif st.session_state.pagina == "lista":
                 
                 class PDF_Checklist(FPDF):
                     def header(self):
-                        if os.path.exists("ZION.jpg"): self.image("ZION.jpg", 95, 8, 20)
+                        if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
                         self.set_font("Arial", "B", 14); self.ln(22)
                         self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
                         self.ln(5)
