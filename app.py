@@ -60,60 +60,74 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELA HOME (INICIAL) - COM SUA NOVA IMAGEM DE FUNDO
+# BLOCO 3: TELA HOME (INICIAL) - CORREÇÃO DE CAMINHO DE IMAGEM
 # =================================================================
 if st.session_state.pagina == "home":
-    st.markdown("""
+    # Definimos o nome do arquivo que está na raiz do seu GitHub
+    nome_arquivo_fundo = "zion_final.jpg" 
+
+    st.markdown(f"""
         <style>
-        .stApp {
-            /* Aqui substituímos o link da internet pela sua imagem personalizada */
-            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
-                        url("app/static/zion_final.jpg"); 
+        .stApp {{
+            /* Ajuste para carregar a imagem localmente ou do repositório */
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                        url("app/static/{nome_arquivo_fundo}"); 
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-        }
-        .main-container {
+            background-repeat: no-repeat;
+        }}
+        
+        /* Fallback: caso a pasta static não exista no deploy, tentamos o caminho direto */
+        @media screen and (min-width: 1px) {{
+            .stApp {{
+                background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                                  url("https://raw.githubusercontent.com/{st.get_option("server.baseUrlPath")}/main/{nome_arquivo_fundo}");
+            }}
+        }}
+
+        .main-container {{
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            height: 80vh; /* Centraliza melhor o conteúdo verticalmente */
-        }
-        .titulo-zion {
+            height: 70vh;
+        }}
+        
+        .titulo-zion {{
             color: white !important;
-            font-size: 60px !important;
-            font-weight: 800 !important;
-            text-shadow: 4px 4px 15px rgba(0,0,0,1);
-            margin-bottom: 20px !important;
+            font-size: 65px !important;
+            font-weight: 900 !important;
+            text-shadow: 3px 3px 10px rgba(0,0,0,0.8);
+            letter-spacing: 2px;
             font-family: 'Arial Black', sans-serif;
-        }
-        div.stButton > button {
-            width: 250px !important;
-            height: 55px !important;
+        }}
+        
+        div.stButton > button {{
+            width: 280px !important;
+            height: 60px !important;
             background-color: #FF8C00 !important;
             color: white !important;
-            border-radius: 30px !important;
+            border-radius: 10px !important;
             font-weight: bold !important;
-            font-size: 20px !important;
-            border: 2px solid white !important;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
-            transition: 0.3s;
-        }
-        div.stButton > button:hover {
-            background-color: #e67e00 !important;
-            transform: scale(1.1);
-        }
+            font-size: 22px !important;
+            border: none !important;
+            box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    # Título estilizado por cima da imagem de fundo
+    
+    # Se quiser que o nome "ZION TECNOLOGIA" não apareça porque já está na imagem, 
+    # basta comentar a linha abaixo com um #
     st.markdown("<h1 class='titulo-zion'>ZION TECNOLOGIA</h1>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
+    # Botão de acesso centralizado
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
     with col_btn2:
         if st.button("🚀 ACESSAR SISTEMA"): 
