@@ -327,7 +327,7 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL CORRIGIDA E TESTADA)
+# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL - ESCOLTA COMO TEXTO)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,7 +368,8 @@ elif st.session_state.pagina == "tripulacao":
     
     col_esc, col_val = st.columns([2, 2])
     with col_esc:
-        escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+        # Lógica: Se não marcar nada, o padrão é NÃO
+        escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], index=0, horizontal=True)
         dias_duracao = 12 if escolta_sel == "SIM" else 15
     
     with col_val:
@@ -376,7 +377,7 @@ elif st.session_state.pagina == "tripulacao":
         data_validade = data_recebimento + timedelta(days=dias_duracao)
         st.info(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    with st.form("form_declaracao_final_v5"):
+    with st.form("form_declaracao_v9_texto"):
         c1, c2 = st.columns(2)
         with c1:
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
@@ -384,15 +385,14 @@ elif st.session_state.pagina == "tripulacao":
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
-            data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
+        campo_consideracoes = st.text_area("Considerações (Apenas PDF):", value="Consumo regular conforme escala.")
         
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_v5_final"
+            height=120, drawing_mode="freedraw", key="canvas_v9_final"
         )
         
         btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
@@ -402,64 +402,44 @@ elif st.session_state.pagina == "tripulacao":
             try:
                 # 1. PROCESSAR ASSINATURA (COMPRESSÃO PARA O NOTION)
                 img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                
-                # Criar string pequena para o Notion (evita erro de 2000 chars)
-                img_notion = img_raw.resize((100, 40), Image.LANCZOS)
+                img_notion = img_raw.resize((80, 30), Image.LANCZOS)
                 buf_n = BytesIO()
-                img_notion.convert("RGB").save(buf_n, format="JPEG", quality=20)
+                img_notion.convert("RGB").save(buf_n, format="JPEG", quality=15)
                 img_str_curta = base64.b64encode(buf_n.getvalue()).decode()
-
-                # Salvar original para o PDF
                 img_raw.save("temp_sign.png")
 
-                # 2. GERAR PDF
+                # 2. GERAR PDF COM LÓGICA DE ESCOLTA
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
                 
-                pdf.set_font("Arial", "B", 35)
-                pdf.set_text_color(0, 51, 153)
-                pdf.cell(0, 20, "ZION", ln=True, align="C")
-                
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C")
-                pdf.ln(10)
+                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
                 
                 pdf.set_font("Arial", "", 12)
-                txt_esc_pdf = " COM ESCOLTA" if escolta_sel == "SIM" else ""
-                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome}{txt_esc_pdf} e de {qtde_trip} tripulantes. "
-                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
-                         f"por um periodo de {dias_duracao} dias nauticos a partir de {data_recebimento.strftime('%d/%m/%Y')}, com validade ate {data_validade.strftime('%d/%m/%Y')}. "
-                         f"Este suprimento e planejado para a viagem corrente.\n\n"
-                         f"Origem: {origem} | Destino: {destino}")
+                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
+                         f"A provisao de rancho destina-se a cobrir as necessidades por {dias_duracao} dias, com validade ate {data_validade.strftime('%d/%m/%Y')}.")
                 pdf.multi_cell(0, 10, f(corpo))
                 
-                if consideracoes:
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.cell(0, 10, f("Consideracoes:"), ln=True)
-                    pdf.set_font("Arial", "", 12)
-                    pdf.multi_cell(0, 8, f(consideracoes))
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, f(f"Origem: {origem} | Destino: {destino}"), ln=True)
+                # LÓGICA SOLICITADA: Escolta abaixo de origem/destino
+                pdf.cell(0, 8, f(f"Escolta no Navio: {escolta_sel}"), ln=True)
+                
+                if campo_consideracoes:
+                    pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Consideracoes:"), ln=True)
+                    pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(campo_consideracoes))
                 
                 pdf.ln(20)
-                agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
-                txt_hora = agora_br.strftime('%d/%m/%Y as %H:%M')
                 pdf.image("temp_sign.png", x=75, w=50)
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
-                pdf.set_font("Arial", "I", 10)
-                pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
+                pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-                # 3. ENVIO NOTION (ESTRUTURA COMPATÍVEL)
-                headers_n = {
-                    "Authorization": f"Bearer {NOTION_TOKEN}",
-                    "Content-Type": "application/json",
-                    "Notion-Version": "2022-06-28"
-                }
+                # 3. NOTION (ENVIANDO TUDO COMO TEXTO/NÚMERO SIMPLES)
+                headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
                 
                 payload_n = {
                     "parent": {"database_id": ID_HISTORICO_NOTION},
@@ -469,10 +449,9 @@ elif st.session_state.pagina == "tripulacao":
                         "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
                         "Validade": {"date": {"start": data_validade.isoformat()}},
                         "Qtde Tripulante": {"number": int(qtde_trip)},
-                        "Escolta": {"select": {"name": str(escolta_sel)}},
+                        "Escolta": {"rich_text": [{"text": {"content": str(escolta_sel)}}]}, # ENVIANDO COMO TEXTO
                         "Porto de Origem": {"rich_text": [{"text": {"content": str(origem)}}]},
                         "Porto de Destino": {"rich_text": [{"text": {"content": str(destino)}}]},
-                        "Considerações": {"rich_text": [{"text": {"content": str(consideracoes)}}]},
                         "Assinatura": {"rich_text": [{"text": {"content": str(img_str_curta)}}]}
                     }
                 }
@@ -480,14 +459,14 @@ elif st.session_state.pagina == "tripulacao":
                 res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
                 
                 if res_n.status_code == 200:
-                    st.success("✅ Salvo no Notion!")
+                    st.success("✅ Salvo com sucesso no Notion!")
                     st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
                 else:
                     st.error(f"Erro Notion: {res_n.json().get('message')}")
-                    st.download_button("📥 BAIXAR PDF (Mesmo com erro no Notion)", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
+                    st.download_button("📥 BAIXAR PDF (Mesmo com erro)", data=pdf_bytes, file_name="Declaracao.pdf", use_container_width=True)
 
             except Exception as e:
-                st.error(f"Erro no processamento: {e}")
+                st.error(f"Erro Geral: {e}")
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA
 # =================================================================
