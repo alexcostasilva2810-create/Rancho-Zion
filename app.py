@@ -415,7 +415,7 @@ elif st.session_state.pagina == "tripulacao":
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
                 
                 pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("DECLARACAO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
+                pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULÇÃO"), ln=True, align="C"); pdf.ln(10)
                 
                 pdf.set_font("Arial", "", 12)
                 corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
@@ -559,7 +559,7 @@ elif st.session_state.pagina == "historico":
                         
                         # CABEÇALHO ATUALIZADO
                         pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-                        pdf.set_font("Arial", "B", 16); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULACAO"), ln=True, align="C")
+                        pdf.set_font("Arial", "B", 16); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULACÃO"), ln=True, align="C")
                         pdf.set_font("Arial", "I", 12); pdf.cell(0, 7, f("2 via"), ln=True, align="C"); pdf.ln(10)
                         
                         pdf.set_font("Arial", "", 12)
