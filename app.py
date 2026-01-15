@@ -355,7 +355,7 @@ elif st.session_state.pagina == "lista":
         if st.button("⬅️ MENU PRINCIPAL", use_container_width=True):
             st.session_state.pagina = "menu"; st.rerun() 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (FONTE 12, CAMPOS COMPLETOS E FIX DE ERRO)
+# BLOCO 7: TELA DE DECLARAÇÃO (RESTAURADO - VERSÃO ESTÁVEL)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -368,7 +368,6 @@ elif st.session_state.pagina == "tripulacao":
     from fpdf import FPDF
     from streamlit_drawable_canvas import st_canvas
 
-    # Estilo Visual
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
@@ -384,7 +383,6 @@ elif st.session_state.pagina == "tripulacao":
         </style>
     """, unsafe_allow_html=True)
 
-    # Navegação
     c_nav1, _, c_nav3 = st.columns([1, 2, 1])
     with c_nav1:
         if st.button("⬅️ MENU", use_container_width=True):
@@ -395,101 +393,80 @@ elif st.session_state.pagina == "tripulacao":
 
     st.markdown("<h1 style='text-align: center;'>⚓ Declaração de Reabastecimento</h1>", unsafe_allow_html=True)
     
-    # Lógica de Escolta e Datas
     col_esc, col_val = st.columns([2, 2])
     with col_esc:
-        escolta_sel = st.radio("O navio está com escolta?", ["NÃO", "SIM"], horizontal=True)
+        escolta_opcoes = {"NÃO": 0, "SIM": 1}
+        escolta_sel = st.radio("O navio está com escolta?", list(escolta_opcoes.keys()), horizontal=True)
         dias_duracao = 12 if escolta_sel == "SIM" else 15
     
     with col_val:
+        # DATA NO FORMATO DD/MM/YYYY
         data_recebimento = st.date_input("Data prevista para o novo rancho:", datetime.now(), format="DD/MM/YYYY")
         data_validade = data_recebimento + timedelta(days=dias_duracao)
         st.success(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    # Formulário
-    with st.form("form_declaracao_estavel"):
+    with st.form("form_declaracao_restaurado"):
         c1, c2 = st.columns(2)
         with c1:
-            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', ''), placeholder="Nome do Responsável")
-            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', ''), placeholder="Nome do Navio")
+            resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', ''))
+            navio_nome = st.text_input("Navio", value=st.session_state.get('navio', ''))
             origem = st.text_input("Porto de Origem", value="Porto Velho")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
             data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
             destino = st.text_input("Porto de Destino", value="Novo remanso")
         
-        consideracoes = st.text_area("Considerações:", value="Consumo regular conforme escala.")
-        
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_final_v1"
+            height=120, drawing_mode="freedraw", key="canvas_restaurado"
         )
         
-        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF ORIGINAL", use_container_width=True)
 
-    # Processamento após clicar no botão
     if btn_acao:
-        # Verificação de segurança para não processar sem assinatura
         if canvas_result.image_data is not None:
             try:
-                # 1. Gerar imagem da assinatura
-                img_raw = canvas_result.image_data.astype('uint8')
-                img_ass = Image.fromarray(img_raw, 'RGBA')
-                
-                # Converter para Base64 (para o Notion)
+                # 1. Processar Assinatura
+                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 buffered = BytesIO()
                 img_ass.save(buffered, format="PNG")
                 img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-                # 2. Criar PDF com Fonte 12
+                # 2. Criar PDF (FONTE TAMANHO 12)
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
-                # Cabeçalho ZION
-                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153)
-                pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
+                pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
+                pdf.set_text_color(0, 0, 0); pdf.set_font("Arial", "B", 14); pdf.cell(0, 10, f("DECLARAÇÃO DE REABASTECIMENTO"), ln=True, align="C"); pdf.ln(10)
                 
-                # Corpo do Texto - FONTE 12
+                # Texto do corpo com FONTE 12
                 pdf.set_font("Arial", "", 12)
-                dt_r = data_recebimento.strftime('%d/%m/%Y')
-                dt_v = data_validade.strftime('%d/%m/%Y')
-                txt_escolta_msg = f" com escolta {escolta_sel}"
+                dt_rec_str = data_recebimento.strftime('%d/%m/%Y')
+                dt_val_str = data_validade.strftime('%d/%m/%Y')
                 
-                corpo_txt = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome}{txt_escolta_msg} e de {qtde_trip} tripulantes. "
-                             f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
-                             f"por um periodo de {dias_duracao} dias nauticos a partir de {dt_r}, com validade ate {dt_v}. "
-                             f"Este suprimento e planejado para a viagem corrente.\n\n"
-                             f"Origem: {origem} | Destino: {destino}")
+                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
+                         f"A provisao de rancho a ser reabastecida destina-se a cobrir as necessidades nutricionais da tripulacao "
+                         f"por um periodo de {dias_duracao} dias nauticos a partir de {dt_rec_str}, com validade ate {dt_val_str}. "
+                         f"Este suprimento e planejado para a viagem corrente.\n\n"
+                         f"Origem: {origem} | Destino: {destino}")
+                pdf.multi_cell(0, 10, f(corpo))
                 
-                pdf.multi_cell(0, 8, f(corpo_txt))
-                
-                # Adicionando Considerações no PDF - FONTE 12
-                if consideracoes:
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "B", 12); pdf.cell(0, 8, f("Consideracoes:"), ln=True)
-                    pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(consideracoes))
-                
-                # Assinatura
-                pdf.ln(15)
-                img_ass.save("temp_signature.png")
-                pdf.image("temp_signature.png", x=75, w=50)
+                pdf.ln(20)
+                img_ass.save("temp_sign.png")
+                pdf.image("temp_sign.png", x=75, w=50)
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                 pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 
-                # Data e Hora da Assinatura
                 agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
-                txt_hora_ass = agora_br.strftime('%d/%m/%Y as %H:%M')
-                pdf.set_font("Arial", "I", 10); pdf.cell(0, 5, f(f"Assinado em: {txt_hora_ass}"), ln=True, align="C")
+                txt_hora = agora_br.strftime('%d/%m/%Y as %H:%M')
+                pdf.set_font("Arial", "I", 10); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
 
-                # Botão de Download
-                pdf_output = pdf.output(dest='S').encode('latin-1')
-                st.download_button("📥 CLIQUE AQUI PARA BAIXAR O PDF", data=pdf_output, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
+                pdf_bytes = pdf.output(dest='S').encode('latin-1')
+                st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
 
-                # 3. Enviar ao Notion
+                # 3. Salvar no Notion (VOLTANDO AO PAYLOAD ORIGINAL QUE FUNCIONAVA)
                 headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
                 payload_n = {
                     "parent": {"database_id": ID_HISTORICO_NOTION},
@@ -501,21 +478,13 @@ elif st.session_state.pagina == "tripulacao":
                         "Porto de Origem": {"rich_text": [{"text": {"content": origem}}]},
                         "Porto de Destino": {"rich_text": [{"text": {"content": destino}}]},
                         "Qtde Tripulante": {"number": int(qtde_trip)},
-                        "Escolta": {"rich_text": [{"text": {"content": escolta_sel}}]},
-                        "Considerações": {"rich_text": [{"text": {"content": consideracoes}}]},
                         "Assinatura": {"rich_text": [{"text": {"content": img_base64}}]}
                     }
                 }
                 res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
-                if res_n.status_code == 200:
-                    st.success("✅ Documento salvo com sucesso no Notion!")
-                else:
-                    st.error("Erro ao salvar no Notion. Verifique as colunas.")
-            
-            except Exception as e:
-                st.error(f"Erro ao processar dados: {e}")
-        else:
-            st.warning("Por favor, assine no campo indicado antes de salvar.")
+                if res_n.status_code == 200: st.success("✅ Salvo no Notion com sucesso!")
+                else: st.error("Erro ao salvar. Verifique a conexão.")
+            except Exception as e: st.error(f"Erro: {e}")
 # =================================================================
 # BLOCO 8: HISTÓRICO (REVISADO - FONTE 12 E NOVOS CAMPOS)
 # =================================================================
