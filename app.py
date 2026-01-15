@@ -60,60 +60,73 @@ def aplicar_estilo_azul():
     st.markdown("<style>.stApp { background-color: #4169E1 !important; } h1,h2,h3,p,label { color: white !important; } div.stButton > button { background-color: #FF8C00 !important; color: black !important; font-weight: 900; border-radius: 10px; }</style>", unsafe_allow_html=True)
 
 # =================================================================
-# BLOCO 3: TELA HOME (INICIAL) - COM CORREÇÃO DE IMAGEM
+# BLOCO 3: TELA HOME (INICIAL) - AJUSTE DE PROPORÇÃO
 # =================================================================
 import base64
 
 def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+    try:
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except:
+        return ""
 
 if st.session_state.pagina == "home":
-    # Carrega a imagem e converte para base64 para o CSS aceitar
-    try:
-        bin_str = get_base64_of_bin_file('zion_final.jpg')
-        img_url = f"data:image/jpg;base64,{bin_str}"
-    except:
-        # Caso o arquivo mude de nome ou não seja encontrado
-        img_url = "" 
-
+    # Converte a imagem para Base64 para garantir que o Streamlit exiba
+    img_base64 = get_base64_of_bin_file('zion_final.jpg')
+    
     st.markdown(f"""
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
-                              url("{img_url}");
-            background-size: cover;
-            background-position: center;
+            /* Mantém a cor escura de fundo caso a imagem demore a carregar */
+            background-color: #0e1117;
+            
+            /* Ajuste da Imagem: 'contain' faz ela caber inteira, 'cover' preenche tudo */
+            background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
+                              url("data:image/jpg;base64,{img_base64}");
+            
+            background-size: contain; /* Ajusta a imagem para aparecer inteira */
+            background-repeat: no-repeat;
+            background-position: center top; /* Alinha no topo para dar espaço ao botão */
             background-attachment: fixed;
         }}
+        
         .main-container {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            height: 80vh;
+            justify-content: flex-end; /* Empurra o conteúdo para baixo */
+            height: 85vh; /* Altura da área visível */
+            padding-bottom: 50px;
         }}
-        /* Estilo do botão para combinar com o tema */
+
         div.stButton > button {{
+            width: 280px !important;
+            height: 60px !important;
             background-color: #FF8C00 !important;
             color: white !important;
-            border-radius: 8px !important;
-            padding: 15px 30px !important;
-            font-size: 20px !important;
+            border-radius: 12px !important;
             font-weight: bold !important;
-            border: none !important;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+            font-size: 22px !important;
+            border: 2px solid rgba(255,255,255,0.3) !important;
+            box-shadow: 0px 10px 20px rgba(0,0,0,0.6);
+            transition: 0.3s;
+        }}
+        
+        div.stButton > button:hover {{
+            transform: scale(1.05);
+            background-color: #ff9900 !important;
         }}
         </style>
         """, unsafe_allow_html=True)
 
+    # Container principal
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    # Como a imagem já tem o nome ZION, vamos deixar apenas o botão
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-    
+    # Espaçador para o botão não ficar em cima do nome ZION da imagem
+    st.markdown("<div style='margin-top: 400px;'></div>", unsafe_allow_html=True)
+
     if st.button("🚀 ACESSAR SISTEMA"): 
         st.session_state.pagina = "login"
         st.rerun()
