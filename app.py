@@ -9,7 +9,7 @@ import os
 import requests
 
 # =================================================================
-# BLOCO 1: CONFIGURAÇÕES, CONSTANTES E ESTADOS
+# BLOCO 1: CONFIGURAÇÕES, CONSTANTES E ESTADO
 # =================================================================
 st.set_page_config(page_title="Zion Rancho App", layout="wide")
 
