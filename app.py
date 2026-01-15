@@ -84,6 +84,63 @@ def get_base64_of_bin_file(bin_file):
         return base64.b64encode(data).decode()
     except:
         return ""
+# =================================================================
+# NOVO BLOCO: FUNÇÃO DO MANUAL DO USUÁRIO
+# =================================================================
+def gerar_manual_pdf_zion():
+    from fpdf import FPDF
+    import unicodedata
+    from datetime import datetime
+    
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Função para tratar acentos e caracteres especiais
+    def f(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+
+    # --- CABEÇALHO ---
+    pdf.set_font("Arial", "B", 25); pdf.set_text_color(0, 51, 153)
+    pdf.cell(0, 20, f("MANUAL DO USUÁRIO - SISTEMA ZION"), ln=True, align="C")
+    pdf.ln(5)
+    
+    # --- SEÇÃO 1: ACESSO ---
+    pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, f("1. ACESSO VIA QR CODE E SEGURANÇA"), ln=True)
+    pdf.set_font("Arial", "", 11)
+    pdf.multi_cell(0, 7, f("O acesso ao sistema Zion e realizado exclusivamente via leitura de QR CODE. "
+                          "Cada usuario possui credenciais individuais e nominais. E terminantemente "
+                          "proibido o compartilhamento de senhas, pois a assinatura digital gerada no "
+                          "PDF e vinculada automaticamente ao nome do usuario logado."))
+    pdf.ln(5)
+
+    # --- SEÇÃO 2: OPERAÇÃO ---
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, f("2. GERAÇÃO DE DECLARAÇÕES"), ln=True)
+    pdf.set_font("Arial", "", 11)
+    pdf.multi_cell(0, 7, f("Ao iniciar uma nova declaracao, o usuario deve conferir:\n"
+                          "- NAVIO: Selecione a embarcacao correta no menu.\n"
+                          "- ESCOLTA: Informe o status da escolta (campo obrigatorio).\n"
+                          "- VALIDADE: O sistema calcula automaticamente 15 dias nauticos.\n"
+                          "- CONSIDERAÇÕES: Campo destinado a observacoes extras que aparecerão no arquivo final."))
+    pdf.ln(5)
+
+    # --- SEÇÃO 3: HISTÓRICO ---
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, f("3. CONSULTA E 2ª VIA"), ln=True)
+    pdf.set_font("Arial", "", 11)
+    pdf.multi_cell(0, 7, f("No menu 'Historico', voce pode filtrar os documentos por data e baixar a 2 via "
+                          "do PDF com todos os dados preservados, incluindo a assinatura original e as consideracoes enviadas."))
+
+    # --- RODAPÉ ---
+    pdf.ln(20)
+    pdf.set_font("Arial", "I", 9); pdf.set_text_color(128, 128, 128)
+    pdf.cell(0, 10, f(f"Manual gerado em: {datetime.now().strftime('%d/%m/%Y')}"), align="C")
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# =================================================================
+# FINAL DO BLOCO DO MANUAL
+# =================================================================
 
 if st.session_state.pagina == "home":
     # Converte a imagem para Base64 para garantir que o Streamlit exiba
@@ -223,8 +280,21 @@ elif st.session_state.pagina == "menu":
             st.session_state.pagina = "tripulacao"
             st.rerun()
             
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ LOGOUT (SAIR)"): 
+   st.markdown("<br>", unsafe_allow_html=True)
+    
+    # BOTÃO DE GATILHO PARA O MANUAL DO SISTEMA
+    if st.button("📖 BAIXAR MANUAL DO SISTEMA"):
+        pdf_bytes = gerar_manual_pdf_zion()
+        st.download_button(
+            label="📥 Clique aqui para salvar o Manual",
+            data=pdf_bytes,
+            file_name="Manual_Sistema_ZION.pdf",
+            mime="application/pdf"
+        )
+
+    st.markdown("---") # Linha divisória para separar do Logout
+
+    if st.button("⬅️ LOGOUT (SAIR)"):
         st.session_state.pagina = "home"
         st.rerun()
 
