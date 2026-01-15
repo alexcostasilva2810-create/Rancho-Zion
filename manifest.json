@@ -1,0 +1,17 @@
+{
+  "name": "Zion Tecnologia",
+  "short_name": "Zion",
+  "description": "Sistema de Gestão Rancho Zion",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0e1117",
+  "theme_color": "#FF8C00",
+  "icons": [
+    {
+      "src": "logo_pwa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
