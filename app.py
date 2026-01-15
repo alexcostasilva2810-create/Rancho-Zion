@@ -11,19 +11,13 @@ import requests
 # --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
 st.markdown(f"""
     <head>
-        <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json?v=2">
+        <link rel="manifest" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/manifest.json?v=3">
+        <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
+        <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <link rel="icon" type="image/png" sizes="512x512" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
-        <link rel="apple-touch-icon" sizes="512x512" href="https://raw.githubusercontent.com/alexcostasilva2810-create/Rancho-Zion/main/logo_pwa.png">
     </head>
-    <style>
-        #MainMenu {{visibility: hidden;}}
-        footer {{visibility: hidden;}}
-        header {{visibility: hidden;}}
-        .block-container {{padding-top: 0rem;}}
-    </style>
     """, unsafe_allow_html=True)
 # -----------------------------------------------------
 
