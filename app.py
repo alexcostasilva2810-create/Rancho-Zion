@@ -327,7 +327,7 @@ elif st.session_state.pagina == "lista":
             st.session_state.pagina = "menu"; st.rerun() 
 
 # =================================================================
-# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL SEM ERRO 400)
+# BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL - CORREÇÃO LIMITE NOTION)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
     import requests
@@ -340,7 +340,7 @@ elif st.session_state.pagina == "tripulacao":
     from fpdf import FPDF
     from streamlit_drawable_canvas import st_canvas
 
-    # Estilização da Página
+    # Configuração de Estilo
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
@@ -379,8 +379,8 @@ elif st.session_state.pagina == "tripulacao":
         data_validade = data_recebimento + timedelta(days=dias_duracao)
         st.info(f"📅 Validade: {data_validade.strftime('%d/%m/%Y')} ({dias_duracao} dias)")
 
-    # Formulário Principal
-    with st.form("form_declaracao_final"):
+    # Formulário de Dados
+    with st.form("form_declaracao_definitivo"):
         c1, c2 = st.columns(2)
         with c1:
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
@@ -396,21 +396,27 @@ elif st.session_state.pagina == "tripulacao":
         st.write("Assinatura Digital:")
         canvas_result = st_canvas(
             stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
-            height=120, drawing_mode="freedraw", key="canvas_final_fix"
+            height=120, drawing_mode="freedraw", key="canvas_v4_final"
         )
         
-        btn_acao = st.form_submit_button("💾 SALVAR NO HISTÓRICO E GERAR PDF", use_container_width=True)
+        btn_acao = st.form_submit_button("💾 SALVAR E GERAR PDF", use_container_width=True)
 
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # 1. Preparar Assinatura
-                img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                buffered = BytesIO()
-                img_ass.save(buffered, format="PNG")
-                img_str = base64.b64encode(buffered.getvalue()).decode()
+                # 1. TRATAMENTO DA ASSINATURA (SOLUÇÃO PARA O ERRO 400)
+                img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                
+                # Versão comprimida para o Notion (Limite 2000 chars)
+                img_notion = img_raw.resize((120, 50), Image.LANCZOS)
+                buf_n = BytesIO()
+                img_notion.convert("RGB").save(buf_n, format="JPEG", quality=25)
+                img_str_curta = base64.b64encode(buf_n.getvalue()).decode()
 
-                # 2. Gerar PDF
+                # Versão para o PDF (Qualidade Original)
+                img_raw.save("temp_sign.png")
+
+                # 2. GERAÇÃO DO PDF
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
@@ -428,54 +434,7 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.multi_cell(0, 10, f(corpo))
                 
                 if consideracoes:
-                    pdf.ln(5); pdf.set_font("Arial", "B", 12); pdf.cell(0, 10, f("Consideracoes:"), ln=True)
-                    pdf.set_font("Arial", "", 12); pdf.multi_cell(0, 8, f(consideracoes))
-                
-                pdf.ln(20)
-                agora_br = datetime.now(pytz.timezone('America/Sao_Paulo'))
-                txt_hora = agora_br.strftime('%d/%m/%Y as %H:%M')
-                img_ass.save("temp_sign.png")
-                pdf.image("temp_sign.png", x=75, w=50)
-                pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
-                pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
-                pdf.set_font("Arial", "I", 10); pdf.cell(0, 5, f(f"Assinado em: {txt_hora}"), ln=True, align="C")
-
-                pdf_bytes = pdf.output(dest='S').encode('latin-1')
-
-                # 3. ENVIO PARA O NOTION (ESTRUTURA COMPATÍVEL COM SUA IMAGEM)
-                headers_n = {
-                    "Authorization": f"Bearer {NOTION_TOKEN}",
-                    "Content-Type": "application/json",
-                    "Notion-Version": "2022-06-28"
-                }
-                
-                payload_n = {
-                    "parent": {"database_id": ID_HISTORICO_NOTION},
-                    "properties": {
-                        "Responsável": {"title": [{"text": {"content": str(resp_nome)}}]},
-                        "Navio": {"rich_text": [{"text": {"content": str(navio_nome)}}]},
-                        "Novo Rancho": {"date": {"start": data_recebimento.isoformat()}},
-                        "Validade": {"date": {"start": data_validade.isoformat()}},
-                        "Qtde Tripulante": {"number": int(qtde_trip)},
-                        "Escolta": {"select": {"name": str(escolta_sel)}},
-                        "Porto de Origem": {"rich_text": [{"text": {"content": str(origem)}}]},
-                        "Porto de Destino": {"rich_text": [{"text": {"content": str(destino)}}]},
-                        "Considerações": {"rich_text": [{"text": {"content": str(consideracoes)}}]},
-                        "Assinatura": {"rich_text": [{"text": {"content": str(img_str)}}]}
-                    }
-                }
-                
-                res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
-                
-                if res_n.status_code == 200:
-                    st.success("✅ Salvo no Notion com sucesso!")
-                    st.download_button("📥 BAIXAR PDF GERADO", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
-                else:
-                    st.error(f"Erro no Notion: {res_n.json().get('message', 'Erro 400')}")
-                    st.warning("Verifique se as colunas 'Validade' e 'Novo Rancho' são do tipo DATA no Notion.")
-
-            except Exception as e:
-                st.error(f"Erro ao processar: {e}")
+                    pdf.ln(5); pdf.set_font("
 # =================================================================
 # BLOCO 8: HISTÓRICO E 2ª VIA
 # =================================================================
