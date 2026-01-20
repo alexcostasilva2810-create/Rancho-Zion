@@ -438,11 +438,11 @@ elif st.session_state.pagina == "tripulacao":
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
                 
                 pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
-                pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULÇÃO"), ln=True, align="C"); pdf.ln(10)
+                pdf.set_font("Arial", "B", 14); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULAÇÃO"), ln=True, align="C"); pdf.ln(10)
                 
                 pdf.set_font("Arial", "", 12)
-                corpo = (f"Pelo presente, certifico que a lotacao de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
-                         f"A provisao de rancho destina-se a cobrir as necessidades por {dias_duracao} dias. "
+                corpo = (f"Pelo presente, certifico que a lotacão de tripulantes a bordo do empurrador {navio_nome} e de {qtde_trip} tripulantes. "
+                         f"A provisão de rancho destina-se a cobrir as necessidades por {dias_duracao} dias. "
                          f"Ultimo rancho em: {data_ultimo.strftime('%d/%m/%Y')}. Validade ate {data_validade.strftime('%d/%m/%Y')}.")
                 pdf.multi_cell(0, 10, f(corpo))
                 
