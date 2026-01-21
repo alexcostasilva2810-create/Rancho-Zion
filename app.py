@@ -40,7 +40,7 @@ USUARIOS = {
     "JATOBA": {"nome": "CZA AUGUSTO", "senha": "5881"},
     "JACARANDA": {"nome": "ROGILEIA", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
-    "COZINHEIRO DE FOLGA": {"nome": "JULIO CESA", "senha": "7575"}
+    "QUARUBA": {"nome": "GABRIEL", "senha": "7221"}
 }
 
 # =================================================================
