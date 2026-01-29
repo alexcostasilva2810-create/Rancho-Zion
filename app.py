@@ -47,7 +47,8 @@ USUARIOS = {
     "LUIZ FELIPE": {"nome": "ELIOMA", "senha": "8929"},
     "AROEIRA": {"nome": "AUGUSTO", "senha": "5881"},
     "ANGICO": {"nome": "JOÃO CARLOS", "senha": "6678"},
-    "BRENO": {"nome": "ELEONILDE", "senha": "2870"}
+    "BRENO": {"nome": "ELEONILDE", "senha": "2870"},
+    "SAMAUMA": {"nome": "IVAN SOARES", "senha": "7211"}
 }
 
 # =================================================================
