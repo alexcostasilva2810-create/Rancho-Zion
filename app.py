@@ -43,7 +43,7 @@ USUARIOS = {
     "QUARUBA": {"nome": "GABRIEL", "senha": "7221"},
     "ENCARREGADO": {"nome": "CATIANO", "senha": "8935"},
     "ENCARREGADO ERITON": {"nome": "ERITON", "senha": "1867"},
-    "CUMARU": {"nome": "ELZA", "senha": "8551"},
+    "CUMARU": {"nome": "ALLAN", "senha": "8551"},
     "LUIZ FELIPE": {"nome": "ELIOMA", "senha": "8929"},
     "AROEIRA": {"nome": "AUGUSTO", "senha": "5881"},
     "ANGICO": {"nome": "JOÃO CARLOS", "senha": "6678"},
