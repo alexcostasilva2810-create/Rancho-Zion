@@ -149,7 +149,7 @@ if st.session_state.pagina == "home":
     # Espaçador para o botão não ficar em cima do nome ZION da imagem
     st.markdown("<div style='margin-top: 400px;'></div>", unsafe_allow_html=True)
 
-    if st.button("🚀 ACESSAR SISTEMA"): 
+    if st.button("ACESSAR SISTEMA"): 
         st.session_state.pagina = "login"
         st.rerun()
             
@@ -182,7 +182,7 @@ elif st.session_state.pagina == "login":
         </style>
         """, unsafe_allow_html=True)
 
-    st.markdown("<h1 style='text-align: center;'>🔐 Acesso Restrito</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'> Acesso Restrito</h1>", unsafe_allow_html=True)
     
     col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
     
@@ -193,7 +193,7 @@ elif st.session_state.pagina == "login":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        if st.button("🚀 ENTRAR"):
+        if st.button("ENTRAR"):
             dados = USUARIOS.get(navio_sel)
             if dados and senha_dig == dados["senha"]:
                 st.session_state.cozinheiro = dados["nome"]
@@ -216,19 +216,19 @@ elif st.session_state.pagina == "menu":
     if 'mensagem_boas_vindas' in st.session_state:
         st.success(st.session_state.mensagem_boas_vindas)
     
-    st.title(f"🚢 Painel - {st.session_state.navio}")
+    st.title(f"Painel - {st.session_state.navio}")
     st.markdown("---")
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📋 TABELA DE RANCHO", use_container_width=True): 
+        if st.button(" TABELA DE RANCHO", use_container_width=True): 
             st.session_state.pagina = "lista"
             st.rerun()
-        if st.button("📜 VER HISTÓRICO", use_container_width=True): 
+        if st.button(" VER HISTÓRICO", use_container_width=True): 
             st.session_state.pagina = "historico"
             st.rerun()
     with col2:
-        if st.button("👨‍✈️ DECLARAÇÃO", use_container_width=True): 
+        if st.button(" DECLARAÇÃO", use_container_width=True): 
             st.session_state.pagina = "tripulacao"
             st.rerun()
             
@@ -263,7 +263,7 @@ elif st.session_state.pagina == "lista":
         </style>
         """, unsafe_allow_html=True)
     
-    st.title("📋 Conferência de Estoque")
+    st.title(" Conferência de Estoque")
     
     col_refresh, col_spacer = st.columns([1, 3])
     with col_refresh:
@@ -346,7 +346,7 @@ elif st.session_state.pagina == "lista":
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                     df_editado.to_excel(writer, index=False, sheet_name='Rancho')
                 st.download_button(
-                    label="📊 BAIXAR EXCEL", 
+                    label=" BAIXAR EXCEL", 
                     data=output.getvalue(), 
                     file_name=f"Rancho_{st.session_state.navio}.xlsx", 
                     use_container_width=True
