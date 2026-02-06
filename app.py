@@ -41,14 +41,17 @@ USUARIOS = {
     "JACARANDA": {"nome": "ROGILEIA", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
     "QUARUBA": {"nome": "GABRIEL", "senha": "7221"},
-    "ENCARREGADO": {"nome": "CATIANO", "senha": "8935"},
+    "ENCARREGADO CATIANO": {"nome": "CATIANO", "senha": "8935"},
     "ENCARREGADO ERITON": {"nome": "ERITON", "senha": "1867"},
     "CUMARU": {"nome": "ALLAN", "senha": "8551"},
     "LUIZ FELIPE": {"nome": "ELIOMA", "senha": "8929"},
     "AROEIRA": {"nome": "ELZA", "senha": "5881"},
     "ANGICO": {"nome": "JOÃO CARLOS", "senha": "6678"},
     "BRENO": {"nome": "ELEONILDE", "senha": "2870"},
-    "SAMAUMA": {"nome": "IVAN SOARES", "senha": "7211"}
+    "SAMAUMA": {"nome": "IVAN SOARES", "senha": "7211"},
+    "ENCARREGADO MANAUS": {"nome": "Elcicley Dourado", "senha": "301003"},
+    "ENCARREGADO MIRITITUBA": {"nome": "Janary Freitas", "senha": "303010"},
+    "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"}
 }
 
 # =================================================================
