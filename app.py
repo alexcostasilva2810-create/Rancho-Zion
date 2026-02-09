@@ -51,7 +51,8 @@ USUARIOS = {
     "SAMAUMA": {"nome": "IVAN SOARES", "senha": "7211"},
     "ENCARREGADO MANAUS": {"nome": "Elcicley Dourado", "senha": "301003"},
     "ENCARREGADO MIRITITUBA": {"nome": "Janary Freitas", "senha": "303010"},
-    "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"}
+    "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
+    "IPE": {"nome": "AUGUSTO CESA", "senha": "8419"}
 }
 
 # =================================================================
