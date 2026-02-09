@@ -37,7 +37,7 @@ if 'navio' not in st.session_state: st.session_state.navio = ""
 if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
 
 USUARIOS = {
-    "JATOBA": {"nome": "CZA STEFANI", "senha": "2558"},
+    "JATOBA": {"nome": "DANTAS", "senha": "2558"},
     "JACARANDA": {"nome": "ROGILEIA", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
     "QUARUBA": {"nome": "GABRIEL", "senha": "7221"},
