@@ -44,7 +44,7 @@ USUARIOS = {
     "ENCARREGADO CATIANO": {"nome": "CATIANO", "senha": "8935"},
     "ENCARREGADO ERITON": {"nome": "ERITON", "senha": "1867"},
     "CUMARU": {"nome": "JULIO CESA", "senha": "8551"},
-    "LUIZ FELIPE": {"nome": "ELIOMA", "senha": "8929"},
+    "LUIZ FELIPE": {"nome": "JOHNNATAN", "senha": "8929"},
     "AROEIRA": {"nome": "ELZA", "senha": "5881"},
     "ANGICO": {"nome": "SARA ANACLETO", "senha": "6678"},
     "BRENO": {"nome": "DANTAS", "senha": "2870"},
