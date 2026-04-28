@@ -52,7 +52,7 @@ USUARIOS = {
     "ENCARREGADO MANAUS EUCLIDES": {"nome": "Elcicley Dourado", "senha": "301003"},
     "ENCARREGADO MIRITITUBA JANARI": {"nome": "Janary Freitas", "senha": "303010"},
     "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
-    "IPE": {"nome": "AUGUSTO CESA", "senha": "8419"},
+    "IPE": {"nome": "ALUIZO PEREIRA", "senha": "8419"},
     "TIMBORANA": {"nome": "ROGILEIA", "senha": "6300"}
 }
 
