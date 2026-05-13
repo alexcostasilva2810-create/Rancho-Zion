@@ -54,7 +54,8 @@ USUARIOS = {
     "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
     "IPE": {"nome": "ALUIZO PEREIRA", "senha": "8419"},
     "TIMBORANA": {"nome": "ROGILEIA", "senha": "6300"},
-    "CASTANHEIRA": {"nome": "ELEONILDE", "senha": "6300"}
+    "CASTANHEIRA": {"nome": "ELEONILDE", "senha": "6300"},
+    "CANJERANA": {"nome": "ALLAN", "senha": "6310"}
 }
 
 # =================================================================
