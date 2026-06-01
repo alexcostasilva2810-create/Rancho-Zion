@@ -47,7 +47,7 @@ USUARIOS = {
     "LUIZ FELIPE": {"nome": "IVAN SOARES", "senha": "8929"},
     "AROEIRA": {"nome": "SARA VIRGULINO", "senha": "5881"},
     "ANGICO": {"nome": "JOÃO CARLOS", "senha": "6678"},
-    "BRENO": {"nome": "JOHNNATAN", "senha": "2870"},
+    "BRENO": {"nome": "NETY", "senha": "2870"},
     "SAMAUMA": {"nome": "DANTAS MORAES", "senha": "7211"},
     "ENCARREGADO MANAUS EUCLIDES": {"nome": "Elcicley Dourado", "senha": "301003"},
     "ENCARREGADO MIRITITUBA JANARI": {"nome": "Janary Freitas", "senha": "303010"},
