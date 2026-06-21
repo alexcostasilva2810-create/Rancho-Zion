@@ -334,9 +334,9 @@ elif st.session_state.pagina == "lista":
                     pdf.cell(10, 6, str(r["ITEM"]), 1, 0, "C")
                     pdf.cell(30, 6, preparar(r["TIPO"]), 1, 0, "L")
                     pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
-                    pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
+                    pdf.cell(15, 6, str(r["SUGERIDO"]), 1, 0, "C")
                     pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 1, "C")
+                    pdf.cell(15, 6, str(r["PEDIDO"]), 1, 1, "C")
 
                 st.download_button(
                     label="📄 BAIXAR PDF", 
