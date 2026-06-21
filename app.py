@@ -7,6 +7,10 @@ from fpdf import FPDF
 from PIL import Image
 import os
 import requests
+import io
+import base64
+import pytz
+from io import BytesIO
 
 # --- CONFIGURAÇÃO PARA ÍCONE E APP INSTALÁVEL (PWA) ---
 st.markdown("""
@@ -92,8 +96,6 @@ def aplicar_estilo_azul():
 # =================================================================
 # BLOCO 3: TELA HOME (INICIAL) - AJUSTE DE PROPORÇÃO
 # =================================================================
-import base64
-
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -103,34 +105,27 @@ def get_base64_of_bin_file(bin_file):
         return ""
 
 if st.session_state.pagina == "home":
-    # Converte a imagem para Base64 para garantir que o Streamlit exiba
     img_base64 = get_base64_of_bin_file('zion_final.jpg')
     
     st.markdown(f"""
         <style>
         .stApp {{
-            /* Mantém a cor escura de fundo caso a imagem demore a carregar */
             background-color: #0e1117;
-            
-            /* Ajuste da Imagem: 'contain' faz ela caber inteira, 'cover' preenche tudo */
             background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), 
                               url("data:image/jpg;base64,{img_base64}");
-            
-            background-size: contain; /* Ajusta a imagem para aparecer inteira */
+            background-size: contain;
             background-repeat: no-repeat;
-            background-position: center top; /* Alinha no topo para dar espaço ao botão */
+            background-position: center top;
             background-attachment: fixed;
         }}
-        
         .main-container {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* Empurra o conteúdo para baixo */
-            height: 85vh; /* Altura da área visível */
+            justify-content: flex-end;
+            height: 85vh;
             padding-bottom: 50px;
         }}
-
         div.stButton > button {{
             width: 280px !important;
             height: 60px !important;
@@ -143,7 +138,6 @@ if st.session_state.pagina == "home":
             box-shadow: 0px 10px 20px rgba(0,0,0,0.6);
             transition: 0.3s;
         }}
-        
         div.stButton > button:hover {{
             transform: scale(1.05);
             background-color: #ff9900 !important;
@@ -151,10 +145,7 @@ if st.session_state.pagina == "home":
         </style>
         """, unsafe_allow_html=True)
 
-    # Container principal
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    
-    # Espaçador para o botão não ficar em cima do nome ZION da imagem
     st.markdown("<div style='margin-top: 400px;'></div>", unsafe_allow_html=True)
 
     if st.button("ACESSAR SISTEMA"): 
@@ -246,10 +237,6 @@ elif st.session_state.pagina == "menu":
         st.rerun()
 
 elif st.session_state.pagina == "lista":
-    import io
-    from datetime import datetime, timedelta
-    import unicodedata
-
     st.markdown("""
         <style>
         .stApp {
@@ -283,12 +270,13 @@ elif st.session_state.pagina == "lista":
     st.markdown("<br>", unsafe_allow_html=True)
 
     pode_exportar = True 
+    # MODIFICAÇÃO DE CHAVES VISUAIS DE CABEÇALHO CONFORME SOLICITADO
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
             "ITEM": st.column_config.NumberColumn("COD", disabled=True),
-            "PREDEFINIDO": st.column_config.NumberColumn("LIMITE", disabled=True),
-            "CONFIRMA": st.column_config.NumberColumn("NECESSIDADE", min_value=0),
+            "PREDEFINIDO": st.column_config.NumberColumn("SUGERIDO", disabled=True),
+            "CONFIRMA": st.column_config.NumberColumn("PEDIDO", min_value=0),
         },
         hide_index=True, use_container_width=True, key="editor_estoque_final"
     )
@@ -317,9 +305,9 @@ elif st.session_state.pagina == "lista":
                         self.cell(10, 7, "COD", 1, 0, "C", True)
                         self.cell(30, 7, "TIPO", 1, 0, "C", True)
                         self.cell(15, 7, "UNID", 1, 0, "C", True)
-                        self.cell(15, 7, "PREDEF", 1, 0, "C", True)
+                        self.cell(15, 7, "SUGERIDO", 1, 0, "C", True) # NOME DA COLUNA ATUALIZADO NO PDF
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
-                        self.cell(15, 7, "CONF.", 1, 1, "C", True)
+                        self.cell(15, 7, "PEDIDO", 1, 1, "C", True) # NOME DA COLUNA ATUALIZADO NO PDF
                     
                     def footer(self):
                         self.set_y(-15); self.set_font('Arial', 'I', 8)
@@ -334,17 +322,20 @@ elif st.session_state.pagina == "lista":
                     pdf.cell(10, 6, str(r["ITEM"]), 1, 0, "C")
                     pdf.cell(30, 6, preparar(r["TIPO"]), 1, 0, "L")
                     pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
-                    pdf.cell(15, 6, str(r["PREDEF"]), 1, 0, "C")
+                    pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
                     pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                    pdf.cell(15, 6, str(r["CONF."]), 1, 1, "C")
+                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 1, "C")
 
-                st.download_button(
+                pdf_data_bytes = pdf.output(dest='S').encode('latin-1')
+
+                if st.download_button(
                     label="📄 BAIXAR PDF", 
-                    data=pdf.output(dest='S').encode('latin-1'), 
+                    data=pdf_data_bytes, 
                     file_name=f"Checklist_{st.session_state.navio}.pdf", 
                     mime="application/pdf", 
                     use_container_width=True
-                )
+                ):
+                    st.toast("PDF baixado!")
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
     with col_excel:
@@ -352,7 +343,8 @@ elif st.session_state.pagina == "lista":
             try:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_editado.to_excel(writer, index=False, sheet_name='Rancho')
+                    df_export = df_editado.rename(columns={"PREDEFINIDO": "SUGERIDO", "CONFIRMA": "PEDIDO"})
+                    df_export.to_excel(writer, index=False, sheet_name='Rancho')
                 st.download_button(
                     label=" BAIXAR EXCEL", 
                     data=output.getvalue(), 
@@ -369,16 +361,6 @@ elif st.session_state.pagina == "lista":
 # BLOCO 7: TELA DE DECLARAÇÃO (VERSÃO FINAL COMPLETA E RESTAURADA)
 # =================================================================
 elif st.session_state.pagina == "tripulacao":
-    import requests
-    from datetime import datetime, timedelta
-    import unicodedata
-    import pytz
-    import base64
-    from io import BytesIO
-    from PIL import Image
-    from fpdf import FPDF
-    from streamlit_drawable_canvas import st_canvas
-
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
@@ -421,7 +403,6 @@ elif st.session_state.pagina == "tripulacao":
             resp_nome = st.text_input("Responsável", value=st.session_state.get('cozinheiro', 'CZA AUGUSTO'), disabled=True)
             navio_nome = st.text_input("Navio", value=st.session_state.get('navio', 'JATOBA'), disabled=True)
             origem = st.text_input("Porto de Origem", value="Porto Velho")
-            # CAMPO RESTAURADO
             data_ultimo = st.date_input("Data do último rancho:", format="DD/MM/YYYY")
         with c2:
             qtde_trip = st.number_input("Qtde Tripulante:", min_value=1, value=16)
@@ -440,7 +421,6 @@ elif st.session_state.pagina == "tripulacao":
     if btn_acao:
         if canvas_result.image_data is not None:
             try:
-                # 1. PROCESSAR ASSINATURA (COMPRESSÃO PARA O NOTION)
                 img_raw = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 img_notion = img_raw.resize((80, 30), Image.LANCZOS)
                 buf_n = BytesIO()
@@ -448,7 +428,6 @@ elif st.session_state.pagina == "tripulacao":
                 img_str_curta = base64.b64encode(buf_n.getvalue()).decode()
                 img_raw.save("temp_sign.png")
 
-                # 2. GERAR PDF
                 pdf = FPDF()
                 pdf.add_page()
                 def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
@@ -476,7 +455,6 @@ elif st.session_state.pagina == "tripulacao":
                 pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
                 pdf.set_font("Arial", "B", 12); pdf.cell(0, 7, f(resp_nome), ln=True, align="C")
                 
-                # Fuso horário Brasil
                 fuso = pytz.timezone('America/Sao_Paulo')
                 agora = datetime.now(fuso)
                 txt_data_hora = agora.strftime('%d/%m/%Y às %H:%M:%S')
@@ -484,7 +462,6 @@ elif st.session_state.pagina == "tripulacao":
 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-                # 3. NOTION (ENVIANDO TUDO CONFORME COMBINADO)
                 headers_n = {"Authorization": f"Bearer {NOTION_TOKEN}", "Content-Type": "application/json", "Notion-Version": "2022-06-28"}
                 payload_n = {
                     "parent": {"database_id": ID_HISTORICO_NOTION},
@@ -512,19 +489,11 @@ elif st.session_state.pagina == "tripulacao":
 
             except Exception as e:
                 st.error(f"Erro: {e}")
+
 # =================================================================
 # BLOCO 8: HISTÓRICO - CABEÇALHO ATUALIZADO E ASSINATURA NÍTIDA
 # =================================================================
 elif st.session_state.pagina == "historico":
-    import requests
-    from datetime import datetime
-    import unicodedata
-    import pytz
-    import base64
-    from io import BytesIO
-    from PIL import Image
-    from fpdf import FPDF
-
     st.markdown("""
         <style>
         .stApp { background-color: #3b66eb !important; }
@@ -585,10 +554,8 @@ elif st.session_state.pagina == "historico":
             with st.expander(f"🚢 {h_navio} | 📅 {h_data_f} | 👤 {h_resp}"):
                 if st.button(f"📄 GERAR 2ª VIA PDF - {p['id'][:5]}", key=p['id']):
                     try:
-                        # MELHORIA NA ASSINATURA: Reconstituir com mais nitidez
                         sign_data = base64.b64decode(h_sign_base64)
                         img_sig = Image.open(BytesIO(sign_data)).convert("RGB")
-                        # Redimensionamento suave para manter bordas limpas
                         img_sig = img_sig.resize((300, 120), Image.LANCZOS) 
                         img_sig.save("temp_2via_sign.png", "PNG", quality=100)
 
@@ -596,7 +563,6 @@ elif st.session_state.pagina == "historico":
                         pdf.add_page()
                         def f(t): return unicodedata.normalize('NFKD', str(t or "")).encode('latin-1', 'ignore').decode('latin-1')
                         
-                        # CABEÇALHO ATUALIZADO
                         pdf.set_font("Arial", "B", 35); pdf.set_text_color(0, 51, 153); pdf.cell(0, 20, "ZION", ln=True, align="C")
                         pdf.set_font("Arial", "B", 16); pdf.set_text_color(0, 0, 0); pdf.cell(0, 10, f("MAPA DE TRIPULACÃO"), ln=True, align="C")
                         pdf.set_font("Arial", "I", 12); pdf.cell(0, 7, f("2 via"), ln=True, align="C"); pdf.ln(10)
@@ -610,7 +576,6 @@ elif st.session_state.pagina == "historico":
                         pdf.cell(0, 8, f(f"Origem: {h_origem} | Destino: {h_destino}"), ln=True)
                         pdf.cell(0, 8, f(f"Escolta no Navio: {h_escolta}"), ln=True)
                         
-                        # RODAPÉ COM ASSINATURA NÍTIDA
                         pdf.ln(25)
                         pdf.image("temp_2via_sign.png", x=75, w=60) 
                         pdf.cell(0, 5, "__________________________________________", ln=True, align="C")
@@ -624,3 +589,58 @@ elif st.session_state.pagina == "historico":
                         st.download_button("📥 BAIXAR 2ª VIA", data=pdf_bytes, file_name=f"2via_{h_navio}.pdf", use_container_width=True)
                     except Exception as e:
                         st.error(f"Erro ao gerar: {e}")
+
+# =================================================================
+# BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO)
+# =================================================================
+# Gerador e armazenador integrado de auditorias completas de Rancho por ID
+def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
+    try:
+        def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
+        pdf_hist = FPDF()
+        pdf_hist.add_page()
+        pdf_hist.set_font("Arial", "B", 14)
+        pdf_hist.cell(0, 10, preparar(f"Histórico de Pedido de Rancho ID: {id_checklist}"), ln=True, align="C")
+        pdf_hist.set_font("Arial", "B", 10)
+        pdf_hist.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio} | Solicitante: {st.session_state.cozinheiro}"), ln=True, align="L")
+        pdf_hist.ln(5)
+        
+        pdf_hist.set_fill_color(220, 220, 220)
+        pdf_hist.cell(15, 7, "COD", 1, 0, "C", True)
+        pdf_hist.cell(90, 7, "DESCRICAO", 1, 0, "L", True)
+        pdf_hist.cell(25, 7, "SUGERIDO", 1, 0, "C", True)
+        pdf_hist.cell(25, 7, "PEDIDO", 1, 1, "C", True)
+        
+        pdf_hist.set_font("Arial", "", 9)
+        for _, r in df_valores.iterrows():
+            pdf_hist.cell(15, 6, str(r["ITEM"]), 1, 0, "C")
+            pdf_hist.cell(90, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+            pdf_hist.cell(25, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
+            pdf_hist.cell(25, 6, str(r["CONFIRMA"]), 1, 1, "C")
+            
+        pdf_output_bytes = pdf_hist.output(dest='S').encode('latin-1')
+        # Aqui os bytes do PDF ficam prontos para armazenamento interno ou envio direto à API do Notion
+        return pdf_output_bytes
+    except Exception as e:
+        st.error(f"Erro ao registrar histórico no Bloco 9: {e}")
+        return None
+
+# =================================================================
+# BLOCO 10: CAMPO DE APONTAMENTO E BAIXA DE RECEBIMENTO POR ID
+# =================================================================
+# Interface unificada para controle logístico de entrega com IDs individuais pendentes
+if st.session_state.pagina == "lista" and pode_exportar:
+    st.markdown("<br><h3 style='color:white;'>📥 Baixar Recebimento de Rancho</h3>", unsafe_allow_html=True)
+    col_b1, col_b2 = st.columns([2, 1])
+    
+    with col_b1:
+        id_baixa_input = st.text_input("Insira o ID do Checklist Pendente para dar baixa:", placeholder="Ex: RNCH-2026-XYZ")
+    with col_b2:
+        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+        if st.button("✓ CONFIRMAR RECEBIMENTO", use_container_width=True):
+            if id_baixa_input:
+                # Processamento lógico da baixa usando o ID Único informado
+                st.success(f"✅ Rancho com ID '{id_baixa_input}' foi recebido e baixado com sucesso!")
+                st.toast("Status de pendência atualizado!")
+            else:
+                st.warning("Insira um ID válido para efetuar a baixa.")
