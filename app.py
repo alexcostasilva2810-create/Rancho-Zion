@@ -293,7 +293,7 @@ elif st.session_state.pagina == "lista":
     col_pdf, col_excel, col_menu = st.columns(3)
     
     with col_pdf:
-        if pode_exportar or not pode_exportar: # Permitindo renderizar para teste visual do fluxo completo
+        if pode_exportar or not pode_exportar: 
             try:
                 def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
@@ -302,24 +302,21 @@ elif st.session_state.pagina == "lista":
                         if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
                         self.set_font("Arial", "B", 14); self.ln(22)
                         
-                        # Ajuste do Cabeçalho Conforme Solicitado
                         self.cell(0, 10, preparar(f"Solicitação de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
                         
-                        # Inclusão do ID Automático e Semáforo Visual
                         self.set_font("Arial", "B", 11)
                         self.cell(40, 8, preparar(f"ID: {st.session_state.id_rancho_atual}"), 0, 0, "L")
                         
                         if status_rancho == "BAIXADO":
-                            self.set_text_color(0, 128, 0) # Verde para Baixado
+                            self.set_text_color(0, 128, 0)
                             self.cell(0, 8, preparar("STATUS: o BAIXADO"), 0, 1, "R")
                         else:
-                            self.set_text_color(255, 0, 0) # Vermelho para Pendente
+                            self.set_text_color(255, 0, 0)
                             self.cell(0, 8, preparar("STATUS: o PENDENTE"), 0, 1, "R")
                         
-                        self.set_text_color(0, 0, 0) # Reset Cor
+                        self.set_text_color(0, 0, 0)
                         self.ln(3)
 
-                        # Desenho estruturado do Balão de Aviso ao Fornecedor acima da área correspondente
                         self.set_fill_color(255, 243, 205)
                         self.set_text_color(133, 100, 4)
                         self.set_font("Arial", "B", 9)
@@ -327,14 +324,13 @@ elif st.session_state.pagina == "lista":
                         self.set_text_color(0, 0, 0)
                         self.ln(2)
 
-                        # Estrutura do Cabeçalho da Tabela reposicionado (UNID ao lado do PEDIDO)
                         self.set_fill_color(200, 200, 200); self.set_font("Arial", "B", 8)
                         self.cell(10, 7, "COD", 1, 0, "C", True)
                         self.cell(30, 7, "TIPO", 1, 0, "C", True)
                         self.cell(15, 7, "SUGERIDO", 1, 0, "C", True)
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
                         self.cell(15, 7, "PEDIDO", 1, 0, "C", True)
-                        self.cell(15, 7, "UNID", 1, 1, "C", True) # Colado ao lado do Pedido conforme imagens
+                        self.cell(15, 7, "UNID", 1, 1, "C", True)
                     
                     def footer(self):
                         self.set_y(-15); self.set_font('Arial', 'I', 8)
@@ -351,7 +347,7 @@ elif st.session_state.pagina == "lista":
                     pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
                     pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
                     pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
-                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 1, "C") # Colado ao lado direito do pedido
+                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 1, "C")
 
                 pdf_data_bytes = pdf.output(dest='S').encode('latin-1')
 
@@ -362,7 +358,7 @@ elif st.session_state.pagina == "lista":
                     mime="application/pdf", 
                     use_container_width=True
                 ):
-                    st.session_state.id_rancho_atual += 1 # Auto incremento do ID após extração bem sucedida
+                    st.session_state.id_rancho_atual += 1
                     st.toast("PDF gerado e armazenado com sucesso!")
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
@@ -509,7 +505,7 @@ elif st.session_state.pagina == "tripulacao":
                 res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
                 
                 if res_n.status_code == 200:
-                    st.success("✅ Tudo ok! PDF e Notion atualizados.")
+                    st.success("✅ Tudo ok! PDF e Notion updated.")
                     st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
                 else:
                     st.error(f"Erro Notion: {res_n.json().get('message')}")
@@ -619,34 +615,38 @@ elif st.session_state.pagina == "historico":
                         st.error(f"Erro ao gerar: {e}")
 
 # =================================================================
-# BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO)
+# BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO / COMPLETO)
 # =================================================================
 def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
     try:
         def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
         pdf_hist = FPDF()
         pdf_hist.add_page()
+        
         pdf_hist.set_font("Arial", "B", 14)
         pdf_hist.cell(0, 10, preparar(f"Histórico de Pedido de Rancho ID: {id_checklist}"), ln=True, align="C")
+        
         pdf_hist.set_font("Arial", "B", 10)
-        pdf_hist.cell(0, 8, preparar(f"Embarcação: {st.session_state.navio} | Solicitante: {st.session_state.cozinheiro}"), ln=True, align="L")
+        pdf_hist.cell(0, 8, preparar(f"Embarcação: {st.session_state.get('navio', 'N/A')}"), ln=True)
+        pdf_hist.cell(0, 8, preparar(f"Responsável: {st.session_state.get('cozinheiro', 'N/A')}"), ln=True)
         pdf_hist.ln(5)
         
-        pdf_hist.set_fill_color(220, 220, 220)
+        # Cabeçalho da tabela do histórico
+        pdf_hist.set_fill_color(200, 200, 200)
         pdf_hist.cell(15, 7, "COD", 1, 0, "C", True)
-        pdf_hist.cell(90, 7, "DESCRICAO", 1, 0, "L", True)
-        pdf_hist.cell(25, 7, "SUGERIDO", 1, 0, "C", True)
-        pdf_hist.cell(25, 7, "PEDIDO", 1, 1, "C", True)
+        pdf_hist.cell(110, 7, "DESCRICAO", 1, 0, "L", True)
+        pdf_hist.cell(25, 7, "PEDIDO", 1, 0, "C", True)
+        pdf_hist.cell(25, 7, "UNID", 1, 1, "C", True)
         
         pdf_hist.set_font("Arial", "", 9)
         for _, r in df_valores.iterrows():
             pdf_hist.cell(15, 6, str(r["ITEM"]), 1, 0, "C")
-            pdf_hist.cell(90, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-            pdf_hist.cell(25, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
-            pdf_hist.cell(25, 6, str(r["CONFIRMA"]), 1, 1, "C")
+            pdf_hist.cell(110, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
+            pdf_hist.cell(25, 6, str(r["CONFIRMA"]), 1, 0, "C")
+            pdf_hist.cell(25, 6, preparar(r["UNID MED"]), 1, 1, "C")
             
-        pdf_output_bytes = pdf_hist.output(dest='S').encode('latin-1')
-        return pdf_output_bytes
+        pdf_bytes_hist = pdf_hist.output(dest='S').encode('latin-1')
+        return pdf_bytes_hist
     except Exception as e:
-        st.error(f"Erro ao registrar histórico no Bloco 9: {e}")
+        st.error(f"Erro no Bloco 9: {e}")
         return None
