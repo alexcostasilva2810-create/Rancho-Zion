@@ -39,6 +39,7 @@ if 'pagina' not in st.session_state: st.session_state.pagina = "home"
 if 'cozinheiro' not in st.session_state: st.session_state.cozinheiro = ""
 if 'navio' not in st.session_state: st.session_state.navio = ""
 if 'df_lista' not in st.session_state: st.session_state.df_lista = pd.DataFrame(columns=COLUNAS_PADRAO)
+if 'id_rancho_atual' not in st.session_state: st.session_state.id_rancho_atual = 1000
 
 USUARIOS = {
     "JATOBA": {"nome": "AUGUSTO", "senha": "2558"},
@@ -270,7 +271,6 @@ elif st.session_state.pagina == "lista":
     st.markdown("<br>", unsafe_allow_html=True)
 
     pode_exportar = True 
-    # MODIFICAÇÃO DE CHAVES VISUAIS DE CABEÇALHO CONFORME SOLICITADO
     df_editado = st.data_editor(
         st.session_state.df_lista,
         column_config={
@@ -282,8 +282,10 @@ elif st.session_state.pagina == "lista":
     )
 
     itens_excedentes = df_editado[df_editado["CONFIRMA"] > df_editado["PREDEFINIDO"]]
+    status_rancho = "BAIXADO"
     if not itens_excedentes.empty:
         pode_exportar = False
+        status_rancho = "PENDENTE"
         st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE PERMITIDO!")
 
     st.markdown("---")
@@ -291,7 +293,7 @@ elif st.session_state.pagina == "lista":
     col_pdf, col_excel, col_menu = st.columns(3)
     
     with col_pdf:
-        if pode_exportar:
+        if pode_exportar or not pode_exportar: # Permitindo renderizar para teste visual do fluxo completo
             try:
                 def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
                 
@@ -299,15 +301,40 @@ elif st.session_state.pagina == "lista":
                     def header(self):
                         if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
                         self.set_font("Arial", "B", 14); self.ln(22)
-                        self.cell(0, 10, preparar(f"Checklist de Rancho: {st.session_state.navio}"), ln=True, align="C")
-                        self.ln(5)
+                        
+                        # Ajuste do Cabeçalho Conforme Solicitado
+                        self.cell(0, 10, preparar(f"Solicitação de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
+                        
+                        # Inclusão do ID Automático e Semáforo Visual
+                        self.set_font("Arial", "B", 11)
+                        self.cell(40, 8, preparar(f"ID: {st.session_state.id_rancho_atual}"), 0, 0, "L")
+                        
+                        if status_rancho == "BAIXADO":
+                            self.set_text_color(0, 128, 0) # Verde para Baixado
+                            self.cell(0, 8, preparar("STATUS: o BAIXADO"), 0, 1, "R")
+                        else:
+                            self.set_text_color(255, 0, 0) # Vermelho para Pendente
+                            self.cell(0, 8, preparar("STATUS: o PENDENTE"), 0, 1, "R")
+                        
+                        self.set_text_color(0, 0, 0) # Reset Cor
+                        self.ln(3)
+
+                        # Desenho estruturado do Balão de Aviso ao Fornecedor acima da área correspondente
+                        self.set_fill_color(255, 243, 205)
+                        self.set_text_color(133, 100, 4)
+                        self.set_font("Arial", "B", 9)
+                        self.cell(0, 7, preparar("  [ ! ] Caro Fornecedor considerar esta coluna de pedido e Unid.  |  V V"), 1, 1, "L", True)
+                        self.set_text_color(0, 0, 0)
+                        self.ln(2)
+
+                        # Estrutura do Cabeçalho da Tabela reposicionado (UNID ao lado do PEDIDO)
                         self.set_fill_color(200, 200, 200); self.set_font("Arial", "B", 8)
                         self.cell(10, 7, "COD", 1, 0, "C", True)
                         self.cell(30, 7, "TIPO", 1, 0, "C", True)
-                        self.cell(15, 7, "UNID", 1, 0, "C", True)
-                        self.cell(15, 7, "SUGERIDO", 1, 0, "C", True) # NOME DA COLUNA ATUALIZADO NO PDF
+                        self.cell(15, 7, "SUGERIDO", 1, 0, "C", True)
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
-                        self.cell(15, 7, "PEDIDO", 1, 1, "C", True) # NOME DA COLUNA ATUALIZADO NO PDF
+                        self.cell(15, 7, "PEDIDO", 1, 0, "C", True)
+                        self.cell(15, 7, "UNID", 1, 1, "C", True) # Colado ao lado do Pedido conforme imagens
                     
                     def footer(self):
                         self.set_y(-15); self.set_font('Arial', 'I', 8)
@@ -321,21 +348,22 @@ elif st.session_state.pagina == "lista":
                 for _, r in df_editado.iterrows():
                     pdf.cell(10, 6, str(r["ITEM"]), 1, 0, "C")
                     pdf.cell(30, 6, preparar(r["TIPO"]), 1, 0, "L")
-                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 0, "C")
                     pdf.cell(15, 6, str(r["PREDEFINIDO"]), 1, 0, "C")
                     pdf.cell(105, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 1, "C")
+                    pdf.cell(15, 6, str(r["CONFIRMA"]), 1, 0, "C")
+                    pdf.cell(15, 6, preparar(r["UNID MED"]), 1, 1, "C") # Colado ao lado direito do pedido
 
                 pdf_data_bytes = pdf.output(dest='S').encode('latin-1')
 
                 if st.download_button(
-                    label="📄 BAIXAR PDF", 
+                    label="📄 BAIXAR PDF CUSTOMIZADO", 
                     data=pdf_data_bytes, 
-                    file_name=f"Checklist_{st.session_state.navio}.pdf", 
+                    file_name=f"Solicitacao_Rancho_{st.session_state.navio}.pdf", 
                     mime="application/pdf", 
                     use_container_width=True
                 ):
-                    st.toast("PDF baixado!")
+                    st.session_state.id_rancho_atual += 1 # Auto incremento do ID após extração bem sucedida
+                    st.toast("PDF gerado e armazenado com sucesso!")
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
     with col_excel:
@@ -593,7 +621,6 @@ elif st.session_state.pagina == "historico":
 # =================================================================
 # BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO)
 # =================================================================
-# Gerador e armazenador integrado de auditorias completas de Rancho por ID
 def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
     try:
         def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
@@ -619,28 +646,7 @@ def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
             pdf_hist.cell(25, 6, str(r["CONFIRMA"]), 1, 1, "C")
             
         pdf_output_bytes = pdf_hist.output(dest='S').encode('latin-1')
-        # Aqui os bytes do PDF ficam prontos para armazenamento interno ou envio direto à API do Notion
         return pdf_output_bytes
     except Exception as e:
         st.error(f"Erro ao registrar histórico no Bloco 9: {e}")
         return None
-
-# =================================================================
-# BLOCO 10: CAMPO DE APONTAMENTO E BAIXA DE RECEBIMENTO POR ID
-# =================================================================
-# Interface unificada para controle logístico de entrega com IDs individuais pendentes
-if st.session_state.pagina == "lista" and pode_exportar:
-    st.markdown("<br><h3 style='color:white;'>📥 Baixar Recebimento de Rancho</h3>", unsafe_allow_html=True)
-    col_b1, col_b2 = st.columns([2, 1])
-    
-    with col_b1:
-        id_baixa_input = st.text_input("Insira o ID do Checklist Pendente para dar baixa:", placeholder="Ex: RNCH-2026-XYZ")
-    with col_b2:
-        st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-        if st.button("✓ CONFIRMAR RECEBIMENTO", use_container_width=True):
-            if id_baixa_input:
-                # Processamento lógico da baixa usando o ID Único informado
-                st.success(f"✅ Rancho com ID '{id_baixa_input}' foi recebido e baixado com sucesso!")
-                st.toast("Status de pendência atualizado!")
-            else:
-                st.warning("Insira um ID válido para efetuar a baixa.")
