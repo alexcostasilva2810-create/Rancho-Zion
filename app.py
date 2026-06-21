@@ -317,9 +317,9 @@ elif st.session_state.pagina == "lista":
                         self.cell(10, 7, "COD", 1, 0, "C", True)
                         self.cell(30, 7, "TIPO", 1, 0, "C", True)
                         self.cell(15, 7, "UNID", 1, 0, "C", True)
-                        self.cell(15, 7, "PREDEF", 1, 0, "C", True)
+                        self.cell(15, 7, "SUGERIDO", 1, 0, "C", True)
                         self.cell(105, 7, "DESCRICAO", 1, 0, "C", True)
-                        self.cell(15, 7, "CONF.", 1, 1, "C", True)
+                        self.cell(15, 7, "PEDIDO", 1, 1, "C", True)
                     
                     def footer(self):
                         self.set_y(-15); self.set_font('Arial', 'I', 8)
