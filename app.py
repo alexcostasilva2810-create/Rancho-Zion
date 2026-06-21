@@ -300,27 +300,23 @@ elif st.session_state.pagina == "lista":
                 class PDF_Checklist(FPDF):
                     def header(self):
                         if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
-                        self.set_font("Arial", "B", 14); self.ln(22)
                         
+                        # Nome Zion destacado no topo
+                        self.set_font("Arial", "B", 18)
+                        self.cell(0, 10, preparar("ZION"), ln=True, align="C")
+                        
+                        # Título logo abaixo do nome
+                        self.set_font("Arial", "B", 14)
                         self.cell(0, 10, preparar(f"Solicitacao de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
                         
-                        self.set_font("Arial", "B", 11)
-                        self.cell(40, 8, preparar(f"ID: {st.session_state.id_rancho_atual}"), 0, 0, "L")
-                        
-                        if status_rancho == "BAIXADO":
-                            self.set_text_color(0, 128, 0) # Verde para Baixado
-                            self.cell(0, 8, preparar("STATUS: o BAIXADO"), 0, 1, "R")
-                        else:
-                            self.set_text_color(255, 0, 0) # Vermelho para NÃO Baixado conforme imagem
-                            self.cell(0, 8, preparar("STATUS: o NAO BAIXADO"), 0, 1, "R")
-                        
-                        self.set_text_color(0, 0, 0) # Reset Cor
+                        # ID e Status foram inteiramente removidos daqui conforme solicitado
                         self.ln(3)
 
                         self.set_fill_color(255, 243, 205)
                         self.set_text_color(133, 100, 4)
                         self.set_font("Arial", "B", 9)
-                        self.cell(0, 7, preparar("  [ ! ] Caro Fornecedor considerar esta coluna de pedido e Unid.  |  V V"), 1, 1, "L", True)
+                        # Texto simplificado e limpo sem o "V V"
+                        self.cell(0, 7, preparar("  [ ! ] Caro fornecedor considere as Colunas Pedido e Unidade"), 1, 1, "L", True)
                         self.set_text_color(0, 0, 0)
                         self.ln(2)
 
@@ -627,14 +623,5 @@ def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
         pdf_hist.set_font("Arial", "B", 10)
         pdf_hist.cell(0, 8, preparar(f"Embarcação: {st.session_state.get('navio', 'N/A')}"), ln=True)
         pdf_hist.ln(5)
-        
-        # Estrutura básica para salvar os dados da tabela no PDF de histórico
-        for _, r in df_valores.iterrows():
-            pdf_hist.cell(20, 6, str(r["ITEM"]), 1)
-            pdf_hist.cell(100, 6, preparar(r["DESCRIÇÃO"]), 1)
-            pdf_hist.cell(30, 6, str(r["CONFIRMA"]), 1, 1)
-            
-        return pdf_hist.output(dest='S').encode('latin-1')
-    except Exception as e:
-        print(f"Erro ao salvar histórico: {e}")
-        return None
+    except:
+        pass
