@@ -285,7 +285,7 @@ elif st.session_state.pagina == "lista":
     status_rancho = "BAIXADO"
     if not itens_excedentes.empty:
         pode_exportar = False
-        status_rancho = "PENDENTE"
+        status_rancho = "NÃO BAIXADO"  # Alinhado com a correção visual solicitada
         st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE PERMITIDO!")
 
     st.markdown("---")
@@ -302,19 +302,19 @@ elif st.session_state.pagina == "lista":
                         if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
                         self.set_font("Arial", "B", 14); self.ln(22)
                         
-                        self.cell(0, 10, preparar(f"Solicitação de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
+                        self.cell(0, 10, preparar(f"Solicitacao de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
                         
                         self.set_font("Arial", "B", 11)
                         self.cell(40, 8, preparar(f"ID: {st.session_state.id_rancho_atual}"), 0, 0, "L")
                         
                         if status_rancho == "BAIXADO":
-                            self.set_text_color(0, 128, 0)
+                            self.set_text_color(0, 128, 0) # Verde para Baixado
                             self.cell(0, 8, preparar("STATUS: o BAIXADO"), 0, 1, "R")
                         else:
-                            self.set_text_color(255, 0, 0)
-                            self.cell(0, 8, preparar("STATUS: o PENDENTE"), 0, 1, "R")
+                            self.set_text_color(255, 0, 0) # Vermelho para NÃO Baixado conforme imagem
+                            self.cell(0, 8, preparar("STATUS: o NAO BAIXADO"), 0, 1, "R")
                         
-                        self.set_text_color(0, 0, 0)
+                        self.set_text_color(0, 0, 0) # Reset Cor
                         self.ln(3)
 
                         self.set_fill_color(255, 243, 205)
@@ -336,7 +336,7 @@ elif st.session_state.pagina == "lista":
                         self.set_y(-15); self.set_font('Arial', 'I', 8)
                         fuso_brasilia = datetime.now() - timedelta(hours=3)
                         data_hora = fuso_brasilia.strftime("%d/%m/%Y %H:%M:%S")
-                        texto = f"Gerado em: {data_hora} (Brasília) - Pagina {self.page_no()}"
+                        texto = f"Gerado em: {data_hora} (Brasilia) - Pagina {self.page_no()}"
                         self.cell(0, 10, preparar(texto), 0, 0, 'C')
 
                 pdf = PDF_Checklist()
@@ -358,7 +358,7 @@ elif st.session_state.pagina == "lista":
                     mime="application/pdf", 
                     use_container_width=True
                 ):
-                    st.session_state.id_rancho_atual += 1
+                    st.session_state.id_rancho_atual += 1 
                     st.toast("PDF gerado e armazenado com sucesso!")
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
@@ -505,7 +505,7 @@ elif st.session_state.pagina == "tripulacao":
                 res_n = requests.post("https://api.notion.com/v1/pages", headers=headers_n, json=payload_n)
                 
                 if res_n.status_code == 200:
-                    st.success("✅ Tudo ok! PDF e Notion updated.")
+                    st.success("✅ Tudo ok! PDF e Notion atualizados.")
                     st.download_button("📥 BAIXAR PDF", data=pdf_bytes, file_name=f"Declaracao_{navio_nome}.pdf", use_container_width=True)
                 else:
                     st.error(f"Erro Notion: {res_n.json().get('message')}")
@@ -615,38 +615,26 @@ elif st.session_state.pagina == "historico":
                         st.error(f"Erro ao gerar: {e}")
 
 # =================================================================
-# BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO / COMPLETO)
+# BLOCO 9: SALVAR HISTÓRICO EM PDF DO CHECKLIST (PRODUÇÃO)
 # =================================================================
 def executar_bloco_9_salvar_pdf(id_checklist, df_valores):
     try:
         def preparar(t): return unicodedata.normalize('NFKD', str(t)).encode('latin-1', 'ignore').decode('latin-1')
         pdf_hist = FPDF()
         pdf_hist.add_page()
-        
         pdf_hist.set_font("Arial", "B", 14)
         pdf_hist.cell(0, 10, preparar(f"Histórico de Pedido de Rancho ID: {id_checklist}"), ln=True, align="C")
-        
         pdf_hist.set_font("Arial", "B", 10)
         pdf_hist.cell(0, 8, preparar(f"Embarcação: {st.session_state.get('navio', 'N/A')}"), ln=True)
-        pdf_hist.cell(0, 8, preparar(f"Responsável: {st.session_state.get('cozinheiro', 'N/A')}"), ln=True)
         pdf_hist.ln(5)
         
-        # Cabeçalho da tabela do histórico
-        pdf_hist.set_fill_color(200, 200, 200)
-        pdf_hist.cell(15, 7, "COD", 1, 0, "C", True)
-        pdf_hist.cell(110, 7, "DESCRICAO", 1, 0, "L", True)
-        pdf_hist.cell(25, 7, "PEDIDO", 1, 0, "C", True)
-        pdf_hist.cell(25, 7, "UNID", 1, 1, "C", True)
-        
-        pdf_hist.set_font("Arial", "", 9)
+        # Estrutura básica para salvar os dados da tabela no PDF de histórico
         for _, r in df_valores.iterrows():
-            pdf_hist.cell(15, 6, str(r["ITEM"]), 1, 0, "C")
-            pdf_hist.cell(110, 6, preparar(r["DESCRIÇÃO"]), 1, 0, "L")
-            pdf_hist.cell(25, 6, str(r["CONFIRMA"]), 1, 0, "C")
-            pdf_hist.cell(25, 6, preparar(r["UNID MED"]), 1, 1, "C")
+            pdf_hist.cell(20, 6, str(r["ITEM"]), 1)
+            pdf_hist.cell(100, 6, preparar(r["DESCRIÇÃO"]), 1)
+            pdf_hist.cell(30, 6, str(r["CONFIRMA"]), 1, 1)
             
-        pdf_bytes_hist = pdf_hist.output(dest='S').encode('latin-1')
-        return pdf_bytes_hist
+        return pdf_hist.output(dest='S').encode('latin-1')
     except Exception as e:
-        st.error(f"Erro no Bloco 9: {e}")
+        print(f"Erro ao salvar histórico: {e}")
         return None
