@@ -285,7 +285,7 @@ elif st.session_state.pagina == "lista":
     status_rancho = "BAIXADO"
     if not itens_excedentes.empty:
         pode_exportar = False
-        status_rancho = "NÃO BAIXADO"  # Alinhado com a correção visual solicitada
+        status_rancho = "NÃO BAIXADO"  
         st.error("⚠️ BLOQUEIO: VALOR ACIMA DO LIMITE PERMITIDO!")
 
     st.markdown("---")
@@ -301,24 +301,26 @@ elif st.session_state.pagina == "lista":
                     def header(self):
                         if os.path.exists("zion3.jpg"): self.image("zion3.jpg", 95, 8, 20)
                         
-                        # Nome Zion destacado no topo
-                        self.set_font("Arial", "B", 18)
-                        self.cell(0, 10, preparar("ZION"), ln=True, align="C")
+                        # Nome Zion destacado no topo com tamanho grande
+                        self.set_font("Arial", "B", 35)
+                        self.set_text_color(0, 51, 153)
+                        self.cell(0, 15, preparar("ZION"), ln=True, align="C")
                         
                         # Título logo abaixo do nome
                         self.set_font("Arial", "B", 14)
+                        self.set_text_color(0, 0, 0)
                         self.cell(0, 10, preparar(f"Solicitacao de Rancho do E/M: {st.session_state.navio}"), ln=True, align="C")
                         
-                        # ID e Status foram inteiramente removidos daqui conforme solicitado
+                        # ID e Status foram removidos completamente daqui
                         self.ln(3)
 
                         self.set_fill_color(255, 243, 205)
                         self.set_text_color(133, 100, 4)
-                        self.set_font("Arial", "B", 9)
-                        # Texto simplificado e limpo sem o "V V"
-                        self.cell(0, 7, preparar("  [ ! ] Caro fornecedor considere as Colunas Pedido e Unidade"), 1, 1, "L", True)
+                        self.set_font("Arial", "B", 10)
+                        # Texto simplificado conforme solicitado
+                        self.cell(0, 8, preparar("Caro Fornecedor considere apenas as colunas Pedido e UNID."), 1, 1, "C", True)
                         self.set_text_color(0, 0, 0)
-                        self.ln(2)
+                        self.ln(4)
 
                         self.set_fill_color(200, 200, 200); self.set_font("Arial", "B", 8)
                         self.cell(10, 7, "COD", 1, 0, "C", True)
@@ -355,7 +357,7 @@ elif st.session_state.pagina == "lista":
                     use_container_width=True
                 ):
                     st.session_state.id_rancho_atual += 1 
-                    st.toast("PDF gerado e armazenado com sucesso!")
+                    st.toast("PDF gerado com sucesso!")
             except Exception as e: st.error(f"Erro no PDF: {e}")
 
     with col_excel:
