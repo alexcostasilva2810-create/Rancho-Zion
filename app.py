@@ -58,7 +58,7 @@ USUARIOS = {
     "ENCARREGADO MIRITITUBA JANARI": {"nome": "Janary Freitas", "senha": "303010"},
     "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
     "IPE": {"nome": "JOHNNATAN", "senha": "8419"},
-    "TIMBORANA": {"nome": "ROGILEIA", "senha": "6300"},
+    "TIMBORANA": {"nome": "Reinaldo Henrique", "senha": "6300"},
     "CASTANHEIRA": {"nome": "STEFANI", "senha": "6300"},
     "CANJERANA": {"nome": "ALLAN", "senha": "6311"},
     "QUARUBA": {"nome": "ELIOMA", "senha": "6310"}
