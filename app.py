@@ -45,7 +45,7 @@ USUARIOS = {
     "JATOBA": {"nome": "AUGUSTO", "senha": "2558"},
     "JACARANDA": {"nome": "GABRIEL", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
-    "ANGELO": {"nome": "NADA", "senha": "7221"},
+    "ANGELO": {"nome": "EDGAR", "senha": "7221"},
     "ENCARREGADO CATIANO": {"nome": "CATIANO", "senha": "8935"},
     "ENCARREGADO ERITON": {"nome": "ERITON", "senha": "1867"},
     "CUMARU": {"nome": "JULIO CESA", "senha": "8551"},
