@@ -53,7 +53,7 @@ USUARIOS = {
     "AROEIRA": {"nome": "Rogileia", "senha": "5881"},
     "ANGICO": {"nome": "EDNA VASCONCELOS", "senha": "6678"},
     "BRENO": {"nome": "NETY", "senha": "2870"},
-    "SAMAUMA": {"nome": "DANTAS MORAES", "senha": "7211"},
+    "SAMAUMA": {"nome": "SARAH", "senha": "7211"},
     "ENCARREGADO MANAUS EUCLIDES": {"nome": "Elcicley Dourado", "senha": "301003"},
     "ENCARREGADO MIRITITUBA JANARI": {"nome": "Janary Freitas", "senha": "303010"},
     "SUPERVISOR SANTARÉM": {"nome": "Rafael Artur", "senha": "103010"},
