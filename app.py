@@ -43,7 +43,7 @@ if 'id_rancho_atual' not in st.session_state: st.session_state.id_rancho_atual =
 
 USUARIOS = {
     "JATOBA": {"nome": "AUGUSTO", "senha": "2558"},
-    "JACARANDA": {"nome": "GABRIEL", "senha": "6352"},
+    "JACARANDA": {"nome": "LIVRE", "senha": "6352"},
     "ADMINISTRADOR": {"nome": "ALEX", "senha": "2463"},
     "ANGELO": {"nome": "EDGAR", "senha": "7221"},
     "ENCARREGADO CATIANO": {"nome": "CATIANO", "senha": "8935"},
@@ -61,7 +61,7 @@ USUARIOS = {
     "TIMBORANA": {"nome": "Reinaldo Henrique", "senha": "6300"},
     "CASTANHEIRA": {"nome": "JOSE", "senha": "6300"},
     "CANJERANA": {"nome": "ALLAN", "senha": "6311"},
-    "QUARUBA": {"nome": "ELIOMA", "senha": "6310"}
+    "QUARUBA": {"nome": "GABRIEL", "senha": "6310"}
 }
 
 # =================================================================
